@@ -1,0 +1,32 @@
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+secrets/
+
+# Backups and runtime data
+backups/
+data/
+volumes/
+*.dump
+*.sql
+*.sql.gz
+*.tar
+*.tar.gz
+
+# Logs
+logs/
+*.log
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Temporary files
+tmp/
+.cache/
