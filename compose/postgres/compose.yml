@@ -1,0 +1,52 @@
+name: aegora-postgres
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: aegora-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+
+      DIRECTUS_DB_USER: ${DIRECTUS_DB_USER}
+      DIRECTUS_DB_PASSWORD: ${DIRECTUS_DB_PASSWORD}
+      DIRECTUS_DB_NAME: ${DIRECTUS_DB_NAME}
+
+      N8N_DB_USER: ${N8N_DB_USER}
+      N8N_DB_PASSWORD: ${N8N_DB_PASSWORD}
+      N8N_DB_NAME: ${N8N_DB_NAME}
+
+      BOOKING_DB_USER: ${BOOKING_DB_USER}
+      BOOKING_DB_PASSWORD: ${BOOKING_DB_PASSWORD}
+      BOOKING_DB_NAME: ${BOOKING_DB_NAME}
+
+    volumes:
+      - /opt/aegora/data/postgres/data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+
+    networks:
+      - aegora_backend
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d postgres"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+    security_opt:
+      - no-new-privileges:true
+
+    shm_size: 256mb
+
+networks:
+  aegora_backend:
+    external: true
+    name: aegora_backend
