@@ -1,0 +1,44 @@
+name: aegora-n8n
+
+services:
+  n8n:
+    image: n8nio/n8n:2.31.7
+    container_name: aegora-n8n
+    restart: unless-stopped
+    init: true
+
+    env_file:
+      - .env
+
+    volumes:
+      - /opt/aegora/data/n8n/storage:/home/node/.n8n
+      - /opt/aegora/data/n8n/files:/files
+
+    networks:
+      - aegora_backend
+      - aegora_proxy
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --spider -q http://127.0.0.1:5678/healthz || exit 1"
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+    security_opt:
+      - no-new-privileges:true
+
+    stop_grace_period: 60s
+
+networks:
+  aegora_backend:
+    external: true
+    name: aegora_backend
+
+  aegora_proxy:
+    external: true
+    name: aegora_proxy

@@ -15,6 +15,11 @@ CADDY_COMPOSE := $(CADDY_DIR)/compose.yml
 CADDY_ENV := $(CADDY_DIR)/.env
 CADDY_CONTAINER := aegora-caddy
 
+N8N_DIR := compose/n8n
+N8N_COMPOSE := $(N8N_DIR)/compose.yml
+N8N_ENV := $(N8N_DIR)/.env
+N8N_CONTAINER := aegora-n8n
+
 .DEFAULT_GOAL := help
 
 .PHONY: help \
@@ -66,6 +71,14 @@ help:
 	@printf "  make postgres-health       Run pg_isready\n"
 	@printf "  make postgres-databases    List databases\n"
 	@printf "  make postgres-users        List PostgreSQL roles\n\n"
+	@printf "\nn8n:\n"
+	@printf "  make n8n-config             Validate n8n Compose\n"
+	@printf "  make n8n-pull               Download n8n image\n"
+	@printf "  make n8n-up                 Start n8n\n"
+	@printf "  make n8n-down               Stop and remove n8n\n"
+	@printf "  make n8n-restart            Restart n8n\n"
+	@printf "  make n8n-logs               Follow n8n logs\n"
+	@printf "  make n8n-status             Show n8n status\n"
 
 check:
 	@command -v docker >/dev/null || { echo "ERROR: docker is not installed"; exit 1; }
@@ -305,3 +318,79 @@ caddy-health:
 	@docker inspect \
 		--format='{{if .State.Health}}{{.State.Health.Status}}{{else}}not configured{{end}}' \
 		"$(CADDY_CONTAINER)"
+
+## ===== N8N =====
+
+n8n-config:
+	@test -f "$(N8N_ENV)" || { echo "ERROR: falta $(N8N_ENV)"; exit 1; }
+	@docker compose \
+		--env-file "$(N8N_ENV)" \
+		-f "$(N8N_COMPOSE)" \
+		config --quiet
+	@echo "n8n Compose configuration is valid"
+
+n8n-pull: n8n-config
+	@docker compose \
+		--env-file "$(N8N_ENV)" \
+		-f "$(N8N_COMPOSE)" \
+		pull
+
+n8n-up: n8n-config
+	@docker compose \
+		--env-file "$(N8N_ENV)" \
+		-f "$(N8N_COMPOSE)" \
+		up -d
+	@echo "Waiting for n8n..."
+	@for attempt in $$(seq 1 45); do \
+		status=$$(docker inspect --format='{{.State.Health.Status}}' "$(N8N_CONTAINER)" 2>/dev/null || true); \
+		if [ "$$status" = "healthy" ]; then \
+			echo "n8n is healthy"; \
+			exit 0; \
+		fi; \
+		if [ "$$status" = "unhealthy" ]; then \
+			echo "ERROR: n8n is unhealthy"; \
+			docker logs --tail 150 "$(N8N_CONTAINER)"; \
+			exit 1; \
+		fi; \
+		sleep 2; \
+	done; \
+	echo "ERROR: n8n health check timed out"; \
+	docker logs --tail 150 "$(N8N_CONTAINER)"; \
+	exit 1
+
+n8n-down:
+	@docker compose \
+		--env-file "$(N8N_ENV)" \
+		-f "$(N8N_COMPOSE)" \
+		down
+
+n8n-restart:
+	@docker compose \
+		--env-file "$(N8N_ENV)" \
+		-f "$(N8N_COMPOSE)" \
+		restart
+
+n8n-logs:
+	@docker compose \
+		--env-file "$(N8N_ENV)" \
+		-f "$(N8N_COMPOSE)" \
+		logs --follow --tail 200
+
+n8n-ps:
+	@docker compose \
+		--env-file "$(N8N_ENV)" \
+		-f "$(N8N_COMPOSE)" \
+		ps
+
+n8n-status:
+	@docker inspect \
+		--format='Container: {{.Name}}{{printf "\n"}}Status: {{.State.Status}}{{printf "\n"}}Health: {{if .State.Health}}{{.State.Health.Status}}{{else}}not configured{{end}}{{printf "\n"}}Started: {{.State.StartedAt}}' \
+		"$(N8N_CONTAINER)"
+
+n8n-health:
+	@docker inspect \
+		--format='{{if .State.Health}}{{.State.Health.Status}}{{else}}not configured{{end}}' \
+		"$(N8N_CONTAINER)"
+
+n8n-shell:
+	@docker exec -it "$(N8N_CONTAINER)" sh
