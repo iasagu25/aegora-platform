@@ -10,6 +10,11 @@ DIRECTUS_DIR := compose/directus
 DIRECTUS_COMPOSE := $(DIRECTUS_DIR)/compose.yml
 DIRECTUS_ENV := $(DIRECTUS_DIR)/.env
 
+CADDY_DIR := compose/caddy
+CADDY_COMPOSE := $(CADDY_DIR)/compose.yml
+CADDY_ENV := $(CADDY_DIR)/.env
+CADDY_CONTAINER := aegora-caddy
+
 .DEFAULT_GOAL := help
 
 .PHONY: help \
@@ -28,7 +33,18 @@ DIRECTUS_ENV := $(DIRECTUS_DIR)/.env
 	postgres-psql \
 	postgres-health \
 	postgres-databases \
-	postgres-users
+	postgres-users \
+	caddy-config \
+	caddy-pull \
+	caddy-up \
+	caddy-down \
+	caddy-restart \
+	caddy-reload \
+	caddy-logs \
+	caddy-ps \
+	caddy-status \
+	caddy-health \
+	caddy-validate
 
 help:
 	@printf "\nAegora Platform\n\n"
@@ -203,3 +219,89 @@ directus-health:
 
 directus-shell:
 	@docker exec -it aegora-directus sh
+
+## ===== CADDY =====
+
+caddy-config:
+	@test -f "$(CADDY_ENV)" || { echo "ERROR: falta $(CADDY_ENV)"; exit 1; }
+	@docker compose \
+		--env-file "$(CADDY_ENV)" \
+		-f "$(CADDY_COMPOSE)" \
+		config --quiet
+	@echo "Caddy Compose configuration is valid"
+
+caddy-pull: caddy-config
+	@docker compose \
+		--env-file "$(CADDY_ENV)" \
+		-f "$(CADDY_COMPOSE)" \
+		pull
+
+caddy-validate:
+	@docker run --rm \
+		--env-file "$(CADDY_ENV)" \
+		-v "$(CURDIR)/$(CADDY_DIR)/Caddyfile:/etc/caddy/Caddyfile:ro" \
+		caddy:2.11.4-alpine \
+		caddy validate --config /etc/caddy/Caddyfile
+
+caddy-up: caddy-config caddy-validate
+	@docker compose \
+		--env-file "$(CADDY_ENV)" \
+		-f "$(CADDY_COMPOSE)" \
+		up -d
+	@echo "Waiting for Caddy..."
+	@for attempt in $$(seq 1 20); do \
+		status=$$(docker inspect --format='{{.State.Health.Status}}' "$(CADDY_CONTAINER)" 2>/dev/null || true); \
+		if [ "$$status" = "healthy" ]; then \
+			echo "Caddy is healthy"; \
+			exit 0; \
+		fi; \
+		if [ "$$status" = "unhealthy" ]; then \
+			echo "ERROR: Caddy is unhealthy"; \
+			docker logs --tail 100 "$(CADDY_CONTAINER)"; \
+			exit 1; \
+		fi; \
+		sleep 2; \
+	done; \
+	echo "ERROR: Caddy health check timed out"; \
+	docker logs --tail 100 "$(CADDY_CONTAINER)"; \
+	exit 1
+
+caddy-down:
+	@docker compose \
+		--env-file "$(CADDY_ENV)" \
+		-f "$(CADDY_COMPOSE)" \
+		down
+
+caddy-restart:
+	@docker compose \
+		--env-file "$(CADDY_ENV)" \
+		-f "$(CADDY_COMPOSE)" \
+		restart
+
+caddy-reload: caddy-validate
+	@docker exec "$(CADDY_CONTAINER)" \
+		caddy reload \
+		--config /etc/caddy/Caddyfile
+	@echo "Caddy configuration reloaded"
+
+caddy-logs:
+	@docker compose \
+		--env-file "$(CADDY_ENV)" \
+		-f "$(CADDY_COMPOSE)" \
+		logs --follow --tail 200
+
+caddy-ps:
+	@docker compose \
+		--env-file "$(CADDY_ENV)" \
+		-f "$(CADDY_COMPOSE)" \
+		ps
+
+caddy-status:
+	@docker inspect \
+		--format='Container: {{.Name}}{{printf "\n"}}Status: {{.State.Status}}{{printf "\n"}}Health: {{if .State.Health}}{{.State.Health.Status}}{{else}}not configured{{end}}{{printf "\n"}}Started: {{.State.StartedAt}}' \
+		"$(CADDY_CONTAINER)"
+
+caddy-health:
+	@docker inspect \
+		--format='{{if .State.Health}}{{.State.Health.Status}}{{else}}not configured{{end}}' \
+		"$(CADDY_CONTAINER)"

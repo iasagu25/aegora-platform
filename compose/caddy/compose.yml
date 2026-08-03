@@ -1,0 +1,45 @@
+name: aegora-caddy
+
+services:
+  caddy:
+    image: caddy:2.11.4-alpine
+    container_name: aegora-caddy
+    restart: unless-stopped
+    init: true
+
+    env_file:
+      - .env
+
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - /opt/aegora/data/caddy/data:/data
+      - /opt/aegora/data/caddy/config:/config
+
+    networks:
+      - aegora_proxy
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --spider -q http://127.0.0.1:2019/config/ || exit 1"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+    security_opt:
+      - no-new-privileges:true
+
+    stop_grace_period: 30s
+
+networks:
+  aegora_proxy:
+    external: true
+    name: aegora_proxy

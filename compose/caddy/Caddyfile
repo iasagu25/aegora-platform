@@ -1,0 +1,29 @@
+{
+	email {$ACME_EMAIL}
+
+	admin 0.0.0.0:2019
+
+	log {
+		output stdout
+		format console
+		level INFO
+	}
+}
+
+panel.aegora.es {
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	reverse_proxy aegora-directus:8055
+
+	log {
+		output stdout
+		format console
+	}
+}
