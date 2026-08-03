@@ -6,6 +6,10 @@ POSTGRES_ENV := $(POSTGRES_DIR)/.env
 POSTGRES_SERVICE := postgres
 POSTGRES_CONTAINER := aegora-postgres
 
+DIRECTUS_DIR := compose/directus
+DIRECTUS_COMPOSE := $(DIRECTUS_DIR)/compose.yml
+DIRECTUS_ENV := $(DIRECTUS_DIR)/.env
+
 .DEFAULT_GOAL := help
 
 .PHONY: help \
@@ -156,3 +160,46 @@ postgres-users:
 		--username postgres \
 		--dbname postgres \
 		--command='\du'
+
+
+## ===== DIRECTUS =====
+
+directus-config:
+	@test -f $(DIRECTUS_ENV) || (echo "❌ Falta $(DIRECTUS_ENV)" && exit 1)
+	@docker compose \
+		--env-file $(DIRECTUS_ENV) \
+		-f $(DIRECTUS_COMPOSE) \
+		config >/dev/null
+	@echo "✅ Directus compose OK"
+
+directus-up:
+	@docker compose \
+		--env-file $(DIRECTUS_ENV) \
+		-f $(DIRECTUS_COMPOSE) \
+		up -d
+
+directus-down:
+	@docker compose \
+		--env-file $(DIRECTUS_ENV) \
+		-f $(DIRECTUS_COMPOSE) \
+		down
+
+directus-logs:
+	@docker compose \
+		--env-file $(DIRECTUS_ENV) \
+		-f $(DIRECTUS_COMPOSE) \
+		logs -f
+
+directus-ps:
+	@docker compose \
+		--env-file $(DIRECTUS_ENV) \
+		-f $(DIRECTUS_COMPOSE) \
+		ps
+
+directus-health:
+	@docker inspect \
+		--format='{{.State.Health.Status}}' \
+		aegora-directus
+
+directus-shell:
+	@docker exec -it aegora-directus sh

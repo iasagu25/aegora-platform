@@ -1,0 +1,45 @@
+name: aegora-directus
+
+services:
+  directus:
+    image: directus/directus:11.17.4
+    container_name: aegora-directus
+    restart: unless-stopped
+    init: true
+
+    env_file:
+      - .env
+
+    volumes:
+      - /opt/aegora/data/directus/uploads:/directus/uploads
+      - /opt/aegora/data/directus/extensions:/directus/extensions
+      - /opt/aegora/data/directus/snapshots:/directus/snapshots
+
+    networks:
+      - aegora_backend
+      - aegora_proxy
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --spider -q http://127.0.0.1:8055/server/ping || exit 1"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+    security_opt:
+      - no-new-privileges:true
+
+    stop_grace_period: 30s
+
+networks:
+  aegora_backend:
+    external: true
+    name: aegora_backend
+
+  aegora_proxy:
+    external: true
+    name: aegora_proxy
