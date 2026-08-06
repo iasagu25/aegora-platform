@@ -1,0 +1,17 @@
+node_modules
+
+.next
+
+.git
+
+.cache
+
+*.log
+
+tmp
+
+tmp/*
+
+coverage
+
+dist

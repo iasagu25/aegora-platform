@@ -1,0 +1,23 @@
+tenant:
+
+  id: aegora
+
+  environment: production
+
+  region: fsn1
+
+  backup:
+
+    provider: hetzner-object-storage
+
+    bucket: aegora-backups
+
+  postgres:
+
+    databases:
+
+      - directus
+
+      - n8n
+
+      - booking
