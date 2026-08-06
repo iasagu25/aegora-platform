@@ -1,0 +1,13 @@
+[Unit]
+Description=Weekly consolidated Aegora backup health report for tenant %i
+
+[Timer]
+OnCalendar=Sun *-*-* 07:00:00 Europe/Madrid
+Persistent=true
+RandomizedDelaySec=10m
+AccuracySec=1m
+
+Unit=aegora-backup-health@%i.service
+
+[Install]
+WantedBy=timers.target

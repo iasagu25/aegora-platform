@@ -1,0 +1,33 @@
+[Unit]
+Description=Aegora backup retention for tenant %i
+Documentation=file:/opt/aegora/platform/docs/backup
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+
+Environment=TENANT=%i
+Environment=HOME=/root
+
+WorkingDirectory=/opt/aegora/platform
+
+ExecStart=/usr/bin/bash /opt/aegora/platform/scripts/backup/prune-tenant.sh
+
+TimeoutStartSec=12h
+
+Nice=15
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+
+PrivateTmp=true
+NoNewPrivileges=true
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
