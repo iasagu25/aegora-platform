@@ -1,5 +1,10 @@
 SHELL := /usr/bin/env bash
 
+TENANT ?= aegora
+TENANT_DIR := customers/$(TENANT)
+TENANT_CONFIG := $(TENANT_DIR)/tenant.env
+TENANT_CONFIG_EXAMPLE := $(TENANT_DIR)/tenant.env.example
+
 POSTGRES_DIR := compose/postgres
 POSTGRES_COMPOSE := $(POSTGRES_DIR)/compose.yml
 POSTGRES_ENV := $(POSTGRES_DIR)/.env
@@ -9,6 +14,16 @@ POSTGRES_CONTAINER := aegora-postgres
 DIRECTUS_DIR := compose/directus
 DIRECTUS_COMPOSE := $(DIRECTUS_DIR)/compose.yml
 DIRECTUS_ENV := $(DIRECTUS_DIR)/.env
+
+CADDY_DIR := compose/caddy
+CADDY_COMPOSE := $(CADDY_DIR)/compose.yml
+CADDY_ENV := $(CADDY_DIR)/.env
+CADDY_CONTAINER := aegora-caddy
+
+N8N_DIR := compose/n8n
+N8N_COMPOSE := $(N8N_DIR)/compose.yml
+N8N_ENV := $(N8N_DIR)/.env
+N8N_CONTAINER := aegora-n8n
 
 .DEFAULT_GOAL := help
 
@@ -28,7 +43,18 @@ DIRECTUS_ENV := $(DIRECTUS_DIR)/.env
 	postgres-psql \
 	postgres-health \
 	postgres-databases \
-	postgres-users
+	postgres-users \
+	caddy-config \
+	caddy-pull \
+	caddy-up \
+	caddy-down \
+	caddy-restart \
+	caddy-reload \
+	caddy-logs \
+	caddy-ps \
+	caddy-status \
+	caddy-health \
+	caddy-validate
 
 help:
 	@printf "\nAegora Platform\n\n"
@@ -50,6 +76,14 @@ help:
 	@printf "  make postgres-health       Run pg_isready\n"
 	@printf "  make postgres-databases    List databases\n"
 	@printf "  make postgres-users        List PostgreSQL roles\n\n"
+	@printf "\nn8n:\n"
+	@printf "  make n8n-config             Validate n8n Compose\n"
+	@printf "  make n8n-pull               Download n8n image\n"
+	@printf "  make n8n-up                 Start n8n\n"
+	@printf "  make n8n-down               Stop and remove n8n\n"
+	@printf "  make n8n-restart            Restart n8n\n"
+	@printf "  make n8n-logs               Follow n8n logs\n"
+	@printf "  make n8n-status             Show n8n status\n"
 
 check:
 	@command -v docker >/dev/null || { echo "ERROR: docker is not installed"; exit 1; }
@@ -203,3 +237,224 @@ directus-health:
 
 directus-shell:
 	@docker exec -it aegora-directus sh
+
+## ===== CADDY =====
+
+caddy-config:
+	@test -f "$(CADDY_ENV)" || { echo "ERROR: falta $(CADDY_ENV)"; exit 1; }
+	@docker compose \
+		--env-file "$(CADDY_ENV)" \
+		-f "$(CADDY_COMPOSE)" \
+		config --quiet
+	@echo "Caddy Compose configuration is valid"
+
+caddy-pull: caddy-config
+	@docker compose \
+		--env-file "$(CADDY_ENV)" \
+		-f "$(CADDY_COMPOSE)" \
+		pull
+
+caddy-validate:
+	@docker run --rm \
+		--env-file "$(CADDY_ENV)" \
+		-v "$(CURDIR)/$(CADDY_DIR)/Caddyfile:/etc/caddy/Caddyfile:ro" \
+		caddy:2.11.4-alpine \
+		caddy validate --config /etc/caddy/Caddyfile
+
+caddy-up: caddy-config caddy-validate
+	@docker compose \
+		--env-file "$(CADDY_ENV)" \
+		-f "$(CADDY_COMPOSE)" \
+		up -d
+	@echo "Waiting for Caddy..."
+	@for attempt in $$(seq 1 20); do \
+		status=$$(docker inspect --format='{{.State.Health.Status}}' "$(CADDY_CONTAINER)" 2>/dev/null || true); \
+		if [ "$$status" = "healthy" ]; then \
+			echo "Caddy is healthy"; \
+			exit 0; \
+		fi; \
+		if [ "$$status" = "unhealthy" ]; then \
+			echo "ERROR: Caddy is unhealthy"; \
+			docker logs --tail 100 "$(CADDY_CONTAINER)"; \
+			exit 1; \
+		fi; \
+		sleep 2; \
+	done; \
+	echo "ERROR: Caddy health check timed out"; \
+	docker logs --tail 100 "$(CADDY_CONTAINER)"; \
+	exit 1
+
+caddy-down:
+	@docker compose \
+		--env-file "$(CADDY_ENV)" \
+		-f "$(CADDY_COMPOSE)" \
+		down
+
+caddy-restart:
+	@docker compose \
+		--env-file "$(CADDY_ENV)" \
+		-f "$(CADDY_COMPOSE)" \
+		restart
+
+caddy-reload: caddy-validate
+	@docker exec "$(CADDY_CONTAINER)" \
+		caddy reload \
+		--config /etc/caddy/Caddyfile
+	@echo "Caddy configuration reloaded"
+
+caddy-logs:
+	@docker compose \
+		--env-file "$(CADDY_ENV)" \
+		-f "$(CADDY_COMPOSE)" \
+		logs --follow --tail 200
+
+caddy-ps:
+	@docker compose \
+		--env-file "$(CADDY_ENV)" \
+		-f "$(CADDY_COMPOSE)" \
+		ps
+
+caddy-status:
+	@docker inspect \
+		--format='Container: {{.Name}}{{printf "\n"}}Status: {{.State.Status}}{{printf "\n"}}Health: {{if .State.Health}}{{.State.Health.Status}}{{else}}not configured{{end}}{{printf "\n"}}Started: {{.State.StartedAt}}' \
+		"$(CADDY_CONTAINER)"
+
+caddy-health:
+	@docker inspect \
+		--format='{{if .State.Health}}{{.State.Health.Status}}{{else}}not configured{{end}}' \
+		"$(CADDY_CONTAINER)"
+
+## ===== N8N =====
+
+n8n-config:
+	@test -f "$(N8N_ENV)" || { echo "ERROR: falta $(N8N_ENV)"; exit 1; }
+	@docker compose \
+		--env-file "$(N8N_ENV)" \
+		-f "$(N8N_COMPOSE)" \
+		config --quiet
+	@echo "n8n Compose configuration is valid"
+
+n8n-pull: n8n-config
+	@docker compose \
+		--env-file "$(N8N_ENV)" \
+		-f "$(N8N_COMPOSE)" \
+		pull
+
+n8n-up: n8n-config
+	@docker compose \
+		--env-file "$(N8N_ENV)" \
+		-f "$(N8N_COMPOSE)" \
+		up -d
+	@echo "Waiting for n8n..."
+	@for attempt in $$(seq 1 45); do \
+		status=$$(docker inspect --format='{{.State.Health.Status}}' "$(N8N_CONTAINER)" 2>/dev/null || true); \
+		if [ "$$status" = "healthy" ]; then \
+			echo "n8n is healthy"; \
+			exit 0; \
+		fi; \
+		if [ "$$status" = "unhealthy" ]; then \
+			echo "ERROR: n8n is unhealthy"; \
+			docker logs --tail 150 "$(N8N_CONTAINER)"; \
+			exit 1; \
+		fi; \
+		sleep 2; \
+	done; \
+	echo "ERROR: n8n health check timed out"; \
+	docker logs --tail 150 "$(N8N_CONTAINER)"; \
+	exit 1
+
+n8n-down:
+	@docker compose \
+		--env-file "$(N8N_ENV)" \
+		-f "$(N8N_COMPOSE)" \
+		down
+
+n8n-restart:
+	@docker compose \
+		--env-file "$(N8N_ENV)" \
+		-f "$(N8N_COMPOSE)" \
+		restart
+
+n8n-logs:
+	@docker compose \
+		--env-file "$(N8N_ENV)" \
+		-f "$(N8N_COMPOSE)" \
+		logs --follow --tail 200
+
+n8n-ps:
+	@docker compose \
+		--env-file "$(N8N_ENV)" \
+		-f "$(N8N_COMPOSE)" \
+		ps
+
+n8n-status:
+	@docker inspect \
+		--format='Container: {{.Name}}{{printf "\n"}}Status: {{.State.Status}}{{printf "\n"}}Health: {{if .State.Health}}{{.State.Health.Status}}{{else}}not configured{{end}}{{printf "\n"}}Started: {{.State.StartedAt}}' \
+		"$(N8N_CONTAINER)"
+
+n8n-health:
+	@docker inspect \
+		--format='{{if .State.Health}}{{.State.Health.Status}}{{else}}not configured{{end}}' \
+		"$(N8N_CONTAINER)"
+
+n8n-shell:
+	@docker exec -it "$(N8N_CONTAINER)" sh
+
+## ===== TENANTS =====
+
+tenant-validate:
+	@test -d "$(TENANT_DIR)" || { \
+		echo "ERROR: tenant no encontrado: $(TENANT)"; \
+		exit 1; \
+	}
+	@test -f "$(TENANT_CONFIG)" || { \
+		echo "ERROR: falta $(TENANT_CONFIG)"; \
+		echo "Crea el fichero desde $(TENANT_CONFIG_EXAMPLE)"; \
+		exit 1; \
+	}
+	@set -a; \
+	. "$(TENANT_CONFIG)"; \
+	set +a; \
+	test -n "$$TENANT_ID" || { echo "ERROR: falta TENANT_ID"; exit 1; }; \
+	test -n "$$ENVIRONMENT" || { echo "ERROR: falta ENVIRONMENT"; exit 1; }; \
+	test -n "$$DIRECTUS_HOST" || { echo "ERROR: falta DIRECTUS_HOST"; exit 1; }; \
+	test -n "$$N8N_HOST" || { echo "ERROR: falta N8N_HOST"; exit 1; }; \
+	test -n "$$BACKUP_BUCKET" || { echo "ERROR: falta BACKUP_BUCKET"; exit 1; }; \
+	echo "Tenant $(TENANT) válido"
+
+tenant-show: tenant-validate
+	@set -a; \
+	. "$(TENANT_CONFIG)"; \
+	set +a; \
+	printf "Tenant:      %s\n" "$$TENANT_ID"; \
+	printf "Nombre:      %s\n" "$$TENANT_NAME"; \
+	printf "Entorno:     %s\n" "$$ENVIRONMENT"; \
+	printf "Directus:    https://%s\n" "$$DIRECTUS_HOST"; \
+	printf "n8n:         https://%s\n" "$$N8N_HOST"; \
+	printf "Booking:     https://%s\n" "$$BOOKING_HOST"; \
+	printf "Backup:      %s\n" "$$BACKUP_BUCKET"
+
+## ===== BACKUPS =====
+
+backup:
+	@sudo TENANT="$(TENANT)" \
+		/opt/aegora/platform/scripts/backup/backup-tenant.sh
+
+backup-check:
+	@sudo TENANT="$(TENANT)" \
+		/opt/aegora/platform/scripts/backup/check-tenant.sh
+
+backup-prune:
+	@sudo TENANT="$(TENANT)" \
+		/opt/aegora/platform/scripts/backup/prune-tenant.sh
+
+backup-snapshots:
+	@sudo bash -c '\
+		set -a; \
+		. /opt/aegora/platform/customers/$(TENANT)/tenant.env; \
+		. /opt/aegora/secrets/restic.env; \
+		set +a; \
+		restic snapshots \
+			--host "$$BACKUP_HOST" \
+			--tag "$$BACKUP_TAG_TENANT" \
+	'
