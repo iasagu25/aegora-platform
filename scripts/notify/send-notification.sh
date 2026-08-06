@@ -32,7 +32,7 @@ Uso:
     [--tags "tag1,tag2"] \
     [--click-url "https://..."]
 
-El script devuelve:
+Códigos de salida:
 
   0  Notificación enviada o notificaciones desactivadas.
   1  Error de configuración o de envío.
@@ -57,16 +57,10 @@ sanitize_header() {
 
 priority_for_severity() {
   case "$1" in
-    info)
+    info|success)
       printf 'default'
       ;;
-    success)
-      printf 'default'
-      ;;
-    warning)
-      printf 'high'
-      ;;
-    error)
+    warning|error)
       printf 'high'
       ;;
     critical)
@@ -189,13 +183,9 @@ esac
 : "${NTFY_SERVER:?Falta NTFY_SERVER}"
 : "${NTFY_TOPIC:?Falta NTFY_TOPIC}"
 
-NOTIFY_CONNECT_TIMEOUT_SECONDS="${
-  NOTIFY_CONNECT_TIMEOUT_SECONDS:-10
-}"
-
-NOTIFY_MAX_TIME_SECONDS="${
-  NOTIFY_MAX_TIME_SECONDS:-30
-}"
+NOTIFY_CONNECT_TIMEOUT_SECONDS="${NOTIFY_CONNECT_TIMEOUT_SECONDS:-10}"
+NOTIFY_MAX_TIME_SECONDS="${NOTIFY_MAX_TIME_SECONDS:-30}"
+NTFY_TOKEN="${NTFY_TOKEN:-}"
 
 [[ "$NOTIFY_CONNECT_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] ||
   fail "NOTIFY_CONNECT_TIMEOUT_SECONDS debe ser un entero positivo."
@@ -204,6 +194,8 @@ NOTIFY_MAX_TIME_SECONDS="${
   fail "NOTIFY_MAX_TIME_SECONDS debe ser un entero positivo."
 
 TITLE="$(sanitize_header "$TITLE")"
+TAGS="$(sanitize_header "$TAGS")"
+CLICK_URL="$(sanitize_header "$CLICK_URL")"
 
 priority="$(priority_for_severity "$SEVERITY")"
 
@@ -226,7 +218,7 @@ curl_args=(
   --data-binary "$MESSAGE"
 )
 
-if [[ -n "${NTFY_TOKEN:-}" ]]; then
+if [[ -n "$NTFY_TOKEN" ]]; then
   curl_args+=(
     --header "Authorization: Bearer ${NTFY_TOKEN}"
   )
