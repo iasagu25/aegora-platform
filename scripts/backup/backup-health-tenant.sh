@@ -43,6 +43,21 @@ fail() {
   exit 1
 }
 
+cleanup() {
+  local exit_code=$?
+
+  trap - EXIT
+
+  if [[ $exit_code -ne 0 ]]; then
+    log "La comprobación consolidada terminó con errores."
+  fi
+
+  exit "$exit_code"
+}
+
+trap cleanup EXIT
+trap 'fail "Fallo en la línea ${LINENO}: ${BASH_COMMAND}"' ERR
+
 require_command() {
   command -v "$1" >/dev/null 2>&1 ||
     fail "Falta el comando requerido: $1"
@@ -133,21 +148,6 @@ check_service_result() {
   esac
 }
 
-cleanup() {
-  local exit_code=$?
-
-  trap - EXIT
-
-  if [[ $exit_code -ne 0 ]]; then
-    log "La comprobación consolidada terminó con errores."
-  fi
-
-  exit "$exit_code"
-}
-
-trap cleanup EXIT
-trap 'fail "Fallo en la línea ${LINENO}: ${BASH_COMMAND}"' ERR
-
 # =============================================================================
 # Prerrequisitos
 # =============================================================================
@@ -157,6 +157,7 @@ require_command systemctl
 require_command python3
 require_command flock
 require_command date
+require_command grep
 
 require_file "$TENANT_CONFIG"
 require_file "$RESTIC_CONFIG"
@@ -244,6 +245,7 @@ snapshot_data="$(
   python3 -c '
 import datetime
 import json
+import re
 import sys
 
 snapshots = json.load(sys.stdin)
@@ -254,19 +256,69 @@ if not snapshots:
 snapshots.sort(key=lambda item: item["time"])
 snapshot = snapshots[-1]
 
-timestamp = snapshot["time"].replace("Z", "+00:00")
-snapshot_time = datetime.datetime.fromisoformat(timestamp)
-now = datetime.datetime.now(datetime.timezone.utc)
+raw_timestamp = snapshot["time"]
+
+# Restic puede devolver nanosegundos, por ejemplo:
+# 2026-08-06T12:24:53.407421612Z
+#
+# datetime.fromisoformat() en versiones anteriores de Python solo admite
+# hasta seis cifras decimales. Se normaliza a microsegundos.
+normalized_timestamp = raw_timestamp.replace("Z", "+00:00")
+
+match = re.fullmatch(
+    r"(?P<prefix>.*T\d{2}:\d{2}:\d{2})"
+    r"(?:\.(?P<fraction>\d+))?"
+    r"(?P<timezone>Z|[+-]\d{2}:\d{2})",
+    raw_timestamp,
+)
+
+if not match:
+    raise SystemExit(
+        f"Formato de timestamp no reconocido: {raw_timestamp}"
+    )
+
+prefix = match.group("prefix")
+fraction = match.group("fraction") or ""
+timezone_part = match.group("timezone")
+
+if timezone_part == "Z":
+    timezone_part = "+00:00"
+
+if fraction:
+    fraction = fraction[:6].ljust(6, "0")
+    normalized_timestamp = (
+        f"{prefix}.{fraction}{timezone_part}"
+    )
+else:
+    normalized_timestamp = (
+        f"{prefix}{timezone_part}"
+    )
+
+snapshot_time = datetime.datetime.fromisoformat(
+    normalized_timestamp
+)
 
 if snapshot_time.tzinfo is None:
-    snapshot_time = snapshot_time.replace(tzinfo=datetime.timezone.utc)
+    snapshot_time = snapshot_time.replace(
+        tzinfo=datetime.timezone.utc
+    )
 
+now = datetime.datetime.now(datetime.timezone.utc)
 age_seconds = int((now - snapshot_time).total_seconds())
 
-snapshot_id = snapshot.get("short_id") or snapshot["id"][:8]
+# Un timestamp futuro indica reloj incorrecto.
+if age_seconds < 0:
+    raise SystemExit(
+        f"El snapshot tiene una fecha futura: {raw_timestamp}"
+    )
+
+snapshot_id = (
+    snapshot.get("short_id")
+    or snapshot["id"][:8]
+)
 
 print(snapshot_id)
-print(snapshot["time"])
+print(raw_timestamp)
 print(age_seconds)
 '
 )" || add_error "No se pudo obtener el último snapshot del tenant"
@@ -325,18 +377,23 @@ if [[ -n "$LATEST_SNAPSHOT_ID" ]]; then
     if grep -Fq "$pattern" <<< "$snapshot_listing"; then
       log "  presente: ${pattern}"
     else
-      add_error "El snapshot ${LATEST_SNAPSHOT_ID} no contiene ${pattern}"
+      add_error \
+        "El snapshot ${LATEST_SNAPSHOT_ID} no contiene ${pattern}"
     fi
   done
 
   dump_count="$(
-    grep -Ec '/postgres/[^/]+\.dump$' <<< "$snapshot_listing" || true
+    grep -Ec '/postgres/[^/]+\.dump$' \
+      <<< "$snapshot_listing" ||
+      true
   )"
 
-  if [[ "$dump_count" =~ ^[0-9]+$ ]] && (( dump_count > 0 )); then
+  if [[ "$dump_count" =~ ^[0-9]+$ ]] &&
+     (( dump_count > 0 )); then
     log "  dumps PostgreSQL encontrados: ${dump_count}"
   else
-    add_error "El snapshot ${LATEST_SNAPSHOT_ID} no contiene dumps PostgreSQL"
+    add_error \
+      "El snapshot ${LATEST_SNAPSHOT_ID} no contiene dumps PostgreSQL"
   fi
 fi
 
