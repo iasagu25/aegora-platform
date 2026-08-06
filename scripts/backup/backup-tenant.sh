@@ -10,6 +10,7 @@ readonly STAGING_ROOT="${BACKUP_ROOT}/staging"
 readonly LOCK_FILE="/run/lock/aegora-backup.lock"
 
 TENANT="${TENANT:-aegora}"
+
 readonly TENANT_CONFIG="${PLATFORM_ROOT}/customers/${TENANT}/tenant.env"
 readonly RESTIC_CONFIG="${SECRETS_ROOT}/restic.env"
 readonly EXCLUDES_FILE="${PLATFORM_ROOT}/scripts/backup/excludes.txt"
@@ -42,11 +43,13 @@ require_command() {
 }
 
 require_file() {
-  [[ -f "$1" ]] || fail "Falta el fichero requerido: $1"
+  [[ -f "$1" ]] ||
+    fail "Falta el fichero requerido: $1"
 }
 
 require_directory() {
-  [[ -d "$1" ]] || fail "Falta el directorio requerido: $1"
+  [[ -d "$1" ]] ||
+    fail "Falta el directorio requerido: $1"
 }
 
 require_command docker
@@ -54,23 +57,33 @@ require_command restic
 require_command flock
 require_command sha256sum
 require_command hostname
+require_command python3
+require_command find
+require_command sort
+require_command xargs
 
 require_file "$TENANT_CONFIG"
 require_file "$RESTIC_CONFIG"
 require_file "$EXCLUDES_FILE"
 
-# Evita dos backups simultáneos.
+mkdir -p "$(dirname "$LOCK_FILE")"
+
+# Impedir dos backups simultáneos.
 exec 9>"$LOCK_FILE"
 
 if ! flock -n 9; then
   fail "Ya hay otro backup en ejecución."
 fi
 
+# Cargar configuración del tenant y credenciales de Restic/S3.
 set -a
+
 # shellcheck disable=SC1090
 source "$TENANT_CONFIG"
+
 # shellcheck disable=SC1090
 source "$RESTIC_CONFIG"
+
 set +a
 
 : "${TENANT_ID:?Falta TENANT_ID}"
@@ -78,11 +91,15 @@ set +a
 : "${BACKUP_HOST:?Falta BACKUP_HOST}"
 : "${BACKUP_TAG_TENANT:?Falta BACKUP_TAG_TENANT}"
 : "${BACKUP_TAG_ENVIRONMENT:?Falta BACKUP_TAG_ENVIRONMENT}"
+
 : "${POSTGRES_DIRECTUS_DB:?Falta POSTGRES_DIRECTUS_DB}"
 : "${POSTGRES_N8N_DB:?Falta POSTGRES_N8N_DB}"
 : "${POSTGRES_BOOKING_DB:?Falta POSTGRES_BOOKING_DB}"
+
 : "${RESTIC_REPOSITORY:?Falta RESTIC_REPOSITORY}"
 : "${RESTIC_PASSWORD:?Falta RESTIC_PASSWORD}"
+: "${AWS_ACCESS_KEY_ID:?Falta AWS_ACCESS_KEY_ID}"
+: "${AWS_SECRET_ACCESS_KEY:?Falta AWS_SECRET_ACCESS_KEY}"
 
 readonly RUN_ID="$(date -u +'%Y%m%dT%H%M%SZ')"
 readonly RUN_DIR="${STAGING_ROOT}/${TENANT_ID}/${RUN_ID}"
@@ -90,13 +107,6 @@ readonly POSTGRES_DIR="${RUN_DIR}/postgres"
 readonly MANIFEST_DIR="${RUN_DIR}/manifests"
 
 readonly POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-aegora-postgres}"
-
-POSTGRES_ADMIN_USER="$(
-  docker exec "$POSTGRES_CONTAINER" printenv POSTGRES_USER
-)"
-
-[[ -n "$POSTGRES_ADMIN_USER" ]] ||
-  fail "No se pudo obtener POSTGRES_USER del contenedor."
 
 DATABASES=(
   "$POSTGRES_DIRECTUS_DB"
@@ -108,68 +118,167 @@ log "Iniciando backup del tenant '${TENANT_ID}'."
 log "Repositorio: ${RESTIC_REPOSITORY}"
 log "Ejecución: ${RUN_ID}"
 
+# Validar PostgreSQL.
 docker inspect "$POSTGRES_CONTAINER" >/dev/null 2>&1 ||
-  fail "No existe el contenedor ${POSTGRES_CONTAINER}"
+  fail "No existe el contenedor '${POSTGRES_CONTAINER}'."
 
-postgres_health="$(
+postgres_status="$(
   docker inspect \
-    --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' \
+    --format='{{.State.Status}}' \
     "$POSTGRES_CONTAINER"
 )"
 
-[[ "$postgres_health" == "healthy" || "$postgres_health" == "running" ]] ||
-  fail "PostgreSQL no está disponible: ${postgres_health}"
+postgres_health="$(
+  docker inspect \
+    --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}not-configured{{end}}' \
+    "$POSTGRES_CONTAINER"
+)"
 
+[[ "$postgres_status" == "running" ]] ||
+  fail "PostgreSQL no está en ejecución. Estado: ${postgres_status}"
+
+if [[ "$postgres_health" != "not-configured" && "$postgres_health" != "healthy" ]]; then
+  fail "PostgreSQL no está healthy. Estado: ${postgres_health}"
+fi
+
+POSTGRES_ADMIN_USER="$(
+  docker exec "$POSTGRES_CONTAINER" \
+    printenv POSTGRES_USER 2>/dev/null |
+    tr -d '\r\n'
+)"
+
+[[ -n "$POSTGRES_ADMIN_USER" ]] ||
+  fail "No se pudo obtener POSTGRES_USER del contenedor."
+
+readonly POSTGRES_ADMIN_USER
+
+log "Usuario administrativo PostgreSQL detectado: ${POSTGRES_ADMIN_USER}"
+
+# Preparar staging limpio para esta ejecución.
 rm -rf "${STAGING_ROOT:?}/${TENANT_ID:?}"
-mkdir -p "$POSTGRES_DIR" "$MANIFEST_DIR"
-chmod 700 "$RUN_DIR" "$POSTGRES_DIR" "$MANIFEST_DIR"
+
+mkdir -p \
+  "$POSTGRES_DIR" \
+  "$MANIFEST_DIR"
+
+chmod 700 \
+  "$RUN_DIR" \
+  "$POSTGRES_DIR" \
+  "$MANIFEST_DIR"
+
+# ---------------------------------------------------------------------------
+# PostgreSQL: roles y objetos globales
+# ---------------------------------------------------------------------------
 
 log "Exportando roles y objetos globales de PostgreSQL."
+
+globals_file="${POSTGRES_DIR}/globals.sql"
+globals_error="${POSTGRES_DIR}/globals.stderr"
 
 if ! docker exec "$POSTGRES_CONTAINER" \
   pg_dumpall \
     --username="$POSTGRES_ADMIN_USER" \
     --globals-only \
-  > "${POSTGRES_DIR}/globals.sql" \
-  2> "${POSTGRES_DIR}/globals.stderr"; then
+  > "$globals_file" \
+  2> "$globals_error"; then
 
-  cat "${POSTGRES_DIR}/globals.stderr" >&2
-  fail "No se pudieron exportar los objetos globales."
+  log "pg_dumpall falló:"
+  cat "$globals_error" >&2
+
+  fail "No se pudieron exportar los objetos globales de PostgreSQL."
 fi
 
-rm -f "${POSTGRES_DIR}/globals.stderr"
+rm -f "$globals_error"
 
-if ! docker exec "$POSTGRES_CONTAINER" \
-  pg_dump \
-	    --username="$POSTGRES_ADMIN_USER" \
-	    --dbname="$database" \
-	    --format=custom \
-	    --compress=6 \
-	    --no-owner \
-	    --file=- \
-	  > "$destination" \
-	  2> "$dump_error"; then
+[[ -s "$globals_file" ]] ||
+  fail "El dump de objetos globales está vacío."
 
-	  log "pg_dump falló para '${database}':"
-	  cat "$dump_error" >&2
-	  fail "No se pudo exportar la base '${database}'."
-	fi
+# ---------------------------------------------------------------------------
+# PostgreSQL: bases declaradas por el tenant
+# ---------------------------------------------------------------------------
 
-	rm -f "$dump_error"
+for database in "${DATABASES[@]}"; do
+  destination="${POSTGRES_DIR}/${database}.dump"
+  dump_error="${POSTGRES_DIR}/${database}.stderr"
 
-	[[ -s "$destination" ]] ||
-	  fail "El dump de '${database}' está vacío."
+  log "Comprobando existencia de la base '${database}'."
+
+  database_exists="$(
+    docker exec "$POSTGRES_CONTAINER" \
+      psql \
+        --username="$POSTGRES_ADMIN_USER" \
+        --dbname=postgres \
+        --tuples-only \
+        --no-align \
+        --command="SELECT 1 FROM pg_database WHERE datname = '${database}';" \
+      2>/dev/null |
+      tr -d '[:space:]'
+  )"
+
+  [[ "$database_exists" == "1" ]] ||
+    fail "La base declarada '${database}' no existe."
+
+  log "Exportando base '${database}'."
+
+  if ! docker exec "$POSTGRES_CONTAINER" \
+    pg_dump \
+      --username="$POSTGRES_ADMIN_USER" \
+      --dbname="$database" \
+      --format=custom \
+      --compress=6 \
+      --no-owner \
+      --file=- \
+    > "$destination" \
+    2> "$dump_error"; then
+
+    log "pg_dump falló para '${database}':"
+    cat "$dump_error" >&2
+
+    fail "No se pudo exportar la base '${database}'."
+  fi
+
+  rm -f "$dump_error"
+
+  [[ -s "$destination" ]] ||
+    fail "El dump de '${database}' está vacío."
 
   log "Validando estructura del dump '${database}'."
 
-  docker exec -i "$POSTGRES_CONTAINER" \
-    pg_restore \
-      --list \
+  if ! docker exec -i "$POSTGRES_CONTAINER" \
+    pg_restore --list \
     < "$destination" \
-    > /dev/null
+    > /dev/null; then
+
+    fail "El dump de '${database}' no supera pg_restore --list."
+  fi
+
+  dump_size="$(
+    stat --format='%s' "$destination"
+  )"
+
+  log "Dump '${database}' válido: ${dump_size} bytes."
 done
 
-log "Creando manifiesto."
+# ---------------------------------------------------------------------------
+# Manifiesto de la ejecución
+# ---------------------------------------------------------------------------
+
+log "Creando manifiesto del backup."
+
+postgres_version="$(
+  docker exec "$POSTGRES_CONTAINER" \
+    postgres --version
+)"
+
+restic_version="$(
+  restic version |
+    head -n 1
+)"
+
+source_hostname="$(
+  hostname --fqdn 2>/dev/null ||
+    hostname
+)"
 
 cat > "${MANIFEST_DIR}/backup.env" <<EOF
 BACKUP_RUN_ID=${RUN_ID}
@@ -177,18 +286,31 @@ BACKUP_CREATED_AT=$(date -u --iso-8601=seconds)
 TENANT_ID=${TENANT_ID}
 ENVIRONMENT=${ENVIRONMENT}
 BACKUP_HOST=${BACKUP_HOST}
-SOURCE_HOSTNAME=$(hostname --fqdn 2>/dev/null || hostname)
+SOURCE_HOSTNAME=${source_hostname}
 POSTGRES_CONTAINER=${POSTGRES_CONTAINER}
-POSTGRES_VERSION=$(docker exec "$POSTGRES_CONTAINER" postgres --version)
-RESTIC_VERSION=$(restic version | head -n 1)
+POSTGRES_ADMIN_USER=${POSTGRES_ADMIN_USER}
+POSTGRES_VERSION=${postgres_version}
+RESTIC_VERSION=${restic_version}
+DATABASES=${DATABASES[*]}
 EOF
 
 (
   cd "$RUN_DIR"
-  find . -type f -print0 |
+
+  find . \
+    -type f \
+    ! -path './manifests/SHA256SUMS' \
+    -print0 |
     sort -z |
     xargs -0 sha256sum
 ) > "${MANIFEST_DIR}/SHA256SUMS"
+
+[[ -s "${MANIFEST_DIR}/SHA256SUMS" ]] ||
+  fail "No se pudo generar el manifiesto SHA256."
+
+# ---------------------------------------------------------------------------
+# Rutas que entrarán en Restic
+# ---------------------------------------------------------------------------
 
 BACKUP_PATHS=(
   "$RUN_DIR"
@@ -206,21 +328,29 @@ OPTIONAL_PATHS=(
 for path in "${OPTIONAL_PATHS[@]}"; do
   if [[ -d "$path" ]]; then
     BACKUP_PATHS+=("$path")
+    log "Incluyendo ruta persistente: ${path}"
   else
-    log "Ruta opcional ausente, se omite: ${path}"
+    log "Ruta opcional ausente; se omite: ${path}"
   fi
 done
 
+# ---------------------------------------------------------------------------
+# Restic
+# ---------------------------------------------------------------------------
+
 log "Verificando acceso al repositorio Restic."
 
-restic snapshots \
+if ! restic snapshots \
   --host "$BACKUP_HOST" \
   --tag "$BACKUP_TAG_TENANT" \
-  >/dev/null
+  >/dev/null; then
+
+  fail "No se pudo acceder al repositorio Restic."
+fi
 
 log "Enviando backup cifrado a Object Storage."
 
-restic backup \
+if ! restic backup \
   "${BACKUP_PATHS[@]}" \
   --host "$BACKUP_HOST" \
   --tag "$BACKUP_TAG_TENANT" \
@@ -228,8 +358,10 @@ restic backup \
   --tag "type=full" \
   --tag "run=${RUN_ID}" \
   --exclude-file="$EXCLUDES_FILE" \
-  --one-file-system=false \
-  --verbose
+  --verbose; then
+
+  fail "Restic no pudo completar el backup."
+fi
 
 log "Comprobando que el snapshot se ha creado."
 
@@ -238,15 +370,17 @@ snapshot_id="$(
     --host "$BACKUP_HOST" \
     --tag "run=${RUN_ID}" \
     --json |
-  python3 -c '
+    python3 -c '
 import json
 import sys
 
 snapshots = json.load(sys.stdin)
+
 if not snapshots:
     raise SystemExit(1)
 
-print(snapshots[-1]["short_id"])
+snapshot = snapshots[-1]
+print(snapshot.get("short_id") or snapshot["id"][:8])
 '
 )"
 
@@ -255,7 +389,8 @@ print(snapshots[-1]["short_id"])
 
 log "Snapshot creado correctamente: ${snapshot_id}"
 
-# Solo se elimina el staging si Restic ha terminado bien.
+# El staging se elimina únicamente tras confirmar el snapshot.
 rm -rf "${STAGING_ROOT:?}/${TENANT_ID:?}"
 
+log "Staging local eliminado."
 log "Backup finalizado correctamente."
