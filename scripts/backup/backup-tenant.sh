@@ -91,6 +91,13 @@ readonly MANIFEST_DIR="${RUN_DIR}/manifests"
 
 readonly POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-aegora-postgres}"
 
+POSTGRES_ADMIN_USER="$(
+  docker exec "$POSTGRES_CONTAINER" printenv POSTGRES_USER
+)"
+
+[[ -n "$POSTGRES_ADMIN_USER" ]] ||
+  fail "No se pudo obtener POSTGRES_USER del contenedor."
+
 DATABASES=(
   "$POSTGRES_DIRECTUS_DB"
   "$POSTGRES_N8N_DB"
@@ -119,32 +126,39 @@ chmod 700 "$RUN_DIR" "$POSTGRES_DIR" "$MANIFEST_DIR"
 
 log "Exportando roles y objetos globales de PostgreSQL."
 
-docker exec "$POSTGRES_CONTAINER" \
+if ! docker exec "$POSTGRES_CONTAINER" \
   pg_dumpall \
-    --username=postgres \
+    --username="$POSTGRES_ADMIN_USER" \
     --globals-only \
-  > "${POSTGRES_DIR}/globals.sql"
+  > "${POSTGRES_DIR}/globals.sql" \
+  2> "${POSTGRES_DIR}/globals.stderr"; then
 
-[[ -s "${POSTGRES_DIR}/globals.sql" ]] ||
-  fail "El dump de objetos globales está vacío."
+  cat "${POSTGRES_DIR}/globals.stderr" >&2
+  fail "No se pudieron exportar los objetos globales."
+fi
 
-for database in "${DATABASES[@]}"; do
-  destination="${POSTGRES_DIR}/${database}.dump"
+rm -f "${POSTGRES_DIR}/globals.stderr"
 
-  log "Exportando base '${database}'."
+if ! docker exec "$POSTGRES_CONTAINER" \
+  pg_dump \
+	    --username="$POSTGRES_ADMIN_USER" \
+	    --dbname="$database" \
+	    --format=custom \
+	    --compress=6 \
+	    --no-owner \
+	    --file=- \
+	  > "$destination" \
+	  2> "$dump_error"; then
 
-  docker exec "$POSTGRES_CONTAINER" \
-    pg_dump \
-      --username=postgres \
-      --dbname="$database" \
-      --format=custom \
-      --compress=6 \
-      --no-owner \
-      --file=- \
-    > "$destination"
+	  log "pg_dump falló para '${database}':"
+	  cat "$dump_error" >&2
+	  fail "No se pudo exportar la base '${database}'."
+	fi
 
-  [[ -s "$destination" ]] ||
-    fail "El dump de '${database}' está vacío."
+	rm -f "$dump_error"
+
+	[[ -s "$destination" ]] ||
+	  fail "El dump de '${database}' está vacío."
 
   log "Validando estructura del dump '${database}'."
 
