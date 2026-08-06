@@ -3,6 +3,10 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
+# =============================================================================
+# Configuración base
+# =============================================================================
+
 readonly PLATFORM_ROOT="/opt/aegora/platform"
 readonly SECRETS_ROOT="/opt/aegora/secrets"
 readonly BACKUP_ROOT="/opt/aegora/backups"
@@ -12,23 +16,44 @@ readonly LOCK_FILE="/run/lock/aegora-backup.lock"
 TENANT="${TENANT:-aegora}"
 
 readonly TENANT_CONFIG="${PLATFORM_ROOT}/customers/${TENANT}/tenant.env"
+readonly BACKUP_MANIFEST="${PLATFORM_ROOT}/customers/${TENANT}/backup.manifest.json"
 readonly RESTIC_CONFIG="${SECRETS_ROOT}/restic.env"
 readonly EXCLUDES_FILE="${PLATFORM_ROOT}/scripts/backup/excludes.txt"
+
+RUN_ID=""
+RUN_DIR=""
+POSTGRES_DIR=""
+CONFIG_DIR=""
+MANIFEST_DIR=""
+
+# =============================================================================
+# Utilidades
+# =============================================================================
 
 log() {
   printf '[%s] %s\n' "$(date --iso-8601=seconds)" "$*"
 }
 
+warn() {
+  log "AVISO: $*" >&2
+}
+
 fail() {
-  log "ERROR: $*"
+  log "ERROR: $*" >&2
   exit 1
 }
 
 cleanup() {
   local exit_code=$?
 
+  trap - EXIT
+
   if [[ $exit_code -ne 0 ]]; then
     log "El backup terminó con errores."
+
+    if [[ -n "${RUN_DIR:-}" && -d "$RUN_DIR" ]]; then
+      warn "El staging se conserva para diagnóstico: ${RUN_DIR}"
+    fi
   fi
 
   exit "$exit_code"
@@ -47,30 +72,22 @@ require_file() {
     fail "Falta el fichero requerido: $1"
 }
 
-copy_required_file() {
-  local source="$1"
-  local destination="$2"
-  local mode="${3:-600}"
-
-  require_file "$source"
-
-  install \
-    --directory \
-    --mode=700 \
-    "$(dirname "$destination")"
-
-  install \
-    --mode="$mode" \
-    "$source" \
-    "$destination"
+require_directory() {
+  [[ -d "$1" ]] ||
+    fail "Falta el directorio requerido: $1"
 }
 
-copy_optional_file() {
+copy_configuration_file() {
   local source="$1"
   local destination="$2"
-  local mode="${3:-600}"
+  local required="$3"
+  local mode="$4"
 
   if [[ ! -f "$source" ]]; then
+    if [[ "$required" == "true" ]]; then
+      fail "Falta el fichero requerido por el manifiesto: ${source}"
+    fi
+
     log "Fichero opcional ausente; se omite: ${source}"
     return 0
   fi
@@ -84,7 +101,208 @@ copy_optional_file() {
     --mode="$mode" \
     "$source" \
     "$destination"
+
+  log "Configuración incluida: ${source}"
 }
+
+validate_manifest() {
+  python3 - "$BACKUP_MANIFEST" <<'PY'
+import json
+import os
+import re
+import sys
+
+manifest_path = sys.argv[1]
+
+with open(manifest_path, "r", encoding="utf-8") as handle:
+    manifest = json.load(handle)
+
+if manifest.get("version") != 1:
+    raise SystemExit("ERROR: versión de manifiesto no soportada")
+
+databases = manifest.get("databases")
+persistent_paths = manifest.get("persistent_paths")
+configuration_files = manifest.get("configuration_files")
+
+if not isinstance(databases, list) or not databases:
+    raise SystemExit("ERROR: databases debe ser una lista no vacía")
+
+if not isinstance(persistent_paths, list):
+    raise SystemExit("ERROR: persistent_paths debe ser una lista")
+
+if not isinstance(configuration_files, list):
+    raise SystemExit("ERROR: configuration_files debe ser una lista")
+
+unresolved_pattern = re.compile(r"\$\{[^}]+\}")
+
+def expand(value: str) -> str:
+    expanded = os.path.expandvars(value)
+
+    if unresolved_pattern.search(expanded):
+        raise SystemExit(
+            f"ERROR: variable sin resolver en el manifiesto: {value}"
+        )
+
+    return expanded
+
+expanded_databases = []
+
+for database in databases:
+    if not isinstance(database, str) or not database.strip():
+        raise SystemExit("ERROR: database inválida")
+
+    expanded_database = expand(database.strip())
+
+    if not re.fullmatch(r"[A-Za-z0-9_]+", expanded_database):
+        raise SystemExit(
+            f"ERROR: nombre de base no permitido: {expanded_database}"
+        )
+
+    expanded_databases.append(expanded_database)
+
+if len(expanded_databases) != len(set(expanded_databases)):
+    raise SystemExit("ERROR: hay bases de datos duplicadas")
+
+for entry in persistent_paths:
+    if not isinstance(entry, dict):
+        raise SystemExit("ERROR: entrada inválida en persistent_paths")
+
+    path = entry.get("path")
+    required = entry.get("required")
+
+    if not isinstance(path, str) or not path:
+        raise SystemExit("ERROR: persistent path sin path")
+
+    if not isinstance(required, bool):
+        raise SystemExit(
+            "ERROR: required debe ser booleano en persistent_paths"
+        )
+
+    expanded_path = expand(path)
+
+    if not expanded_path.startswith("/"):
+        raise SystemExit(
+            f"ERROR: persistent path debe ser absoluto: {expanded_path}"
+        )
+
+destinations = set()
+
+for entry in configuration_files:
+    if not isinstance(entry, dict):
+        raise SystemExit("ERROR: entrada inválida en configuration_files")
+
+    source = entry.get("source")
+    destination = entry.get("destination")
+    required = entry.get("required")
+    mode = entry.get("mode")
+
+    if not isinstance(source, str) or not source:
+        raise SystemExit("ERROR: configuration file sin source")
+
+    if not isinstance(destination, str) or not destination:
+        raise SystemExit("ERROR: configuration file sin destination")
+
+    if not isinstance(required, bool):
+        raise SystemExit(
+            "ERROR: required debe ser booleano en configuration_files"
+        )
+
+    if not isinstance(mode, str) or not re.fullmatch(r"[0-7]{3,4}", mode):
+        raise SystemExit(
+            f"ERROR: modo inválido para {destination}: {mode}"
+        )
+
+    expanded_source = expand(source)
+    expanded_destination = expand(destination)
+
+    if not expanded_source.startswith("/"):
+        raise SystemExit(
+            f"ERROR: source debe ser absoluto: {expanded_source}"
+        )
+
+    if expanded_destination.startswith("/"):
+        raise SystemExit(
+            "ERROR: destination debe ser relativa al staging"
+        )
+
+    normalized_destination = os.path.normpath(expanded_destination)
+
+    if normalized_destination.startswith("../") or normalized_destination == "..":
+        raise SystemExit(
+            f"ERROR: destination sale del staging: {expanded_destination}"
+        )
+
+    if normalized_destination in destinations:
+        raise SystemExit(
+            f"ERROR: destination duplicado: {normalized_destination}"
+        )
+
+    destinations.add(normalized_destination)
+
+print("Manifiesto válido")
+PY
+}
+
+read_databases() {
+  python3 - "$BACKUP_MANIFEST" <<'PY'
+import json
+import os
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    manifest = json.load(handle)
+
+for database in manifest["databases"]:
+    expanded = os.path.expandvars(database)
+    sys.stdout.write(expanded)
+    sys.stdout.write("\0")
+PY
+}
+
+read_persistent_paths() {
+  python3 - "$BACKUP_MANIFEST" <<'PY'
+import json
+import os
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    manifest = json.load(handle)
+
+for entry in manifest["persistent_paths"]:
+    path = os.path.expandvars(entry["path"])
+    required = "true" if entry["required"] else "false"
+
+    sys.stdout.write(path)
+    sys.stdout.write("\0")
+    sys.stdout.write(required)
+    sys.stdout.write("\0")
+PY
+}
+
+read_configuration_files() {
+  python3 - "$BACKUP_MANIFEST" <<'PY'
+import json
+import os
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    manifest = json.load(handle)
+
+for entry in manifest["configuration_files"]:
+    source = os.path.expandvars(entry["source"])
+    destination = os.path.expandvars(entry["destination"])
+    required = "true" if entry["required"] else "false"
+    mode = entry["mode"]
+
+    for value in (source, destination, required, mode):
+        sys.stdout.write(value)
+        sys.stdout.write("\0")
+PY
+}
+
+# =============================================================================
+# Prerrequisitos
+# =============================================================================
 
 require_command docker
 require_command restic
@@ -100,19 +318,22 @@ require_command stat
 require_command grep
 
 require_file "$TENANT_CONFIG"
+require_file "$BACKUP_MANIFEST"
 require_file "$RESTIC_CONFIG"
 require_file "$EXCLUDES_FILE"
 
 mkdir -p "$(dirname "$LOCK_FILE")"
 
-# Impedir dos backups simultáneos.
 exec 9>"$LOCK_FILE"
 
 if ! flock -n 9; then
   fail "Ya hay otro backup en ejecución."
 fi
 
-# Cargar configuración del tenant y credenciales Restic/S3.
+# =============================================================================
+# Cargar configuración
+# =============================================================================
+
 set -a
 
 # shellcheck disable=SC1090
@@ -129,36 +350,55 @@ set +a
 : "${BACKUP_TAG_TENANT:?Falta BACKUP_TAG_TENANT}"
 : "${BACKUP_TAG_ENVIRONMENT:?Falta BACKUP_TAG_ENVIRONMENT}"
 
-: "${POSTGRES_DIRECTUS_DB:?Falta POSTGRES_DIRECTUS_DB}"
-: "${POSTGRES_N8N_DB:?Falta POSTGRES_N8N_DB}"
-: "${POSTGRES_BOOKING_DB:?Falta POSTGRES_BOOKING_DB}"
-
 : "${RESTIC_REPOSITORY:?Falta RESTIC_REPOSITORY}"
 : "${RESTIC_PASSWORD:?Falta RESTIC_PASSWORD}"
 : "${AWS_ACCESS_KEY_ID:?Falta AWS_ACCESS_KEY_ID}"
 : "${AWS_SECRET_ACCESS_KEY:?Falta AWS_SECRET_ACCESS_KEY}"
 
-readonly RUN_ID="$(date -u +'%Y%m%dT%H%M%SZ')"
-readonly RUN_DIR="${STAGING_ROOT}/${TENANT_ID}/${RUN_ID}"
-readonly POSTGRES_DIR="${RUN_DIR}/postgres"
-readonly CONFIG_DIR="${RUN_DIR}/configuration"
-readonly MANIFEST_DIR="${RUN_DIR}/manifests"
+# Estas rutas se exportan para que os.path.expandvars pueda resolverlas.
+export PLATFORM_ROOT
+export SECRETS_ROOT
+export TENANT_CONFIG
+export BACKUP_MANIFEST
+export RESTIC_CONFIG
+
+validate_manifest
+
+DATABASES=()
+
+while IFS= read -r -d '' database; do
+  DATABASES+=("$database")
+done < <(read_databases)
+
+[[ ${#DATABASES[@]} -gt 0 ]] ||
+  fail "El manifiesto no contiene bases de datos."
+
+# =============================================================================
+# Preparar ejecución
+# =============================================================================
 
 readonly POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-aegora-postgres}"
 
-DATABASES=(
-  "$POSTGRES_DIRECTUS_DB"
-  "$POSTGRES_N8N_DB"
-  "$POSTGRES_BOOKING_DB"
-)
+RUN_ID="$(date -u +'%Y%m%dT%H%M%SZ')"
+RUN_DIR="${STAGING_ROOT}/${TENANT_ID}/${RUN_ID}"
+POSTGRES_DIR="${RUN_DIR}/postgres"
+CONFIG_DIR="${RUN_DIR}/configuration"
+MANIFEST_DIR="${RUN_DIR}/manifests"
+
+readonly RUN_ID
+readonly RUN_DIR
+readonly POSTGRES_DIR
+readonly CONFIG_DIR
+readonly MANIFEST_DIR
 
 log "Iniciando backup del tenant '${TENANT_ID}'."
 log "Repositorio: ${RESTIC_REPOSITORY}"
+log "Manifiesto: ${BACKUP_MANIFEST}"
 log "Ejecución: ${RUN_ID}"
 
-# ---------------------------------------------------------------------------
+# =============================================================================
 # Validar PostgreSQL
-# ---------------------------------------------------------------------------
+# =============================================================================
 
 docker inspect "$POSTGRES_CONTAINER" >/dev/null 2>&1 ||
   fail "No existe el contenedor '${POSTGRES_CONTAINER}'."
@@ -178,8 +418,10 @@ postgres_health="$(
 [[ "$postgres_status" == "running" ]] ||
   fail "PostgreSQL no está en ejecución. Estado: ${postgres_status}"
 
-if [[ "$postgres_health" != "not-configured" &&
-      "$postgres_health" != "healthy" ]]; then
+if [[
+  "$postgres_health" != "not-configured" &&
+  "$postgres_health" != "healthy"
+ ]]; then
   fail "PostgreSQL no está healthy. Estado: ${postgres_health}"
 fi
 
@@ -196,9 +438,9 @@ readonly POSTGRES_ADMIN_USER
 
 log "Usuario administrativo PostgreSQL detectado: ${POSTGRES_ADMIN_USER}"
 
-# ---------------------------------------------------------------------------
+# =============================================================================
 # Preparar staging
-# ---------------------------------------------------------------------------
+# =============================================================================
 
 rm -rf "${STAGING_ROOT:?}/${TENANT_ID:?}"
 
@@ -213,9 +455,15 @@ chmod 700 \
   "$CONFIG_DIR" \
   "$MANIFEST_DIR"
 
-# ---------------------------------------------------------------------------
-# PostgreSQL: roles y objetos globales
-# ---------------------------------------------------------------------------
+# Guardar el manifiesto exacto utilizado en el snapshot.
+install \
+  --mode=644 \
+  "$BACKUP_MANIFEST" \
+  "${MANIFEST_DIR}/backup.manifest.json"
+
+# =============================================================================
+# PostgreSQL: objetos globales
+# =============================================================================
 
 log "Exportando roles y objetos globales de PostgreSQL."
 
@@ -240,9 +488,9 @@ rm -f "$globals_error"
 [[ -s "$globals_file" ]] ||
   fail "El dump de objetos globales está vacío."
 
-# ---------------------------------------------------------------------------
-# PostgreSQL: bases del tenant
-# ---------------------------------------------------------------------------
+# =============================================================================
+# PostgreSQL: bases declaradas en el manifiesto
+# =============================================================================
 
 for database in "${DATABASES[@]}"; do
   destination="${POSTGRES_DIR}/${database}.dump"
@@ -303,82 +551,33 @@ for database in "${DATABASES[@]}"; do
   log "Dump '${database}' válido: ${dump_size} bytes."
 done
 
-# ---------------------------------------------------------------------------
-# Copiar solamente configuración efectiva
-# ---------------------------------------------------------------------------
+# =============================================================================
+# Configuración declarada en el manifiesto
+# =============================================================================
 
-log "Copiando configuración efectiva."
+log "Copiando configuración declarada en el manifiesto."
 
-copy_required_file \
-  "$TENANT_CONFIG" \
-  "${CONFIG_DIR}/tenant/tenant.env" \
-  600
+while true; do
+  IFS= read -r -d '' source || break
+  IFS= read -r -d '' relative_destination ||
+    fail "Registro incompleto en configuration_files"
+  IFS= read -r -d '' required ||
+    fail "Registro incompleto en configuration_files"
+  IFS= read -r -d '' mode ||
+    fail "Registro incompleto en configuration_files"
 
-copy_required_file \
-  "$RESTIC_CONFIG" \
-  "${CONFIG_DIR}/secrets/restic.env" \
-  600
+  copy_configuration_file \
+    "$source" \
+    "${CONFIG_DIR}/${relative_destination}" \
+    "$required" \
+    "$mode"
+done < <(read_configuration_files)
 
-copy_required_file \
-  "${PLATFORM_ROOT}/compose/postgres/compose.yml" \
-  "${CONFIG_DIR}/compose/postgres/compose.yml" \
-  600
+# =============================================================================
+# Manifiesto técnico y hashes
+# =============================================================================
 
-copy_required_file \
-  "${PLATFORM_ROOT}/compose/postgres/.env" \
-  "${CONFIG_DIR}/compose/postgres/.env" \
-  600
-
-copy_required_file \
-  "${PLATFORM_ROOT}/compose/directus/compose.yml" \
-  "${CONFIG_DIR}/compose/directus/compose.yml" \
-  600
-
-copy_required_file \
-  "${PLATFORM_ROOT}/compose/directus/.env" \
-  "${CONFIG_DIR}/compose/directus/.env" \
-  600
-
-copy_required_file \
-  "${PLATFORM_ROOT}/compose/n8n/compose.yml" \
-  "${CONFIG_DIR}/compose/n8n/compose.yml" \
-  600
-
-copy_required_file \
-  "${PLATFORM_ROOT}/compose/n8n/.env" \
-  "${CONFIG_DIR}/compose/n8n/.env" \
-  600
-
-copy_required_file \
-  "${PLATFORM_ROOT}/compose/caddy/compose.yml" \
-  "${CONFIG_DIR}/compose/caddy/compose.yml" \
-  600
-
-copy_required_file \
-  "${PLATFORM_ROOT}/compose/caddy/.env" \
-  "${CONFIG_DIR}/compose/caddy/.env" \
-  600
-
-copy_required_file \
-  "${PLATFORM_ROOT}/compose/caddy/Caddyfile" \
-  "${CONFIG_DIR}/compose/caddy/Caddyfile" \
-  600
-
-copy_optional_file \
-  "${PLATFORM_ROOT}/compose/booking/compose.yml" \
-  "${CONFIG_DIR}/compose/booking/compose.yml" \
-  600
-
-copy_optional_file \
-  "${PLATFORM_ROOT}/compose/booking/.env" \
-  "${CONFIG_DIR}/compose/booking/.env" \
-  600
-
-# ---------------------------------------------------------------------------
-# Manifiesto
-# ---------------------------------------------------------------------------
-
-log "Creando manifiesto del backup."
+log "Creando manifiesto técnico del backup."
 
 postgres_version="$(
   docker exec "$POSTGRES_CONTAINER" postgres --version
@@ -394,9 +593,15 @@ source_hostname="$(
     hostname
 )"
 
+database_list="$(
+  IFS=,
+  printf '%s' "${DATABASES[*]}"
+)"
+
 cat > "${MANIFEST_DIR}/backup.env" <<EOF
 BACKUP_RUN_ID=${RUN_ID}
 BACKUP_CREATED_AT=$(date -u --iso-8601=seconds)
+BACKUP_MANIFEST_VERSION=1
 TENANT_ID=${TENANT_ID}
 ENVIRONMENT=${ENVIRONMENT}
 BACKUP_HOST=${BACKUP_HOST}
@@ -405,7 +610,7 @@ POSTGRES_CONTAINER=${POSTGRES_CONTAINER}
 POSTGRES_ADMIN_USER=${POSTGRES_ADMIN_USER}
 POSTGRES_VERSION=${postgres_version}
 RESTIC_VERSION=${restic_version}
-DATABASES=${DATABASES[*]}
+DATABASES=${database_list}
 EOF
 
 (
@@ -422,41 +627,37 @@ EOF
 [[ -s "${MANIFEST_DIR}/SHA256SUMS" ]] ||
   fail "No se pudo generar el manifiesto SHA256."
 
-# ---------------------------------------------------------------------------
-# Rutas persistentes
-# ---------------------------------------------------------------------------
+# =============================================================================
+# Rutas persistentes declaradas
+# =============================================================================
 
 BACKUP_PATHS=(
   "$RUN_DIR"
 )
 
-OPTIONAL_PATHS=(
-  "/opt/aegora/data/directus"
-  "/opt/aegora/data/n8n"
-  "/opt/aegora/data/caddy"
-  "/opt/aegora/data/booking"
-)
+log "Procesando rutas persistentes declaradas en el manifiesto."
 
-for path in "${OPTIONAL_PATHS[@]}"; do
-  if [[ -d "$path" ]]; then
-    BACKUP_PATHS+=("$path")
-    log "Incluyendo ruta persistente: ${path}"
-  else
-    log "Ruta opcional ausente; se omite: ${path}"
+while true; do
+  IFS= read -r -d '' persistent_path || break
+  IFS= read -r -d '' required ||
+    fail "Registro incompleto en persistent_paths"
+
+  if [[ -d "$persistent_path" ]]; then
+    BACKUP_PATHS+=("$persistent_path")
+    log "Incluyendo ruta persistente: ${persistent_path}"
+    continue
   fi
-done
 
-# Ya no incluimos:
-#
-# /opt/aegora/platform
-# /opt/aegora/secrets
-#
-# La configuración efectiva necesaria está copiada selectivamente dentro
-# de RUN_DIR/configuration.
+  if [[ "$required" == "true" ]]; then
+    fail "Falta la ruta persistente requerida: ${persistent_path}"
+  fi
 
-# ---------------------------------------------------------------------------
+  log "Ruta persistente opcional ausente; se omite: ${persistent_path}"
+done < <(read_persistent_paths)
+
+# =============================================================================
 # Restic
-# ---------------------------------------------------------------------------
+# =============================================================================
 
 log "Verificando acceso al repositorio Restic."
 
@@ -476,6 +677,7 @@ if ! restic backup \
   --tag "$BACKUP_TAG_TENANT" \
   --tag "$BACKUP_TAG_ENVIRONMENT" \
   --tag "type=full" \
+  --tag "manifest=v1" \
   --tag "run=${RUN_ID}" \
   --exclude-file="$EXCLUDES_FILE" \
   --verbose; then
@@ -509,11 +711,11 @@ print(snapshot.get("short_id") or snapshot["id"][:8])
 
 log "Snapshot creado: ${snapshot_id}"
 
-# ---------------------------------------------------------------------------
-# Verificar que los dumps están realmente dentro del snapshot
-# ---------------------------------------------------------------------------
+# =============================================================================
+# Verificación remota
+# =============================================================================
 
-log "Verificando presencia de dumps en el snapshot remoto."
+log "Verificando contenido obligatorio en el snapshot remoto."
 
 snapshot_listing="$(
   restic ls "$snapshot_id"
@@ -530,14 +732,21 @@ for database in "${DATABASES[@]}"; do
 done
 
 expected_globals="/opt/aegora/backups/staging/${TENANT_ID}/${RUN_ID}/postgres/globals.sql"
+expected_manifest="/opt/aegora/backups/staging/${TENANT_ID}/${RUN_ID}/manifests/backup.manifest.json"
+expected_hashes="/opt/aegora/backups/staging/${TENANT_ID}/${RUN_ID}/manifests/SHA256SUMS"
 
-if ! grep -Fq "$expected_globals" <<< "$snapshot_listing"; then
-  fail "El snapshot no contiene globals.sql."
-fi
+for expected_path in \
+  "$expected_globals" \
+  "$expected_manifest" \
+  "$expected_hashes"; do
 
-log "Todos los dumps están presentes en el snapshot."
+  if ! grep -Fq "$expected_path" <<< "$snapshot_listing"; then
+    fail "El snapshot no contiene el fichero esperado: ${expected_path}"
+  fi
+done
 
-# El staging solo se elimina después de verificar el contenido remoto.
+log "Todos los dumps y manifiestos están presentes en el snapshot."
+
 rm -rf "${STAGING_ROOT:?}/${TENANT_ID:?}"
 
 log "Staging local eliminado."

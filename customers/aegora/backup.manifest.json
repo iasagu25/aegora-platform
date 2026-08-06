@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "databases": [
+    "${POSTGRES_DIRECTUS_DB}",
+    "${POSTGRES_N8N_DB}",
+    "${POSTGRES_BOOKING_DB}"
+  ],
+  "persistent_paths": [
+    {
+      "path": "${DIRECTUS_DATA_DIR}",
+      "required": true
+    },
+    {
+      "path": "${N8N_DATA_DIR}",
+      "required": true
+    },
+    {
+      "path": "/opt/aegora/data/caddy",
+      "required": true
+    },
+    {
+      "path": "${BOOKING_DATA_DIR}",
+      "required": false
+    }
+  ],
+  "configuration_files": [
+    {
+      "source": "${TENANT_CONFIG}",
+      "destination": "tenant/tenant.env",
+      "required": true,
+      "mode": "600"
+    },
+    {
+      "source": "${RESTIC_CONFIG}",
+      "destination": "secrets/restic.env",
+      "required": true,
+      "mode": "600"
+    },
+    {
+      "source": "${PLATFORM_ROOT}/compose/postgres/compose.yml",
+      "destination": "compose/postgres/compose.yml",
+      "required": true,
+      "mode": "644"
+    },
+    {
+      "source": "${PLATFORM_ROOT}/compose/postgres/.env",
+      "destination": "compose/postgres/.env",
+      "required": true,
+      "mode": "600"
+    },
+    {
+      "source": "${PLATFORM_ROOT}/compose/directus/compose.yml",
+      "destination": "compose/directus/compose.yml",
+      "required": true,
+      "mode": "644"
+    },
+    {
+      "source": "${PLATFORM_ROOT}/compose/directus/.env",
+      "destination": "compose/directus/.env",
+      "required": true,
+      "mode": "600"
+    },
+    {
+      "source": "${PLATFORM_ROOT}/compose/n8n/compose.yml",
+      "destination": "compose/n8n/compose.yml",
+      "required": true,
+      "mode": "644"
+    },
+    {
+      "source": "${PLATFORM_ROOT}/compose/n8n/.env",
+      "destination": "compose/n8n/.env",
+      "required": true,
+      "mode": "600"
+    },
+    {
+      "source": "${PLATFORM_ROOT}/compose/caddy/compose.yml",
+      "destination": "compose/caddy/compose.yml",
+      "required": true,
+      "mode": "644"
+    },
+    {
+      "source": "${PLATFORM_ROOT}/compose/caddy/.env",
+      "destination": "compose/caddy/.env",
+      "required": true,
+      "mode": "600"
+    },
+    {
+      "source": "${PLATFORM_ROOT}/compose/caddy/Caddyfile",
+      "destination": "compose/caddy/Caddyfile",
+      "required": true,
+      "mode": "644"
+    },
+    {
+      "source": "${PLATFORM_ROOT}/compose/booking/compose.yml",
+      "destination": "compose/booking/compose.yml",
+      "required": false,
+      "mode": "644"
+    },
+    {
+      "source": "${PLATFORM_ROOT}/compose/booking/.env",
+      "destination": "compose/booking/.env",
+      "required": false,
+      "mode": "600"
+    }
+  ]
+}
