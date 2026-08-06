@@ -1,22 +1,21 @@
-# Git y artefactos de desarrollo
-.git
+# Logs y temporales
+*.log
+*.tmp
+tmp
+tmp/*
+crash.journal
+
+# Cachés de aplicaciones
+.cache
+cache
+cache/*
+
+# Artefactos innecesarios
 node_modules
 .next
 coverage
 dist
 
-# Cachés
-.cache
-*.cache
-
-# Temporales y logs
-tmp
-tmp/*
-*.tmp
-*.log
-
-# Datos que nunca deben copiarse directamente
-/opt/aegora/data/postgres/data
-
-# Staging obsoleto de ejecuciones anteriores
-/opt/aegora/backups/staging/*
+# Metadatos del sistema
+.DS_Store
+Thumbs.db

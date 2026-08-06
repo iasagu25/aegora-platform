@@ -47,9 +47,43 @@ require_file() {
     fail "Falta el fichero requerido: $1"
 }
 
-require_directory() {
-  [[ -d "$1" ]] ||
-    fail "Falta el directorio requerido: $1"
+copy_required_file() {
+  local source="$1"
+  local destination="$2"
+  local mode="${3:-600}"
+
+  require_file "$source"
+
+  install \
+    --directory \
+    --mode=700 \
+    "$(dirname "$destination")"
+
+  install \
+    --mode="$mode" \
+    "$source" \
+    "$destination"
+}
+
+copy_optional_file() {
+  local source="$1"
+  local destination="$2"
+  local mode="${3:-600}"
+
+  if [[ ! -f "$source" ]]; then
+    log "Fichero opcional ausente; se omite: ${source}"
+    return 0
+  fi
+
+  install \
+    --directory \
+    --mode=700 \
+    "$(dirname "$destination")"
+
+  install \
+    --mode="$mode" \
+    "$source" \
+    "$destination"
 }
 
 require_command docker
@@ -61,6 +95,9 @@ require_command python3
 require_command find
 require_command sort
 require_command xargs
+require_command install
+require_command stat
+require_command grep
 
 require_file "$TENANT_CONFIG"
 require_file "$RESTIC_CONFIG"
@@ -75,7 +112,7 @@ if ! flock -n 9; then
   fail "Ya hay otro backup en ejecución."
 fi
 
-# Cargar configuración del tenant y credenciales de Restic/S3.
+# Cargar configuración del tenant y credenciales Restic/S3.
 set -a
 
 # shellcheck disable=SC1090
@@ -104,6 +141,7 @@ set +a
 readonly RUN_ID="$(date -u +'%Y%m%dT%H%M%SZ')"
 readonly RUN_DIR="${STAGING_ROOT}/${TENANT_ID}/${RUN_ID}"
 readonly POSTGRES_DIR="${RUN_DIR}/postgres"
+readonly CONFIG_DIR="${RUN_DIR}/configuration"
 readonly MANIFEST_DIR="${RUN_DIR}/manifests"
 
 readonly POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-aegora-postgres}"
@@ -118,7 +156,10 @@ log "Iniciando backup del tenant '${TENANT_ID}'."
 log "Repositorio: ${RESTIC_REPOSITORY}"
 log "Ejecución: ${RUN_ID}"
 
-# Validar PostgreSQL.
+# ---------------------------------------------------------------------------
+# Validar PostgreSQL
+# ---------------------------------------------------------------------------
+
 docker inspect "$POSTGRES_CONTAINER" >/dev/null 2>&1 ||
   fail "No existe el contenedor '${POSTGRES_CONTAINER}'."
 
@@ -137,7 +178,8 @@ postgres_health="$(
 [[ "$postgres_status" == "running" ]] ||
   fail "PostgreSQL no está en ejecución. Estado: ${postgres_status}"
 
-if [[ "$postgres_health" != "not-configured" && "$postgres_health" != "healthy" ]]; then
+if [[ "$postgres_health" != "not-configured" &&
+      "$postgres_health" != "healthy" ]]; then
   fail "PostgreSQL no está healthy. Estado: ${postgres_health}"
 fi
 
@@ -154,16 +196,21 @@ readonly POSTGRES_ADMIN_USER
 
 log "Usuario administrativo PostgreSQL detectado: ${POSTGRES_ADMIN_USER}"
 
-# Preparar staging limpio para esta ejecución.
+# ---------------------------------------------------------------------------
+# Preparar staging
+# ---------------------------------------------------------------------------
+
 rm -rf "${STAGING_ROOT:?}/${TENANT_ID:?}"
 
 mkdir -p \
   "$POSTGRES_DIR" \
+  "$CONFIG_DIR" \
   "$MANIFEST_DIR"
 
 chmod 700 \
   "$RUN_DIR" \
   "$POSTGRES_DIR" \
+  "$CONFIG_DIR" \
   "$MANIFEST_DIR"
 
 # ---------------------------------------------------------------------------
@@ -194,7 +241,7 @@ rm -f "$globals_error"
   fail "El dump de objetos globales está vacío."
 
 # ---------------------------------------------------------------------------
-# PostgreSQL: bases declaradas por el tenant
+# PostgreSQL: bases del tenant
 # ---------------------------------------------------------------------------
 
 for database in "${DATABASES[@]}"; do
@@ -251,22 +298,90 @@ for database in "${DATABASES[@]}"; do
     fail "El dump de '${database}' no supera pg_restore --list."
   fi
 
-  dump_size="$(
-    stat --format='%s' "$destination"
-  )"
+  dump_size="$(stat --format='%s' "$destination")"
 
   log "Dump '${database}' válido: ${dump_size} bytes."
 done
 
 # ---------------------------------------------------------------------------
-# Manifiesto de la ejecución
+# Copiar solamente configuración efectiva
+# ---------------------------------------------------------------------------
+
+log "Copiando configuración efectiva."
+
+copy_required_file \
+  "$TENANT_CONFIG" \
+  "${CONFIG_DIR}/tenant/tenant.env" \
+  600
+
+copy_required_file \
+  "$RESTIC_CONFIG" \
+  "${CONFIG_DIR}/secrets/restic.env" \
+  600
+
+copy_required_file \
+  "${PLATFORM_ROOT}/compose/postgres/compose.yml" \
+  "${CONFIG_DIR}/compose/postgres/compose.yml" \
+  600
+
+copy_required_file \
+  "${PLATFORM_ROOT}/compose/postgres/.env" \
+  "${CONFIG_DIR}/compose/postgres/.env" \
+  600
+
+copy_required_file \
+  "${PLATFORM_ROOT}/compose/directus/compose.yml" \
+  "${CONFIG_DIR}/compose/directus/compose.yml" \
+  600
+
+copy_required_file \
+  "${PLATFORM_ROOT}/compose/directus/.env" \
+  "${CONFIG_DIR}/compose/directus/.env" \
+  600
+
+copy_required_file \
+  "${PLATFORM_ROOT}/compose/n8n/compose.yml" \
+  "${CONFIG_DIR}/compose/n8n/compose.yml" \
+  600
+
+copy_required_file \
+  "${PLATFORM_ROOT}/compose/n8n/.env" \
+  "${CONFIG_DIR}/compose/n8n/.env" \
+  600
+
+copy_required_file \
+  "${PLATFORM_ROOT}/compose/caddy/compose.yml" \
+  "${CONFIG_DIR}/compose/caddy/compose.yml" \
+  600
+
+copy_required_file \
+  "${PLATFORM_ROOT}/compose/caddy/.env" \
+  "${CONFIG_DIR}/compose/caddy/.env" \
+  600
+
+copy_required_file \
+  "${PLATFORM_ROOT}/compose/caddy/Caddyfile" \
+  "${CONFIG_DIR}/compose/caddy/Caddyfile" \
+  600
+
+copy_optional_file \
+  "${PLATFORM_ROOT}/compose/booking/compose.yml" \
+  "${CONFIG_DIR}/compose/booking/compose.yml" \
+  600
+
+copy_optional_file \
+  "${PLATFORM_ROOT}/compose/booking/.env" \
+  "${CONFIG_DIR}/compose/booking/.env" \
+  600
+
+# ---------------------------------------------------------------------------
+# Manifiesto
 # ---------------------------------------------------------------------------
 
 log "Creando manifiesto del backup."
 
 postgres_version="$(
-  docker exec "$POSTGRES_CONTAINER" \
-    postgres --version
+  docker exec "$POSTGRES_CONTAINER" postgres --version
 )"
 
 restic_version="$(
@@ -308,13 +423,11 @@ EOF
   fail "No se pudo generar el manifiesto SHA256."
 
 # ---------------------------------------------------------------------------
-# Rutas que entrarán en Restic
+# Rutas persistentes
 # ---------------------------------------------------------------------------
 
 BACKUP_PATHS=(
   "$RUN_DIR"
-  "$PLATFORM_ROOT"
-  "$SECRETS_ROOT"
 )
 
 OPTIONAL_PATHS=(
@@ -332,6 +445,14 @@ for path in "${OPTIONAL_PATHS[@]}"; do
     log "Ruta opcional ausente; se omite: ${path}"
   fi
 done
+
+# Ya no incluimos:
+#
+# /opt/aegora/platform
+# /opt/aegora/secrets
+#
+# La configuración efectiva necesaria está copiada selectivamente dentro
+# de RUN_DIR/configuration.
 
 # ---------------------------------------------------------------------------
 # Restic
@@ -362,7 +483,7 @@ if ! restic backup \
   fail "Restic no pudo completar el backup."
 fi
 
-log "Comprobando que el snapshot se ha creado."
+log "Localizando el snapshot recién creado."
 
 snapshot_id="$(
   restic snapshots \
@@ -386,9 +507,37 @@ print(snapshot.get("short_id") or snapshot["id"][:8])
 [[ -n "$snapshot_id" ]] ||
   fail "No se pudo localizar el snapshot recién creado."
 
-log "Snapshot creado correctamente: ${snapshot_id}"
+log "Snapshot creado: ${snapshot_id}"
 
-# El staging se elimina únicamente tras confirmar el snapshot.
+# ---------------------------------------------------------------------------
+# Verificar que los dumps están realmente dentro del snapshot
+# ---------------------------------------------------------------------------
+
+log "Verificando presencia de dumps en el snapshot remoto."
+
+snapshot_listing="$(
+  restic ls "$snapshot_id"
+)"
+
+for database in "${DATABASES[@]}"; do
+  expected_path="/opt/aegora/backups/staging/${TENANT_ID}/${RUN_ID}/postgres/${database}.dump"
+
+  if ! grep -Fq "$expected_path" <<< "$snapshot_listing"; then
+    fail "El snapshot no contiene el dump esperado: ${expected_path}"
+  fi
+
+  log "Dump confirmado en snapshot: ${database}.dump"
+done
+
+expected_globals="/opt/aegora/backups/staging/${TENANT_ID}/${RUN_ID}/postgres/globals.sql"
+
+if ! grep -Fq "$expected_globals" <<< "$snapshot_listing"; then
+  fail "El snapshot no contiene globals.sql."
+fi
+
+log "Todos los dumps están presentes en el snapshot."
+
+# El staging solo se elimina después de verificar el contenido remoto.
 rm -rf "${STAGING_ROOT:?}/${TENANT_ID:?}"
 
 log "Staging local eliminado."
