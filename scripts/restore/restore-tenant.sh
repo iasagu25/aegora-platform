@@ -9,6 +9,7 @@ IFS=$'\n\t'
 
 readonly PLATFORM_ROOT="/opt/aegora/platform"
 readonly SECRETS_ROOT="/opt/aegora/secrets"
+readonly RESTIC_CONFIG="${SECRETS_ROOT}/restic.env"
 readonly RESTORE_ROOT_DEFAULT="/opt/aegora/restore"
 readonly LOCK_FILE="/run/lock/aegora-restore.lock"
 
@@ -26,9 +27,7 @@ APPLY_PRODUCTION=false
 ASSUME_YES=false
 KEEP_RESTORE=false
 
-readonly TENANT_CONFIG="${PLATFORM_ROOT}/customers/${TENANT}/tenant.env"
-readonly RESTIC_CONFIG="${SECRETS_ROOT}/restic.env"
-
+TENANT_CONFIG=""
 RESTORE_DIR=""
 RUN_DIR=""
 RUN_ID=""
@@ -57,7 +56,8 @@ Uso:
 
   restore-tenant.sh [opciones]
 
-Por defecto:
+Comportamiento predeterminado:
+
   - selecciona el snapshot más reciente del tenant;
   - lo restaura en /opt/aegora/restore;
   - valida hashes y dumps;
@@ -74,7 +74,7 @@ Opciones:
       También admite: latest
 
   --restore-root RUTA
-      Directorio temporal de restauración.
+      Directorio de restauración.
       Por defecto: /opt/aegora/restore
 
   --verify-only
@@ -82,31 +82,30 @@ Opciones:
       Es el modo predeterminado.
 
   --test-databases
-      Restaura todas las bases en bases temporales de prueba.
+      Restaura las bases en bases temporales de prueba.
 
   --databases all|directus|n8n|booking|none
       Bases que se restaurarán.
       En producción requiere --apply-production.
 
   --restore-files
-      Restaura datos persistentes de Directus, n8n, Caddy y Booking.
+      Restaura los datos persistentes de Directus, n8n, Caddy y Booking.
 
   --restore-config
-      Restaura configuración efectiva: compose.yml, .env, Caddyfile y tenant.env.
+      Restaura compose.yml, .env, Caddyfile y tenant.env.
 
   --restore-globals
       Aplica globals.sql.
-      Es una operación delicada y solo se admite con --apply-production.
+      Solo se admite con --apply-production.
 
   --apply-production
-      Permite modificar los servicios y bases de producción.
+      Permite modificar servicios y bases de producción.
 
   --yes
       Omite la confirmación interactiva.
-      Solo debe usarse en un procedimiento controlado.
 
   --keep
-      Conserva el directorio temporal después de finalizar.
+      Conserva el directorio restaurado después de finalizar.
 
   --help
       Muestra esta ayuda.
@@ -116,35 +115,48 @@ Ejemplos:
   Verificar el último snapshot:
 
     sudo TENANT=aegora \
-      ./scripts/restore/restore-tenant.sh --verify-only
+      ./scripts/restore/restore-tenant.sh \
+      --verify-only
+
+  Verificar un snapshot concreto:
+
+    sudo TENANT=aegora \
+      ./scripts/restore/restore-tenant.sh \
+      --snapshot 9dbb3ff2 \
+      --verify-only \
+      --keep
 
   Probar las tres bases en bases temporales:
 
     sudo TENANT=aegora \
-      ./scripts/restore/restore-tenant.sh --test-databases
+      ./scripts/restore/restore-tenant.sh \
+      --snapshot 9dbb3ff2 \
+      --test-databases
 
   Restaurar únicamente Booking en producción:
 
     sudo TENANT=aegora \
       ./scripts/restore/restore-tenant.sh \
-        --snapshot 9dbb3ff2 \
-        --databases booking \
-        --apply-production
+      --snapshot 9dbb3ff2 \
+      --databases booking \
+      --apply-production
 
   Restauración integral:
 
     sudo TENANT=aegora \
       ./scripts/restore/restore-tenant.sh \
-        --snapshot 9dbb3ff2 \
-        --databases all \
-        --restore-config \
-        --restore-files \
-        --apply-production
+      --snapshot 9dbb3ff2 \
+      --databases all \
+      --restore-config \
+      --restore-files \
+      --apply-production
 EOF
 }
 
 cleanup() {
   local exit_code=$?
+
+  trap - EXIT
 
   if [[ $exit_code -ne 0 ]]; then
     log "La restauración terminó con errores."
@@ -156,11 +168,12 @@ cleanup() {
     exit "$exit_code"
   fi
 
-  if [[ "$KEEP_RESTORE" == false &&
-        "$MODE" == "verify" &&
-        -n "${RESTORE_DIR:-}" &&
-        -d "$RESTORE_DIR" ]]; then
-
+  if [[
+    "$KEEP_RESTORE" == false &&
+    "$MODE" == "verify" &&
+    -n "${RESTORE_DIR:-}" &&
+    -d "$RESTORE_DIR"
+  ]]; then
     rm -rf "$RESTORE_DIR"
     log "Directorio temporal eliminado."
   elif [[ -n "${RESTORE_DIR:-}" && -d "$RESTORE_DIR" ]]; then
@@ -498,7 +511,13 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-readonly TENANT_CONFIG="${PLATFORM_ROOT}/customers/${TENANT}/tenant.env"
+# Se calcula una sola vez, después de procesar --tenant.
+TENANT_CONFIG="${PLATFORM_ROOT}/customers/${TENANT}/tenant.env"
+
+readonly TENANT
+readonly SNAPSHOT
+readonly RESTORE_ROOT
+readonly TENANT_CONFIG
 
 # =============================================================================
 # Prerrequisitos
@@ -564,6 +583,9 @@ readonly POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-aegora-postgres}"
 container_exists "$POSTGRES_CONTAINER" ||
   fail "No existe el contenedor PostgreSQL: ${POSTGRES_CONTAINER}"
 
+container_running "$POSTGRES_CONTAINER" ||
+  fail "El contenedor PostgreSQL no está en ejecución."
+
 POSTGRES_ADMIN_USER="$(
   docker exec "$POSTGRES_CONTAINER" \
     printenv POSTGRES_USER 2>/dev/null |
@@ -621,7 +643,7 @@ mkdir -p "$RESTORE_DIR"
 chmod 700 "$RESTORE_DIR"
 
 # =============================================================================
-# Restaurar snapshot a zona aislada
+# Restaurar snapshot en zona aislada
 # =============================================================================
 
 log "Restaurando snapshot en zona aislada."
@@ -629,9 +651,12 @@ log "Restaurando snapshot en zona aislada."
 restic restore "$SNAPSHOT_ID" \
   --target "$RESTORE_DIR"
 
-RUN_DIR="$(
-  find \
-    "${RESTORE_DIR}/opt/aegora/backups/staging/${TENANT_ID}" \
+staging_parent="${RESTORE_DIR}/opt/aegora/backups/staging/${TENANT_ID}"
+
+require_directory "$staging_parent"
+
+RUN_ID="$(
+  find "$staging_parent" \
     -mindepth 1 \
     -maxdepth 1 \
     -type d \
@@ -640,11 +665,10 @@ RUN_DIR="$(
     tail -n 1
 )"
 
-[[ -n "$RUN_DIR" ]] ||
+[[ -n "$RUN_ID" ]] ||
   fail "No se encontró ninguna ejecución dentro del snapshot."
 
-RUN_ID="$RUN_DIR"
-RUN_DIR="${RESTORE_DIR}/opt/aegora/backups/staging/${TENANT_ID}/${RUN_ID}"
+RUN_DIR="${staging_parent}/${RUN_ID}"
 
 require_directory "$RUN_DIR"
 require_directory "${RUN_DIR}/postgres"
@@ -695,7 +719,7 @@ require_file "${RUN_DIR}/manifests/backup.env"
 log "Snapshot restaurado y validado correctamente."
 
 # =============================================================================
-# Prueba de restauración en bases temporales
+# Prueba en bases temporales
 # =============================================================================
 
 if [[ "$MODE" == "test-databases" ]]; then
@@ -722,7 +746,7 @@ if [[ "$MODE" == "test-databases" ]]; then
 fi
 
 # =============================================================================
-# Protección de producción
+# Salida segura en modo verificación
 # =============================================================================
 
 if [[ "$APPLY_PRODUCTION" != true ]]; then
@@ -731,11 +755,12 @@ if [[ "$APPLY_PRODUCTION" != true ]]; then
   exit 0
 fi
 
-if [[ "$DATABASE_SELECTION" == "none" &&
-      "$RESTORE_FILES" == false &&
-      "$RESTORE_CONFIG" == false &&
-      "$RESTORE_GLOBALS" == false ]]; then
-
+if [[
+  "$DATABASE_SELECTION" == "none" &&
+  "$RESTORE_FILES" == false &&
+  "$RESTORE_CONFIG" == false &&
+  "$RESTORE_GLOBALS" == false
+ ]]; then
   fail "No se ha seleccionado ningún componente para restaurar."
 fi
 
@@ -798,7 +823,7 @@ if [[ "$RESTORE_DIRECTUS" == true ]]; then
 fi
 
 # =============================================================================
-# Restaurar configuración efectiva
+# Restaurar configuración
 # =============================================================================
 
 if [[ "$RESTORE_CONFIG" == true ]]; then
@@ -817,7 +842,7 @@ if [[ "$RESTORE_CONFIG" == true ]]; then
   restore_config_file \
     "${RUN_DIR}/configuration/compose/postgres/compose.yml" \
     "${PLATFORM_ROOT}/compose/postgres/compose.yml" \
-    600
+    644
 
   restore_config_file \
     "${RUN_DIR}/configuration/compose/postgres/.env" \
@@ -827,7 +852,7 @@ if [[ "$RESTORE_CONFIG" == true ]]; then
   restore_config_file \
     "${RUN_DIR}/configuration/compose/directus/compose.yml" \
     "${PLATFORM_ROOT}/compose/directus/compose.yml" \
-    600
+    644
 
   restore_config_file \
     "${RUN_DIR}/configuration/compose/directus/.env" \
@@ -837,7 +862,7 @@ if [[ "$RESTORE_CONFIG" == true ]]; then
   restore_config_file \
     "${RUN_DIR}/configuration/compose/n8n/compose.yml" \
     "${PLATFORM_ROOT}/compose/n8n/compose.yml" \
-    600
+    644
 
   restore_config_file \
     "${RUN_DIR}/configuration/compose/n8n/.env" \
@@ -847,7 +872,7 @@ if [[ "$RESTORE_CONFIG" == true ]]; then
   restore_config_file \
     "${RUN_DIR}/configuration/compose/caddy/compose.yml" \
     "${PLATFORM_ROOT}/compose/caddy/compose.yml" \
-    600
+    644
 
   restore_config_file \
     "${RUN_DIR}/configuration/compose/caddy/.env" \
@@ -857,13 +882,13 @@ if [[ "$RESTORE_CONFIG" == true ]]; then
   restore_config_file \
     "${RUN_DIR}/configuration/compose/caddy/Caddyfile" \
     "${PLATFORM_ROOT}/compose/caddy/Caddyfile" \
-    600
+    644
 
   if [[ -f "${RUN_DIR}/configuration/compose/booking/compose.yml" ]]; then
     restore_config_file \
       "${RUN_DIR}/configuration/compose/booking/compose.yml" \
       "${PLATFORM_ROOT}/compose/booking/compose.yml" \
-      600
+      644
   fi
 
   if [[ -f "${RUN_DIR}/configuration/compose/booking/.env" ]]; then
@@ -1001,10 +1026,11 @@ for container in \
   [[ "$status" == "running" ]] ||
     fail "El contenedor '${container}' no está en ejecución."
 
-  if [[ "$health" != "not-configured" &&
-        "$health" != "healthy" &&
-        "$health" != "starting" ]]; then
-
+  if [[
+    "$health" != "not-configured" &&
+    "$health" != "healthy" &&
+    "$health" != "starting"
+  ]]; then
     fail "El contenedor '${container}' no está healthy."
   fi
 done
