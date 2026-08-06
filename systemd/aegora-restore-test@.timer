@@ -1,0 +1,13 @@
+[Unit]
+Description=Weekly automatic Aegora restore test for tenant %i
+
+[Timer]
+OnCalendar=Sun *-*-* 06:00:00 Europe/Madrid
+Persistent=true
+RandomizedDelaySec=15m
+AccuracySec=1m
+
+Unit=aegora-restore-test@%i.service
+
+[Install]
+WantedBy=timers.target

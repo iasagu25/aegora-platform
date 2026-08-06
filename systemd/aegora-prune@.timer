@@ -1,0 +1,13 @@
+[Unit]
+Description=Weekly Aegora retention timer for tenant %i
+
+[Timer]
+OnCalendar=Sun *-*-* 04:30:00 Europe/Madrid
+Persistent=true
+RandomizedDelaySec=15m
+AccuracySec=1m
+
+Unit=aegora-prune@%i.service
+
+[Install]
+WantedBy=timers.target

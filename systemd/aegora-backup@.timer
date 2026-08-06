@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily Aegora backup timer for tenant %i
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 Europe/Madrid
+Persistent=true
+RandomizedDelaySec=10m
+AccuracySec=1m
+Unit=aegora-backup@%i.service
+
+[Install]
+WantedBy=timers.target
