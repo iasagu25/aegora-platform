@@ -227,7 +227,6 @@ for database in "${DATABASES[@]}"; do
       --format=custom \
       --compress=6 \
       --no-owner \
-      --file=- \
     > "$destination" \
     2> "$dump_error"; then
 
