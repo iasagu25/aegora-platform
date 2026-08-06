@@ -1,5 +1,10 @@
 SHELL := /usr/bin/env bash
 
+TENANT ?= aegora
+TENANT_DIR := customers/$(TENANT)
+TENANT_CONFIG := $(TENANT_DIR)/tenant.env
+TENANT_CONFIG_EXAMPLE := $(TENANT_DIR)/tenant.env.example
+
 POSTGRES_DIR := compose/postgres
 POSTGRES_COMPOSE := $(POSTGRES_DIR)/compose.yml
 POSTGRES_ENV := $(POSTGRES_DIR)/.env
@@ -394,3 +399,37 @@ n8n-health:
 
 n8n-shell:
 	@docker exec -it "$(N8N_CONTAINER)" sh
+
+## ===== TENANTS =====
+
+tenant-validate:
+	@test -d "$(TENANT_DIR)" || { \
+		echo "ERROR: tenant no encontrado: $(TENANT)"; \
+		exit 1; \
+	}
+	@test -f "$(TENANT_CONFIG)" || { \
+		echo "ERROR: falta $(TENANT_CONFIG)"; \
+		echo "Crea el fichero desde $(TENANT_CONFIG_EXAMPLE)"; \
+		exit 1; \
+	}
+	@set -a; \
+	. "$(TENANT_CONFIG)"; \
+	set +a; \
+	test -n "$$TENANT_ID" || { echo "ERROR: falta TENANT_ID"; exit 1; }; \
+	test -n "$$ENVIRONMENT" || { echo "ERROR: falta ENVIRONMENT"; exit 1; }; \
+	test -n "$$DIRECTUS_HOST" || { echo "ERROR: falta DIRECTUS_HOST"; exit 1; }; \
+	test -n "$$N8N_HOST" || { echo "ERROR: falta N8N_HOST"; exit 1; }; \
+	test -n "$$BACKUP_BUCKET" || { echo "ERROR: falta BACKUP_BUCKET"; exit 1; }; \
+	echo "Tenant $(TENANT) válido"
+
+tenant-show: tenant-validate
+	@set -a; \
+	. "$(TENANT_CONFIG)"; \
+	set +a; \
+	printf "Tenant:      %s\n" "$$TENANT_ID"; \
+	printf "Nombre:      %s\n" "$$TENANT_NAME"; \
+	printf "Entorno:     %s\n" "$$ENVIRONMENT"; \
+	printf "Directus:    https://%s\n" "$$DIRECTUS_HOST"; \
+	printf "n8n:         https://%s\n" "$$N8N_HOST"; \
+	printf "Booking:     https://%s\n" "$$BOOKING_HOST"; \
+	printf "Backup:      %s\n" "$$BACKUP_BUCKET"
