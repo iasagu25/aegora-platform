@@ -15,7 +15,7 @@ Environment=HOME=/root
 
 WorkingDirectory=/opt/aegora/platform
 
-ExecStart=/usr/bin/bash /opt/aegora/platform/scripts/backup/prune-tenant.sh
+ExecStart=/usr/bin/bash /opt/aegora/platform/scripts/notify/run-and-notify.sh --task prune -- /usr/bin/bash /opt/aegora/platform/scripts/backup/prune-tenant.sh
 
 TimeoutStartSec=12h
 

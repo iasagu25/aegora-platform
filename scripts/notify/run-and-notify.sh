@@ -1,18 +1,28 @@
 #!/usr/bin/env bash
 
-set -uo pipefail
+set -Eeuo pipefail
 IFS=$'\n\t'
 
+# =============================================================================
+# Configuración
+# =============================================================================
+
 readonly PLATFORM_ROOT="/opt/aegora/platform"
-readonly NOTIFY_SCRIPT="${PLATFORM_ROOT}/scripts/notify/send-notification.sh"
+readonly NOTIFY_EVENT_SCRIPT="${PLATFORM_ROOT}/scripts/notify/notify-event.sh"
 
 TENANT="${TENANT:-aegora}"
+
 TASK=""
 NOTIFY_SUCCESS=false
-COMMAND=()
+
+declare -a COMMAND=()
 
 STARTED_AT_EPOCH=""
 STARTED_AT_ISO=""
+
+# =============================================================================
+# Utilidades
+# =============================================================================
 
 log() {
   printf '[%s] %s\n' "$(date --iso-8601=seconds)" "$*"
@@ -35,12 +45,36 @@ Uso:
 Comportamiento:
 
   - ejecuta el comando indicado;
-  - conserva su código de salida;
+  - conserva su exit code;
+  - genera un evento tipificado;
   - notifica siempre los fallos;
   - solo notifica éxitos con --notify-success;
-  - nunca convierte un fallo del comando en éxito;
-  - un fallo del canal de notificación no oculta el resultado del comando.
+  - si falla el Notification Center, no altera el resultado
+    de la tarea principal.
+
+Eventos:
+
+  backup:
+    success -> BACKUP_SUCCESS
+    failure -> BACKUP_FAILED
+
+  prune:
+    success -> PRUNE_SUCCESS
+    failure -> PRUNE_FAILED
+
+  restore-test:
+    success -> RESTORE_TEST_SUCCESS
+    failure -> RESTORE_TEST_FAILED
+
+  health:
+    success -> BACKUP_HEALTHY
+    failure -> BACKUP_UNHEALTHY
 EOF
+}
+
+require_file() {
+  [[ -f "$1" ]] ||
+    fail "Falta el fichero requerido: $1"
 }
 
 format_duration() {
@@ -51,27 +85,32 @@ format_duration() {
   local seconds=$((total_seconds % 60))
 
   if (( hours > 0 )); then
-    printf '%dh %dm %ds' "$hours" "$minutes" "$seconds"
+    printf '%dh %dm %ds' \
+      "$hours" \
+      "$minutes" \
+      "$seconds"
   elif (( minutes > 0 )); then
-    printf '%dm %ds' "$minutes" "$seconds"
+    printf '%dm %ds' \
+      "$minutes" \
+      "$seconds"
   else
     printf '%ds' "$seconds"
   fi
 }
 
-task_label() {
+success_event_for_task() {
   case "$1" in
     backup)
-      printf 'Backup'
+      printf 'BACKUP_SUCCESS'
       ;;
     prune)
-      printf 'Retención'
+      printf 'PRUNE_SUCCESS'
       ;;
     restore-test)
-      printf 'Restore test'
+      printf 'RESTORE_TEST_SUCCESS'
       ;;
     health)
-      printf 'Backup health'
+      printf 'BACKUP_HEALTHY'
       ;;
     *)
       return 1
@@ -79,67 +118,130 @@ task_label() {
   esac
 }
 
-success_tags() {
+failure_event_for_task() {
   case "$1" in
     backup)
-      printf 'white_check_mark,floppy_disk'
+      printf 'BACKUP_FAILED'
       ;;
     prune)
-      printf 'white_check_mark,wastebasket'
+      printf 'PRUNE_FAILED'
       ;;
     restore-test)
-      printf 'white_check_mark,test_tube'
+      printf 'RESTORE_TEST_FAILED'
       ;;
     health)
-      printf 'white_check_mark,shield'
+      printf 'BACKUP_UNHEALTHY'
+      ;;
+    *)
+      return 1
       ;;
   esac
 }
 
-failure_tags() {
+source_for_task() {
   case "$1" in
     backup)
-      printf 'rotating_light,floppy_disk'
+      printf 'backup'
       ;;
     prune)
-      printf 'rotating_light,wastebasket'
+      printf 'backup-retention'
       ;;
     restore-test)
-      printf 'rotating_light,test_tube'
+      printf 'restore-test'
       ;;
     health)
-      printf 'rotating_light,shield'
+      printf 'backup-health'
+      ;;
+    *)
+      return 1
       ;;
   esac
 }
 
-send_notification_safely() {
-  local title="$1"
-  local message="$2"
-  local severity="$3"
-  local tags="$4"
+summary_for_success() {
+  case "$1" in
+    backup)
+      printf 'Backup completado correctamente'
+      ;;
+    prune)
+      printf 'Política de retención completada correctamente'
+      ;;
+    restore-test)
+      printf 'Restore test completado correctamente'
+      ;;
+    health)
+      printf 'Sistema de backups saludable'
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
 
-  if [[ ! -f "$NOTIFY_SCRIPT" ]]; then
-    log "AVISO: no existe el emisor de notificaciones: ${NOTIFY_SCRIPT}"
+summary_for_failure() {
+  case "$1" in
+    backup)
+      printf 'El backup ha fallado'
+      ;;
+    prune)
+      printf 'La retención de backups ha fallado'
+      ;;
+    restore-test)
+      printf 'El restore test ha fallado'
+      ;;
+    health)
+      printf 'El sistema de backups no está saludable'
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+notify_event_safely() {
+  local event="$1"
+  local summary="$2"
+  local source="$3"
+  local status="$4"
+  local duration="$5"
+  local started_at="$6"
+  local finished_at="$7"
+
+  if [[ ! -f "$NOTIFY_EVENT_SCRIPT" ]]; then
+    log "AVISO: Notification Center no disponible: ${NOTIFY_EVENT_SCRIPT}"
     return 0
   fi
 
-  if ! /usr/bin/bash "$NOTIFY_SCRIPT" \
-    --title "$title" \
-    --message "$message" \
-    --severity "$severity" \
-    --tags "$tags"; then
+  local -a args=(
+    /usr/bin/bash
+    "$NOTIFY_EVENT_SCRIPT"
+    --event "$event"
+    --tenant "$TENANT"
+    --source "$source"
+    --summary "$summary"
+    --field "exit_code=${status}"
+    --field "duration=${duration}"
+    --field "started_at=${started_at}"
+    --field "finished_at=${finished_at}"
+  )
 
-    log "AVISO: falló el envío de la notificación." >&2
+  if ! "${args[@]}"; then
+    log "AVISO: falló el envío del evento '${event}'." >&2
   fi
 
   return 0
 }
 
+# =============================================================================
+# Argumentos
+# =============================================================================
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --task)
-      [[ $# -ge 2 ]] || fail "Falta valor para --task"
+      [[ $# -ge 2 ]] ||
+        fail "Falta valor para --task"
+
       TASK="$2"
       shift 2
       ;;
@@ -177,8 +279,14 @@ esac
 [[ ${#COMMAND[@]} -gt 0 ]] ||
   fail "No se ha proporcionado ningún comando."
 
-label="$(task_label "$TASK")"
-hostname_value="$(hostname --fqdn 2>/dev/null || hostname)"
+[[ "$TENANT" =~ ^[a-zA-Z0-9_-]+$ ]] ||
+  fail "Tenant inválido: ${TENANT}"
+
+require_file "$NOTIFY_EVENT_SCRIPT"
+
+# =============================================================================
+# Ejecución
+# =============================================================================
 
 STARTED_AT_EPOCH="$(date +%s)"
 STARTED_AT_ISO="$(date --iso-8601=seconds)"
@@ -192,59 +300,71 @@ set -e
 
 finished_at_epoch="$(date +%s)"
 finished_at_iso="$(date --iso-8601=seconds)"
-duration_seconds=$((finished_at_epoch - STARTED_AT_EPOCH))
-duration="$(format_duration "$duration_seconds")"
+
+duration_seconds=$(
+  (
+    finished_at_epoch - STARTED_AT_EPOCH
+  )
+)
+
+duration="$(
+  format_duration "$duration_seconds"
+)"
+
+source="$(
+  source_for_task "$TASK"
+)"
+
+# =============================================================================
+# Éxito
+# =============================================================================
 
 if [[ $command_status -eq 0 ]]; then
   log "Tarea '${TASK}' finalizada correctamente."
 
   if [[ "$NOTIFY_SUCCESS" == true ]]; then
-    title="Aegora · ${label} OK"
-
-    message="$(
-      cat <<EOF
-Tenant: ${TENANT}
-Host: ${hostname_value}
-Estado: HEALTHY
-Inicio: ${STARTED_AT_ISO}
-Fin: ${finished_at_iso}
-Duración: ${duration}
-EOF
+    event="$(
+      success_event_for_task "$TASK"
     )"
 
-    send_notification_safely \
-      "$title" \
-      "$message" \
-      success \
-      "$(success_tags "$TASK")"
+    summary="$(
+      summary_for_success "$TASK"
+    )"
+
+    notify_event_safely \
+      "$event" \
+      "$summary" \
+      "$source" \
+      "$command_status" \
+      "$duration" \
+      "$STARTED_AT_ISO" \
+      "$finished_at_iso"
   fi
 
   exit 0
 fi
 
+# =============================================================================
+# Fallo
+# =============================================================================
+
 log "ERROR: la tarea '${TASK}' terminó con código ${command_status}." >&2
 
-title="Aegora · ${label} FAILED"
-
-message="$(
-  cat <<EOF
-Tenant: ${TENANT}
-Host: ${hostname_value}
-Estado: FAILED
-Código de salida: ${command_status}
-Inicio: ${STARTED_AT_ISO}
-Fin: ${finished_at_iso}
-Duración: ${duration}
-
-Revisar:
-journalctl -u aegora-${TASK}@${TENANT}.service
-EOF
+event="$(
+  failure_event_for_task "$TASK"
 )"
 
-send_notification_safely \
-  "$title" \
-  "$message" \
-  critical \
-  "$(failure_tags "$TASK")"
+summary="$(
+  summary_for_failure "$TASK"
+)"
+
+notify_event_safely \
+  "$event" \
+  "$summary" \
+  "$source" \
+  "$command_status" \
+  "$duration" \
+  "$STARTED_AT_ISO" \
+  "$finished_at_iso"
 
 exit "$command_status"

@@ -16,7 +16,7 @@ Environment=MAX_SNAPSHOT_AGE_HOURS=30
 
 WorkingDirectory=/opt/aegora/platform
 
-ExecStart=/usr/bin/bash /opt/aegora/platform/scripts/backup/backup-health-tenant.sh
+ExecStart=/usr/bin/bash /opt/aegora/platform/scripts/notify/run-and-notify.sh --task health --notify-success -- /usr/bin/bash /opt/aegora/platform/scripts/backup/backup-health-tenant.sh
 
 TimeoutStartSec=1h
 
