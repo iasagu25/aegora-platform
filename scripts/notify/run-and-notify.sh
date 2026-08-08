@@ -294,18 +294,16 @@ STARTED_AT_ISO="$(date --iso-8601=seconds)"
 log "Ejecutando tarea '${TASK}' para tenant '${TENANT}'."
 
 set +e
+
 "${COMMAND[@]}"
 command_status=$?
+
 set -e
 
 finished_at_epoch="$(date +%s)"
 finished_at_iso="$(date --iso-8601=seconds)"
 
-duration_seconds=$(
-  (
-    finished_at_epoch - STARTED_AT_EPOCH
-  )
-)
+duration_seconds=$((finished_at_epoch - STARTED_AT_EPOCH))
 
 duration="$(
   format_duration "$duration_seconds"
