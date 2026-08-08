@@ -3,6 +3,10 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
+# =============================================================================
+# Configuración
+# =============================================================================
+
 readonly PLATFORM_ROOT="/opt/aegora/platform"
 readonly EVENTS_FILE="${PLATFORM_ROOT}/scripts/notify/events.json"
 readonly SEND_SCRIPT="${PLATFORM_ROOT}/scripts/notify/send-notification.sh"
@@ -18,6 +22,10 @@ EVENT_ID=""
 CLICK_URL=""
 
 declare -a FIELDS=()
+
+# =============================================================================
+# Utilidades
+# =============================================================================
 
 log() {
   printf '[%s] %s\n' "$(date --iso-8601=seconds)" "$*"
@@ -54,12 +62,13 @@ Ejemplo:
     --field duration="42s"
 
 El evento determina:
-  - severidad;
-  - título base;
-  - tags;
-  - audiencia.
 
-El backend de transporte queda delegado a send-notification.sh.
+  - severidad;
+  - título;
+  - tags;
+  - audiencia lógica.
+
+El transporte se delega a send-notification.sh.
 EOF
 }
 
@@ -73,14 +82,9 @@ require_file() {
     fail "Falta el fichero requerido: $1"
 }
 
-validate_safe_value() {
-  local name="$1"
-  local value="$2"
-
-  if [[ "$value" == *$'\0'* ]]; then
-    fail "${name} contiene caracteres no válidos."
-  fi
-}
+# =============================================================================
+# Argumentos
+# =============================================================================
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -153,6 +157,10 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# =============================================================================
+# Validación
+# =============================================================================
+
 [[ -n "$EVENT" ]] ||
   fail "Debes indicar --event."
 
@@ -162,16 +170,21 @@ done
 [[ "$TENANT" =~ ^[a-zA-Z0-9_-]+$ ]] ||
   fail "Tenant inválido: ${TENANT}"
 
+if [[ -n "$EVENT_ID" ]]; then
+  [[ "$EVENT_ID" =~ ^[a-zA-Z0-9_.:-]+$ ]] ||
+    fail "Event ID inválido: ${EVENT_ID}"
+fi
+
 require_command python3
 require_command hostname
+require_command date
+
 require_file "$EVENTS_FILE"
 require_file "$SEND_SCRIPT"
 
-validate_safe_value "SUMMARY" "$SUMMARY"
-validate_safe_value "DETAILS" "$DETAILS"
-validate_safe_value "SOURCE" "$SOURCE"
-validate_safe_value "RESOURCE" "$RESOURCE"
-validate_safe_value "EVENT_ID" "$EVENT_ID"
+# =============================================================================
+# Cargar definición del evento
+# =============================================================================
 
 event_data="$(
   python3 - "$EVENTS_FILE" "$EVENT" <<'PY'
@@ -185,19 +198,30 @@ with open(path, "r", encoding="utf-8") as handle:
     config = json.load(handle)
 
 if config.get("version") != 1:
-    raise SystemExit("Versión de events.json no soportada")
+    raise SystemExit(
+        "Versión de events.json no soportada"
+    )
 
 events = config.get("events")
 
 if not isinstance(events, dict):
-    raise SystemExit("events.json no contiene un catálogo válido")
+    raise SystemExit(
+        "events.json no contiene un catálogo válido"
+    )
 
 event = events.get(event_name)
 
 if event is None:
-    raise SystemExit(f"Evento desconocido: {event_name}")
+    raise SystemExit(
+        f"Evento desconocido: {event_name}"
+    )
 
-required = ("severity", "title", "tags", "audience")
+required = (
+    "severity",
+    "title",
+    "tags",
+    "audience",
+)
 
 for key in required:
     value = event.get(key)
@@ -206,6 +230,26 @@ for key in required:
         raise SystemExit(
             f"Evento {event_name}: falta el campo {key}"
         )
+
+if event["severity"] not in {
+    "info",
+    "success",
+    "warning",
+    "error",
+    "critical",
+}:
+    raise SystemExit(
+        f"Evento {event_name}: severity no válida"
+    )
+
+if event["audience"] not in {
+    "operations",
+    "client",
+    "internal",
+}:
+    raise SystemExit(
+        f"Evento {event_name}: audience no válida"
+    )
 
 print(event["severity"])
 print(event["title"])
@@ -227,6 +271,16 @@ AUDIENCE="${event_fields[3]:-}"
 [[ -n "$BASE_TITLE" ]] ||
   fail "El evento no define title."
 
+[[ -n "$TAGS" ]] ||
+  fail "El evento no define tags."
+
+[[ -n "$AUDIENCE" ]] ||
+  fail "El evento no define audience."
+
+# =============================================================================
+# Contexto
+# =============================================================================
+
 hostname_value="$(
   hostname --fqdn 2>/dev/null ||
   hostname
@@ -240,10 +294,15 @@ if [[ -z "$EVENT_ID" ]]; then
   EVENT_ID="$(
     python3 - <<'PY'
 import secrets
+
 print(secrets.token_hex(8))
 PY
   )"
 fi
+
+# =============================================================================
+# Construcción del mensaje
+# =============================================================================
 
 TITLE="Aegora · ${BASE_TITLE}"
 
@@ -254,15 +313,21 @@ message_lines=(
 )
 
 if [[ -n "$SUMMARY" ]]; then
-  message_lines+=("Resumen: ${SUMMARY}")
+  message_lines+=(
+    "Resumen: ${SUMMARY}"
+  )
 fi
 
 if [[ -n "$SOURCE" ]]; then
-  message_lines+=("Origen: ${SOURCE}")
+  message_lines+=(
+    "Origen: ${SOURCE}"
+  )
 fi
 
 if [[ -n "$RESOURCE" ]]; then
-  message_lines+=("Recurso: ${RESOURCE}")
+  message_lines+=(
+    "Recurso: ${RESOURCE}"
+  )
 fi
 
 message_lines+=(
@@ -270,6 +335,10 @@ message_lines+=(
   "Fecha: ${timestamp}"
   "Event ID: ${EVENT_ID}"
 )
+
+# =============================================================================
+# Campos estructurados adicionales
+# =============================================================================
 
 if [[ ${#FIELDS[@]} -gt 0 ]]; then
   message_lines+=("")
@@ -282,11 +351,15 @@ if [[ ${#FIELDS[@]} -gt 0 ]]; then
     [[ "$key" =~ ^[a-zA-Z][a-zA-Z0-9_.-]*$ ]] ||
       fail "Clave de campo inválida: ${key}"
 
-    validate_safe_value "$key" "$value"
-
-    message_lines+=("- ${key}: ${value}")
+    message_lines+=(
+      "- ${key}: ${value}"
+    )
   done
 fi
+
+# =============================================================================
+# Detalle libre
+# =============================================================================
 
 if [[ -n "$DETAILS" ]]; then
   message_lines+=("")
@@ -297,6 +370,10 @@ fi
 MESSAGE="$(
   printf '%s\n' "${message_lines[@]}"
 )"
+
+# =============================================================================
+# Envío
+# =============================================================================
 
 send_args=(
   /usr/bin/bash
