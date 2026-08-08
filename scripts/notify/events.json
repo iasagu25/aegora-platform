@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "events": {
+    "BACKUP_SUCCESS": {
+      "severity": "success",
+      "title": "Backup completado",
+      "tags": "white_check_mark,floppy_disk",
+      "audience": "operations"
+    },
+    "BACKUP_FAILED": {
+      "severity": "critical",
+      "title": "Backup fallido",
+      "tags": "rotating_light,floppy_disk",
+      "audience": "operations"
+    },
+    "PRUNE_SUCCESS": {
+      "severity": "success",
+      "title": "Retención completada",
+      "tags": "white_check_mark,wastebasket",
+      "audience": "operations"
+    },
+    "PRUNE_FAILED": {
+      "severity": "critical",
+      "title": "Retención fallida",
+      "tags": "rotating_light,wastebasket",
+      "audience": "operations"
+    },
+    "RESTORE_TEST_SUCCESS": {
+      "severity": "success",
+      "title": "Restore test completado",
+      "tags": "white_check_mark,test_tube",
+      "audience": "operations"
+    },
+    "RESTORE_TEST_FAILED": {
+      "severity": "critical",
+      "title": "Restore test fallido",
+      "tags": "rotating_light,test_tube",
+      "audience": "operations"
+    },
+    "BACKUP_HEALTHY": {
+      "severity": "success",
+      "title": "Backups saludables",
+      "tags": "white_check_mark,shield",
+      "audience": "operations"
+    },
+    "BACKUP_UNHEALTHY": {
+      "severity": "critical",
+      "title": "Problema en backups",
+      "tags": "rotating_light,shield",
+      "audience": "operations"
+    },
+    "SYSTEM_WARNING": {
+      "severity": "warning",
+      "title": "Aviso de sistema",
+      "tags": "warning,computer",
+      "audience": "operations"
+    },
+    "SYSTEM_ERROR": {
+      "severity": "critical",
+      "title": "Error de sistema",
+      "tags": "rotating_light,computer",
+      "audience": "operations"
+    },
+    "TASK_DUE": {
+      "severity": "warning",
+      "title": "Tarea próxima",
+      "tags": "calendar,warning",
+      "audience": "client"
+    },
+    "IMPORTANT_MISSED_CALL": {
+      "severity": "warning",
+      "title": "Llamada importante perdida",
+      "tags": "telephone_receiver,warning",
+      "audience": "client"
+    }
+  }
+}
