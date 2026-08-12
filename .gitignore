@@ -5,6 +5,8 @@
 *.pem
 *.key
 *.crt
+customers/*/tenant.env
+customers/*/compose/*/.env
 secrets/
 
 # Backups and runtime data
@@ -30,3 +32,7 @@ Thumbs.db
 # Temporary files
 tmp/
 .cache/
+
+# Python
+__pycache__/
+*.pyc
