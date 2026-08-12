@@ -10,13 +10,18 @@ IFS=$'\n\t'
 readonly PLATFORM_ROOT="/opt/aegora/platform"
 readonly SECRETS_ROOT="/opt/aegora/secrets"
 readonly RESTORE_TEST_ROOT="/opt/aegora/restore-test-automatic"
-readonly LOCK_FILE="/run/lock/aegora-restore-test.lock"
+readonly CONTEXT_LIB="${PLATFORM_ROOT}/scripts/backup/tenant-context.sh"
 
 TENANT="${TENANT:-aegora}"
 SNAPSHOT="${SNAPSHOT:-latest}"
+LOCK_FILE="/run/lock/aegora-restore-test-${TENANT}.lock"
 
-readonly TENANT_CONFIG="${PLATFORM_ROOT}/customers/${TENANT}/tenant.env"
-readonly RESTIC_CONFIG="${SECRETS_ROOT}/restic.env"
+TENANT_ROOT=""
+TENANT_CONFIG=""
+RESTIC_CONFIG=""
+BACKUP_MANIFEST=""
+TENANT_POSTGRES_SECRETS=""
+CONFIG_LAYOUT=""
 
 POSTGRES_CONTAINER=""
 POSTGRES_ADMIN_USER=""
@@ -170,6 +175,12 @@ require_command python3
 require_command find
 require_command sort
 
+require_file "$CONTEXT_LIB"
+# shellcheck disable=SC1090
+source "$CONTEXT_LIB"
+
+resolve_tenant_context
+
 require_file "$TENANT_CONFIG"
 require_file "$RESTIC_CONFIG"
 
@@ -206,6 +217,9 @@ set +a
 : "${RESTIC_PASSWORD:?Falta RESTIC_PASSWORD}"
 : "${AWS_ACCESS_KEY_ID:?Falta AWS_ACCESS_KEY_ID}"
 : "${AWS_SECRET_ACCESS_KEY:?Falta AWS_SECRET_ACCESS_KEY}"
+
+validate_loaded_tenant_context
+log_tenant_context
 
 POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-aegora-postgres}"
 

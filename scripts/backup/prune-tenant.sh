@@ -9,19 +9,24 @@ IFS=$'\n\t'
 
 readonly PLATFORM_ROOT="/opt/aegora/platform"
 readonly SECRETS_ROOT="/opt/aegora/secrets"
-readonly LOCK_FILE="/run/lock/aegora-backup-prune.lock"
+readonly CONTEXT_LIB="${PLATFORM_ROOT}/scripts/backup/tenant-context.sh"
 
 TENANT="${TENANT:-aegora}"
 DRY_RUN="${DRY_RUN:-false}"
+LOCK_FILE="/run/lock/aegora-backup-prune-${TENANT}.lock"
 
-readonly TENANT_CONFIG="${PLATFORM_ROOT}/customers/${TENANT}/tenant.env"
-readonly RESTIC_CONFIG="${SECRETS_ROOT}/restic.env"
+TENANT_ROOT=""
+TENANT_CONFIG=""
+RESTIC_CONFIG=""
+BACKUP_MANIFEST=""
+TENANT_POSTGRES_SECRETS=""
+CONFIG_LAYOUT=""
 
 # Política de retención.
-readonly KEEP_DAILY="${KEEP_DAILY:-14}"
-readonly KEEP_WEEKLY="${KEEP_WEEKLY:-8}"
-readonly KEEP_MONTHLY="${KEEP_MONTHLY:-12}"
-readonly KEEP_YEARLY="${KEEP_YEARLY:-3}"
+KEEP_DAILY="${KEEP_DAILY:-14}"
+KEEP_WEEKLY="${KEEP_WEEKLY:-8}"
+KEEP_MONTHLY="${KEEP_MONTHLY:-12}"
+KEEP_YEARLY="${KEEP_YEARLY:-3}"
 
 # =============================================================================
 # Utilidades
@@ -76,6 +81,12 @@ is_non_negative_integer() {
 require_command restic
 require_command flock
 
+require_file "$CONTEXT_LIB"
+# shellcheck disable=SC1090
+source "$CONTEXT_LIB"
+
+resolve_tenant_context
+
 require_file "$TENANT_CONFIG"
 require_file "$RESTIC_CONFIG"
 
@@ -102,7 +113,7 @@ mkdir -p "$(dirname "$LOCK_FILE")"
 exec 9>"$LOCK_FILE"
 
 if ! flock -n 9; then
-  fail "Ya hay otra operación de retención en ejecución."
+  fail "Ya hay otra operación de retención para '${TENANT}' en ejecución."
 fi
 
 # =============================================================================
@@ -127,6 +138,9 @@ set +a
 : "${RESTIC_PASSWORD:?Falta RESTIC_PASSWORD}"
 : "${AWS_ACCESS_KEY_ID:?Falta AWS_ACCESS_KEY_ID}"
 : "${AWS_SECRET_ACCESS_KEY:?Falta AWS_SECRET_ACCESS_KEY}"
+
+validate_loaded_tenant_context
+log_tenant_context
 
 # =============================================================================
 # Estado previo

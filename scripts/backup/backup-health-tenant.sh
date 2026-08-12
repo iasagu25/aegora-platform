@@ -9,15 +9,20 @@ IFS=$'\n\t'
 
 readonly PLATFORM_ROOT="/opt/aegora/platform"
 readonly SECRETS_ROOT="/opt/aegora/secrets"
-readonly LOCK_FILE="/run/lock/aegora-backup-health.lock"
+readonly CONTEXT_LIB="${PLATFORM_ROOT}/scripts/backup/tenant-context.sh"
 
 TENANT="${TENANT:-aegora}"
+LOCK_FILE="/run/lock/aegora-backup-health-${TENANT}.lock"
 
 # El último snapshot no debe superar esta antigüedad.
 MAX_SNAPSHOT_AGE_HOURS="${MAX_SNAPSHOT_AGE_HOURS:-30}"
 
-readonly TENANT_CONFIG="${PLATFORM_ROOT}/customers/${TENANT}/tenant.env"
-readonly RESTIC_CONFIG="${SECRETS_ROOT}/restic.env"
+TENANT_ROOT=""
+TENANT_CONFIG=""
+RESTIC_CONFIG=""
+BACKUP_MANIFEST=""
+TENANT_POSTGRES_SECRETS=""
+CONFIG_LAYOUT=""
 
 ERRORS=()
 WARNINGS=()
@@ -159,6 +164,12 @@ require_command flock
 require_command date
 require_command grep
 
+require_file "$CONTEXT_LIB"
+# shellcheck disable=SC1090
+source "$CONTEXT_LIB"
+
+resolve_tenant_context
+
 require_file "$TENANT_CONFIG"
 require_file "$RESTIC_CONFIG"
 
@@ -195,6 +206,9 @@ set +a
 : "${RESTIC_PASSWORD:?Falta RESTIC_PASSWORD}"
 : "${AWS_ACCESS_KEY_ID:?Falta AWS_ACCESS_KEY_ID}"
 : "${AWS_SECRET_ACCESS_KEY:?Falta AWS_SECRET_ACCESS_KEY}"
+
+validate_loaded_tenant_context
+log_tenant_context
 
 readonly BACKUP_SERVICE="aegora-backup@${TENANT}.service"
 readonly PRUNE_SERVICE="aegora-prune@${TENANT}.service"
