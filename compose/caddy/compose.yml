@@ -3,7 +3,9 @@ name: aegora-caddy
 services:
   caddy:
     image: caddy:2.11.4-alpine
+
     container_name: aegora-caddy
+
     restart: unless-stopped
     init: true
 
@@ -16,7 +18,16 @@ services:
       - "443:443/udp"
 
     volumes:
+      # Caddyfile principal
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+
+      # Sitios versionados de la plataforma
+      - ./sites:/etc/caddy/sites:ro
+
+      # Sitios generados dinámicamente para tenants
+      - /opt/aegora/data/caddy/sites:/etc/caddy/runtime-sites:ro
+
+      # Estado persistente de Caddy
       - /opt/aegora/data/caddy/data:/data
       - /opt/aegora/data/caddy/config:/config
 

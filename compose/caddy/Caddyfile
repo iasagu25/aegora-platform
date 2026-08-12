@@ -1,7 +1,7 @@
 {
 	email {$ACME_EMAIL}
 
-	admin 0.0.0.0:2019
+	admin 127.0.0.1:2019
 
 	log {
 		output stdout
@@ -10,40 +10,22 @@
 	}
 }
 
-panel.aegora.es {
-	encode zstd gzip
+# ============================================================================
+# Sitios versionados de la plataforma
+# ============================================================================
 
-	header {
-		X-Content-Type-Options "nosniff"
-		Referrer-Policy "strict-origin-when-cross-origin"
-		Strict-Transport-Security "max-age=31536000"
-		-Server
-	}
+import sites/*.caddy
 
-	reverse_proxy aegora-directus:8055
+# ============================================================================
+# Sitios generados dinámicamente para tenants
+#
+# El directorio del host:
+#
+#   /opt/aegora/data/caddy/sites
+#
+# se monta en:
+#
+#   /etc/caddy/runtime-sites
+# ============================================================================
 
-	log {
-		output stdout
-		format console
-	}
-}
-
-n8n.aegora.es {
-	encode zstd gzip
-
-	header {
-		X-Content-Type-Options "nosniff"
-		Referrer-Policy "strict-origin-when-cross-origin"
-		Strict-Transport-Security "max-age=31536000"
-		-Server
-	}
-
-	reverse_proxy aegora-n8n:5678 {
-		flush_interval -1
-	}
-
-	log {
-		output stdout
-		format console
-	}
-}
+import runtime-sites/*.caddy
