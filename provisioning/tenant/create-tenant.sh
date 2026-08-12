@@ -4,33 +4,7 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 # =============================================================================
-# Aegora tenant provisioning
-#
-# Esta fase crea la infraestructura CORE de un tenant:
-#
-#   - filesystem runtime
-#   - secretos
-#   - roles PostgreSQL
-#   - bases PostgreSQL
-#   - red Docker privada
-#   - configuración Directus
-#   - configuración n8n
-#   - tenant.env
-#   - backup.manifest.json
-#
-# NO hace todavía:
-#
-#   - despliegue de contenedores
-#   - configuración Caddy
-#   - creación del bucket S3
-#   - inicialización Restic
-#   - timers systemd
-#
-# Esas acciones se realizarán en fases posteriores.
-# =============================================================================
-
-# =============================================================================
-# Paths
+# Aegora tenant provisioning — CORE
 # =============================================================================
 
 readonly PLATFORM_ROOT="/opt/aegora/platform"
@@ -40,19 +14,11 @@ readonly RENDERER="${PLATFORM_ROOT}/provisioning/tenant/render-template.py"
 
 readonly POSTGRES_CONTAINER="aegora-postgres"
 
-# =============================================================================
-# Defaults versionados
-# =============================================================================
-
 readonly DEFAULT_DIRECTUS_VERSION="11.17.4"
 readonly DEFAULT_N8N_VERSION="2.31.7"
 
 DIRECTUS_VERSION="${DIRECTUS_VERSION:-$DEFAULT_DIRECTUS_VERSION}"
 N8N_VERSION="${N8N_VERSION:-$DEFAULT_N8N_VERSION}"
-
-# =============================================================================
-# Argumentos
-# =============================================================================
 
 TENANT_ID=""
 TENANT_NAME=""
@@ -62,25 +28,15 @@ DIRECTUS_ADMIN_EMAIL=""
 APPLY=false
 COMMITTED=false
 
-# =============================================================================
-# Estado para rollback
-# =============================================================================
-
 CREATED_TENANT_ROOT=false
 CREATED_DIRECTUS_ROLE=false
 CREATED_N8N_ROLE=false
 CREATED_BOOKING_ROLE=false
-
 CREATED_DIRECTUS_DB=false
 CREATED_N8N_DB=false
 CREATED_BOOKING_DB=false
-
 CREATED_NETWORK=false
 POSTGRES_CONNECTED_TO_NETWORK=false
-
-# =============================================================================
-# Variables derivadas
-# =============================================================================
 
 TENANT_SQL_ID=""
 
@@ -117,14 +73,9 @@ BACKUP_HOST=""
 BACKUP_TAG_TENANT=""
 BACKUP_TAG_ENVIRONMENT=""
 
-# =============================================================================
-# Secretos generados
-# =============================================================================
-
 DIRECTUS_KEY=""
 DIRECTUS_SECRET=""
 DIRECTUS_ADMIN_PASSWORD=""
-
 N8N_ENCRYPTION_KEY=""
 
 POSTGRES_DIRECTUS_PASSWORD=""
@@ -132,7 +83,7 @@ POSTGRES_N8N_PASSWORD=""
 POSTGRES_BOOKING_PASSWORD=""
 
 # =============================================================================
-# Logging
+# Utilidades
 # =============================================================================
 
 log() {
@@ -150,10 +101,6 @@ fail() {
   exit 1
 }
 
-# =============================================================================
-# Ayuda
-# =============================================================================
-
 usage() {
   cat <<'EOF'
 Uso:
@@ -166,38 +113,24 @@ Uso:
     [--apply]
 
 Sin --apply:
-  muestra el plan y no modifica el sistema.
+  muestra el plan sin modificar el sistema.
 
 Con --apply:
   - genera secretos;
   - crea estructura runtime;
   - crea roles PostgreSQL;
   - crea bases PostgreSQL;
-  - crea una red Docker privada;
-  - conecta PostgreSQL a esa red;
+  - crea red Docker privada;
+  - conecta PostgreSQL a la red;
   - genera tenant.env;
   - genera backup.manifest.json;
   - genera Compose Directus;
   - genera Compose n8n;
   - valida ambos Compose.
 
-No despliega todavía los contenedores.
-
-Ejemplo:
-
-  sudo /usr/bin/bash \
-    /opt/aegora/platform/provisioning/tenant/create-tenant.sh \
-    --tenant gestoria-demo \
-    --name "Gestoría Demo" \
-    --domain gestoria-demo.example \
-    --admin-email admin@gestoria-demo.example \
-    --apply
+No despliega los contenedores.
 EOF
 }
-
-# =============================================================================
-# Prerrequisitos
-# =============================================================================
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 ||
@@ -209,24 +142,13 @@ require_file() {
     fail "Falta el fichero requerido: $1"
 }
 
-# =============================================================================
-# Generación de secretos
-# =============================================================================
-
 generate_hex() {
-  local bytes="$1"
-
-  openssl rand -hex "$bytes"
+  openssl rand -hex "$1"
 }
 
 generate_password() {
-  # Hex evita caracteres problemáticos en .env, SQL y shell.
   openssl rand -hex 32
 }
-
-# =============================================================================
-# Normalización
-# =============================================================================
 
 sql_identifier() {
   printf '%s' "$1" |
@@ -234,9 +156,22 @@ sql_identifier() {
     tr -cd 'a-zA-Z0-9_'
 }
 
-# =============================================================================
-# Docker
-# =============================================================================
+# Escribe una variable en formato compatible con Bash/source.
+#
+# Ejemplos:
+#
+#   foo              -> KEY=foo
+#   Gestoría Demo    -> KEY=Gestoría\ Demo
+#
+# Esto evita que espacios o caracteres especiales conviertan partes del
+# valor en comandos al ejecutar "source tenant.env".
+write_env() {
+  local destination="$1"
+  local key="$2"
+  local value="$3"
+
+  printf '%s=%q\n' "$key" "$value" >> "$destination"
+}
 
 docker_network_exists() {
   docker network inspect "$1" >/dev/null 2>&1
@@ -245,10 +180,6 @@ docker_network_exists() {
 container_exists() {
   docker inspect "$1" >/dev/null 2>&1
 }
-
-# =============================================================================
-# PostgreSQL
-# =============================================================================
 
 postgres_admin_user() {
   docker exec "$POSTGRES_CONTAINER" \
@@ -303,11 +234,10 @@ create_role() {
     fail "Nombre de rol PostgreSQL inválido: ${role}"
 
   [[ "$password" =~ ^[a-f0-9]+$ ]] ||
-    fail "Password PostgreSQL generado con formato inesperado."
+    fail "Password PostgreSQL con formato inesperado."
 
-  if [[ "$(role_exists "$role" "$admin_user")" == "1" ]]; then
+  [[ "$(role_exists "$role" "$admin_user")" != "1" ]] ||
     fail "El rol PostgreSQL ya existe: ${role}"
-  fi
 
   docker exec "$POSTGRES_CONTAINER" \
     psql \
@@ -333,9 +263,8 @@ create_database() {
   [[ "$owner" =~ ^[a-zA-Z0-9_]+$ ]] ||
     fail "Owner PostgreSQL inválido: ${owner}"
 
-  if [[ "$(database_exists "$database" "$admin_user")" == "1" ]]; then
+  [[ "$(database_exists "$database" "$admin_user")" != "1" ]] ||
     fail "La base PostgreSQL ya existe: ${database}"
-  fi
 
   docker exec "$POSTGRES_CONTAINER" \
     createdb \
@@ -349,8 +278,7 @@ drop_database_if_created() {
   local admin_user="$2"
   local created="$3"
 
-  [[ "$created" == true ]] ||
-    return 0
+  [[ "$created" == true ]] || return 0
 
   docker exec "$POSTGRES_CONTAINER" \
     dropdb \
@@ -365,8 +293,7 @@ drop_role_if_created() {
   local admin_user="$2"
   local created="$3"
 
-  [[ "$created" == true ]] ||
-    return 0
+  [[ "$created" == true ]] || return 0
 
   docker exec "$POSTGRES_CONTAINER" \
     dropuser \
@@ -451,6 +378,7 @@ rollback() {
   fi
 
   warn "Rollback finalizado."
+
   exit "$exit_code"
 }
 
@@ -501,6 +429,7 @@ while [[ $# -gt 0 ]]; do
 
     --help|-h)
       usage
+      COMMITTED=true
       exit 0
       ;;
 
@@ -511,7 +440,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # =============================================================================
-# Validación de argumentos
+# Validación
 # =============================================================================
 
 [[ -n "$TENANT_ID" ]] ||
@@ -528,7 +457,7 @@ done
 
 [[ "$TENANT_ID" =~ ^[a-z][a-z0-9-]{2,30}$ ]] ||
   fail \
-    "TENANT_ID debe empezar por letra y usar solo minúsculas, números y guiones."
+    "TENANT_ID debe empezar por letra y usar minúsculas, números y guiones."
 
 [[ "$BASE_DOMAIN" =~ ^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]] ||
   fail "Dominio inválido: ${BASE_DOMAIN}"
@@ -539,31 +468,19 @@ done
 [[ "$TENANT_ID" != "aegora" ]] ||
   fail "El tenant 'aegora' está reservado."
 
-# =============================================================================
-# Prerrequisitos del host
-# =============================================================================
-
 require_command docker
 require_command openssl
 require_command python3
 require_command install
 
 require_file "$RENDERER"
-
-require_file \
-  "${TEMPLATE_ROOT}/directus/compose.yml.tpl"
-
-require_file \
-  "${TEMPLATE_ROOT}/directus/.env.tpl"
-
-require_file \
-  "${TEMPLATE_ROOT}/n8n/compose.yml.tpl"
-
-require_file \
-  "${TEMPLATE_ROOT}/n8n/.env.tpl"
+require_file "${TEMPLATE_ROOT}/directus/compose.yml.tpl"
+require_file "${TEMPLATE_ROOT}/directus/.env.tpl"
+require_file "${TEMPLATE_ROOT}/n8n/compose.yml.tpl"
+require_file "${TEMPLATE_ROOT}/n8n/.env.tpl"
 
 container_exists "$POSTGRES_CONTAINER" ||
-  fail "No existe el contenedor PostgreSQL '${POSTGRES_CONTAINER}'."
+  fail "No existe PostgreSQL '${POSTGRES_CONTAINER}'."
 
 POSTGRES_ADMIN_USER="$(postgres_admin_user)"
 
@@ -574,9 +491,7 @@ POSTGRES_ADMIN_USER="$(postgres_admin_user)"
 # Variables derivadas
 # =============================================================================
 
-TENANT_SQL_ID="$(
-  sql_identifier "$TENANT_ID"
-)"
+TENANT_SQL_ID="$(sql_identifier "$TENANT_ID")"
 
 [[ -n "$TENANT_SQL_ID" ]] ||
   fail "No se pudo generar el identificador SQL."
@@ -587,7 +502,6 @@ TENANT_CONFIG_ROOT="${TENANT_ROOT}/config"
 TENANT_DATA_ROOT="${TENANT_ROOT}/data"
 TENANT_SECRETS_DIR="${TENANT_ROOT}/secrets"
 TENANT_BACKUP_DIR="${TENANT_ROOT}/backups"
-
 TENANT_COMPOSE_ROOT="${TENANT_CONFIG_ROOT}/compose"
 
 DIRECTUS_DATA_DIR="${TENANT_DATA_ROOT}/directus"
@@ -617,7 +531,7 @@ BACKUP_TAG_TENANT="tenant=${TENANT_ID}"
 BACKUP_TAG_ENVIRONMENT="environment=production"
 
 # =============================================================================
-# PLAN
+# Plan
 # =============================================================================
 
 cat <<EOF
@@ -679,28 +593,29 @@ EOF
 if [[ "$APPLY" != true ]]; then
   log "PLAN ONLY. No se ha modificado el sistema."
   log "Añade --apply para ejecutar el provisioning CORE."
+
   COMMITTED=true
   exit 0
 fi
 
 # =============================================================================
-# Protección frente a duplicados
+# Duplicados
 # =============================================================================
 
 [[ ! -e "$TENANT_ROOT" ]] ||
   fail "Ya existe el tenant runtime: ${TENANT_ROOT}"
 
 container_exists "$DIRECTUS_CONTAINER" &&
-  fail "Ya existe el contenedor ${DIRECTUS_CONTAINER}"
+  fail "Ya existe ${DIRECTUS_CONTAINER}"
 
 container_exists "$N8N_CONTAINER" &&
-  fail "Ya existe el contenedor ${N8N_CONTAINER}"
+  fail "Ya existe ${N8N_CONTAINER}"
 
 container_exists "$BOOKING_CONTAINER" &&
-  fail "Ya existe el contenedor ${BOOKING_CONTAINER}"
+  fail "Ya existe ${BOOKING_CONTAINER}"
 
 docker_network_exists "$TENANT_BACKEND_NETWORK" &&
-  fail "Ya existe la red ${TENANT_BACKEND_NETWORK}"
+  fail "Ya existe ${TENANT_BACKEND_NETWORK}"
 
 for database in \
   "$POSTGRES_DIRECTUS_DB" \
@@ -721,7 +636,7 @@ for role in \
 done
 
 # =============================================================================
-# Generar secretos
+# Secretos
 # =============================================================================
 
 log "Generando secretos."
@@ -762,10 +677,10 @@ chmod 700 \
   "$TENANT_BACKUP_DIR"
 
 # =============================================================================
-# PostgreSQL roles
+# PostgreSQL
 # =============================================================================
 
-log "Creando rol PostgreSQL para Directus."
+log "Creando rol PostgreSQL Directus."
 
 create_role \
   "$POSTGRES_DIRECTUS_USER" \
@@ -774,7 +689,7 @@ create_role \
 
 CREATED_DIRECTUS_ROLE=true
 
-log "Creando rol PostgreSQL para n8n."
+log "Creando rol PostgreSQL n8n."
 
 create_role \
   "$POSTGRES_N8N_USER" \
@@ -783,7 +698,7 @@ create_role \
 
 CREATED_N8N_ROLE=true
 
-log "Creando rol PostgreSQL para Booking."
+log "Creando rol PostgreSQL Booking."
 
 create_role \
   "$POSTGRES_BOOKING_USER" \
@@ -791,10 +706,6 @@ create_role \
   "$POSTGRES_ADMIN_USER"
 
 CREATED_BOOKING_ROLE=true
-
-# =============================================================================
-# PostgreSQL databases
-# =============================================================================
 
 log "Creando base PostgreSQL Directus."
 
@@ -844,7 +755,7 @@ docker network connect \
 POSTGRES_CONNECTED_TO_NETWORK=true
 
 # =============================================================================
-# Variables para templates
+# Export templates
 # =============================================================================
 
 export \
@@ -886,7 +797,7 @@ export \
   BACKUP_TAG_ENVIRONMENT
 
 # =============================================================================
-# Render Directus
+# Render Compose
 # =============================================================================
 
 log "Generando configuración Directus."
@@ -898,10 +809,6 @@ python3 "$RENDERER" \
 python3 "$RENDERER" \
   "${TEMPLATE_ROOT}/directus/.env.tpl" \
   "${TENANT_COMPOSE_ROOT}/directus/.env"
-
-# =============================================================================
-# Render n8n
-# =============================================================================
 
 log "Generando configuración n8n."
 
@@ -922,87 +829,136 @@ chmod 600 \
   "${TENANT_COMPOSE_ROOT}/n8n/.env"
 
 # =============================================================================
-# tenant.env
+# tenant.env — shell-safe
 # =============================================================================
 
 log "Generando tenant.env."
 
-cat > "${TENANT_CONFIG_ROOT}/tenant.env" <<EOF
-TENANT_ID=${TENANT_ID}
-TENANT_NAME=${TENANT_NAME}
-ENVIRONMENT=production
+TENANT_ENV="${TENANT_CONFIG_ROOT}/tenant.env"
 
-BASE_DOMAIN=${BASE_DOMAIN}
+: > "$TENANT_ENV"
 
-DIRECTUS_VERSION=${DIRECTUS_VERSION}
-N8N_VERSION=${N8N_VERSION}
+write_env "$TENANT_ENV" "TENANT_ID" "$TENANT_ID"
+write_env "$TENANT_ENV" "TENANT_NAME" "$TENANT_NAME"
+write_env "$TENANT_ENV" "ENVIRONMENT" "production"
 
-DIRECTUS_HOST=${DIRECTUS_HOST}
-N8N_HOST=${N8N_HOST}
-BOOKING_HOST=${BOOKING_HOST}
+write_env "$TENANT_ENV" "BASE_DOMAIN" "$BASE_DOMAIN"
 
-DIRECTUS_CONTAINER=${DIRECTUS_CONTAINER}
-N8N_CONTAINER=${N8N_CONTAINER}
-BOOKING_CONTAINER=${BOOKING_CONTAINER}
+write_env "$TENANT_ENV" "DIRECTUS_VERSION" "$DIRECTUS_VERSION"
+write_env "$TENANT_ENV" "N8N_VERSION" "$N8N_VERSION"
 
-TENANT_ROOT=${TENANT_ROOT}
-TENANT_CONFIG_ROOT=${TENANT_CONFIG_ROOT}
-TENANT_DATA_ROOT=${TENANT_DATA_ROOT}
-TENANT_COMPOSE_ROOT=${TENANT_COMPOSE_ROOT}
-TENANT_SECRETS_DIR=${TENANT_SECRETS_DIR}
+write_env "$TENANT_ENV" "DIRECTUS_HOST" "$DIRECTUS_HOST"
+write_env "$TENANT_ENV" "N8N_HOST" "$N8N_HOST"
+write_env "$TENANT_ENV" "BOOKING_HOST" "$BOOKING_HOST"
 
-DIRECTUS_DATA_DIR=${DIRECTUS_DATA_DIR}
-N8N_DATA_DIR=${N8N_DATA_DIR}
-BOOKING_DATA_DIR=${BOOKING_DATA_DIR}
+write_env "$TENANT_ENV" "DIRECTUS_CONTAINER" "$DIRECTUS_CONTAINER"
+write_env "$TENANT_ENV" "N8N_CONTAINER" "$N8N_CONTAINER"
+write_env "$TENANT_ENV" "BOOKING_CONTAINER" "$BOOKING_CONTAINER"
 
-TENANT_BACKEND_NETWORK=${TENANT_BACKEND_NETWORK}
+write_env "$TENANT_ENV" "TENANT_ROOT" "$TENANT_ROOT"
+write_env "$TENANT_ENV" "TENANT_CONFIG_ROOT" "$TENANT_CONFIG_ROOT"
+write_env "$TENANT_ENV" "TENANT_DATA_ROOT" "$TENANT_DATA_ROOT"
+write_env "$TENANT_ENV" "TENANT_COMPOSE_ROOT" "$TENANT_COMPOSE_ROOT"
+write_env "$TENANT_ENV" "TENANT_SECRETS_DIR" "$TENANT_SECRETS_DIR"
 
-POSTGRES_DIRECTUS_DB=${POSTGRES_DIRECTUS_DB}
-POSTGRES_N8N_DB=${POSTGRES_N8N_DB}
-POSTGRES_BOOKING_DB=${POSTGRES_BOOKING_DB}
+write_env "$TENANT_ENV" "DIRECTUS_DATA_DIR" "$DIRECTUS_DATA_DIR"
+write_env "$TENANT_ENV" "N8N_DATA_DIR" "$N8N_DATA_DIR"
+write_env "$TENANT_ENV" "BOOKING_DATA_DIR" "$BOOKING_DATA_DIR"
 
-BACKUP_HOST=${BACKUP_HOST}
-BACKUP_TAG_TENANT=${BACKUP_TAG_TENANT}
-BACKUP_TAG_ENVIRONMENT=${BACKUP_TAG_ENVIRONMENT}
+write_env "$TENANT_ENV" "TENANT_BACKEND_NETWORK" "$TENANT_BACKEND_NETWORK"
 
-BACKUP_REPOSITORY_CONFIGURED=false
-EOF
+write_env "$TENANT_ENV" "POSTGRES_DIRECTUS_DB" "$POSTGRES_DIRECTUS_DB"
+write_env "$TENANT_ENV" "POSTGRES_N8N_DB" "$POSTGRES_N8N_DB"
+write_env "$TENANT_ENV" "POSTGRES_BOOKING_DB" "$POSTGRES_BOOKING_DB"
 
-chmod 600 \
-  "${TENANT_CONFIG_ROOT}/tenant.env"
+write_env "$TENANT_ENV" "BACKUP_HOST" "$BACKUP_HOST"
+write_env "$TENANT_ENV" "BACKUP_TAG_TENANT" "$BACKUP_TAG_TENANT"
+write_env "$TENANT_ENV" "BACKUP_TAG_ENVIRONMENT" "$BACKUP_TAG_ENVIRONMENT"
+
+write_env "$TENANT_ENV" "BACKUP_REPOSITORY_CONFIGURED" "false"
+
+chmod 600 "$TENANT_ENV"
+
+# Validar que Bash puede cargarlo.
+bash -n "$TENANT_ENV"
 
 # =============================================================================
-# Secretos
+# Secrets
 # =============================================================================
 
 log "Guardando secretos."
 
-cat > "${TENANT_SECRETS_DIR}/postgres.env" <<EOF
-POSTGRES_DIRECTUS_USER=${POSTGRES_DIRECTUS_USER}
-POSTGRES_DIRECTUS_PASSWORD=${POSTGRES_DIRECTUS_PASSWORD}
+POSTGRES_ENV="${TENANT_SECRETS_DIR}/postgres.env"
+DIRECTUS_SECRET_ENV="${TENANT_SECRETS_DIR}/directus.env"
+N8N_SECRET_ENV="${TENANT_SECRETS_DIR}/n8n.env"
 
-POSTGRES_N8N_USER=${POSTGRES_N8N_USER}
-POSTGRES_N8N_PASSWORD=${POSTGRES_N8N_PASSWORD}
+: > "$POSTGRES_ENV"
+: > "$DIRECTUS_SECRET_ENV"
+: > "$N8N_SECRET_ENV"
 
-POSTGRES_BOOKING_USER=${POSTGRES_BOOKING_USER}
-POSTGRES_BOOKING_PASSWORD=${POSTGRES_BOOKING_PASSWORD}
-EOF
+write_env \
+  "$POSTGRES_ENV" \
+  "POSTGRES_DIRECTUS_USER" \
+  "$POSTGRES_DIRECTUS_USER"
 
-cat > "${TENANT_SECRETS_DIR}/directus.env" <<EOF
-DIRECTUS_KEY=${DIRECTUS_KEY}
-DIRECTUS_SECRET=${DIRECTUS_SECRET}
-DIRECTUS_ADMIN_EMAIL=${DIRECTUS_ADMIN_EMAIL}
-DIRECTUS_ADMIN_PASSWORD=${DIRECTUS_ADMIN_PASSWORD}
-EOF
+write_env \
+  "$POSTGRES_ENV" \
+  "POSTGRES_DIRECTUS_PASSWORD" \
+  "$POSTGRES_DIRECTUS_PASSWORD"
 
-cat > "${TENANT_SECRETS_DIR}/n8n.env" <<EOF
-N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
-EOF
+write_env \
+  "$POSTGRES_ENV" \
+  "POSTGRES_N8N_USER" \
+  "$POSTGRES_N8N_USER"
+
+write_env \
+  "$POSTGRES_ENV" \
+  "POSTGRES_N8N_PASSWORD" \
+  "$POSTGRES_N8N_PASSWORD"
+
+write_env \
+  "$POSTGRES_ENV" \
+  "POSTGRES_BOOKING_USER" \
+  "$POSTGRES_BOOKING_USER"
+
+write_env \
+  "$POSTGRES_ENV" \
+  "POSTGRES_BOOKING_PASSWORD" \
+  "$POSTGRES_BOOKING_PASSWORD"
+
+write_env \
+  "$DIRECTUS_SECRET_ENV" \
+  "DIRECTUS_KEY" \
+  "$DIRECTUS_KEY"
+
+write_env \
+  "$DIRECTUS_SECRET_ENV" \
+  "DIRECTUS_SECRET" \
+  "$DIRECTUS_SECRET"
+
+write_env \
+  "$DIRECTUS_SECRET_ENV" \
+  "DIRECTUS_ADMIN_EMAIL" \
+  "$DIRECTUS_ADMIN_EMAIL"
+
+write_env \
+  "$DIRECTUS_SECRET_ENV" \
+  "DIRECTUS_ADMIN_PASSWORD" \
+  "$DIRECTUS_ADMIN_PASSWORD"
+
+write_env \
+  "$N8N_SECRET_ENV" \
+  "N8N_ENCRYPTION_KEY" \
+  "$N8N_ENCRYPTION_KEY"
 
 chmod 600 \
-  "${TENANT_SECRETS_DIR}/postgres.env" \
-  "${TENANT_SECRETS_DIR}/directus.env" \
-  "${TENANT_SECRETS_DIR}/n8n.env"
+  "$POSTGRES_ENV" \
+  "$DIRECTUS_SECRET_ENV" \
+  "$N8N_SECRET_ENV"
+
+bash -n "$POSTGRES_ENV"
+bash -n "$DIRECTUS_SECRET_ENV"
+bash -n "$N8N_SECRET_ENV"
 
 # =============================================================================
 # Backup manifest
@@ -1075,7 +1031,7 @@ python3 -m json.tool \
   >/dev/null
 
 # =============================================================================
-# Validar Compose
+# Compose validation
 # =============================================================================
 
 log "Validando Compose Directus."
@@ -1095,7 +1051,7 @@ docker compose \
   >/dev/null
 
 # =============================================================================
-# Comprobaciones finales
+# Validar ownership DB
 # =============================================================================
 
 log "Validando ownership PostgreSQL."
@@ -1128,15 +1084,9 @@ for spec in \
       "Owner incorrecto en ${database}: ${actual_owner}"
 done
 
-log "Validando red Docker."
-
 docker network inspect \
   "$TENANT_BACKEND_NETWORK" \
   >/dev/null
-
-# =============================================================================
-# Commit lógico
-# =============================================================================
 
 COMMITTED=true
 
