@@ -1087,39 +1087,39 @@ const collections = [
 // Preflight
 // =============================================================================
 
-async function collectionExists(collection) {
-  const { response } = await rawRequest(
+async function getExistingCollectionNames() {
+  const result = await request(
     'GET',
-    `/collections/${encodeURIComponent(collection)}`,
-    undefined,
-    true
+    '/collections'
   );
 
-  if (response.status === 404) {
-    return false;
-  }
+  const collections = result?.data;
 
-  if (!response.ok) {
+  if (!Array.isArray(collections)) {
     throw new Error(
-      `No se pudo comprobar collection ${collection}: HTTP ${response.status}`
+      'Directus devolvió una respuesta inesperada al listar collections.'
     );
   }
 
-  return true;
+  return new Set(
+    collections
+      .map((item) => item?.collection)
+      .filter(Boolean)
+  );
 }
 
 async function assertTargetCollectionsDoNotExist() {
-  const existing = [];
+  const existingCollections =
+    await getExistingCollectionNames();
 
-  for (const collection of TARGET_COLLECTIONS) {
-    if (await collectionExists(collection)) {
-      existing.push(collection);
-    }
-  }
+  const conflicts = TARGET_COLLECTIONS.filter(
+    (collection) =>
+      existingCollections.has(collection)
+  );
 
-  if (existing.length > 0) {
+  if (conflicts.length > 0) {
     throw new Error(
-      `Bootstrap abortado: ya existen collections objetivo: ${existing.join(', ')}`
+      `Bootstrap abortado: ya existen collections objetivo: ${conflicts.join(', ')}`
     );
   }
 
