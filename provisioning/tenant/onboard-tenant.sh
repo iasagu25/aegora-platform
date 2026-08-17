@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 set -Eeuo pipefail
 IFS=$'\n\t'
 
@@ -8,6 +9,7 @@ readonly TENANTS_ROOT="/opt/aegora/tenants"
 readonly CREATE_SCRIPT="${PLATFORM_ROOT}/provisioning/tenant/create-tenant.sh"
 readonly DEPLOY_SCRIPT="${PLATFORM_ROOT}/provisioning/tenant/deploy-tenant.sh"
 readonly APPLY_SCHEMA_SCRIPT="${PLATFORM_ROOT}/directus/apply-schema.sh"
+readonly SPANISH_UI_SCRIPT="${PLATFORM_ROOT}/directus/configure-spanish-ui.sh"
 readonly PUBLISH_SCRIPT="${PLATFORM_ROOT}/provisioning/tenant/publish-tenant.sh"
 readonly BACKUP_SCRIPT="${PLATFORM_ROOT}/provisioning/tenant/configure-tenant-backup.sh"
 readonly OPERATIONS_SCRIPT="${PLATFORM_ROOT}/provisioning/tenant/activate-tenant-operations.sh"
@@ -30,41 +32,54 @@ validate_domain() { [[ "$1" =~ ^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]] || fail "Domini
 validate_email() { [[ "$1" == *@*.* ]] || fail "Email inválido: $1"; }
 
 usage() {
-  cat <<'EOF'
+  cat <<'USAGE'
 Uso:
-  onboard-tenant.sh     --tenant TENANT     --name "Nombre cliente"     --domain tenant.aegora.es     --admin-email admin@example.es     [--stage prepare|publish|all]     [--s3-credentials-file PATH]     [--allow-shared-s3-credentials]     [--allow-custom-domain]     [--apply]
+  onboard-tenant.sh \
+    --tenant TENANT \
+    --name "Nombre cliente" \
+    --domain tenant.aegora.es \
+    --admin-email admin@example.es \
+    [--stage prepare|publish|all] \
+    [--s3-credentials-file PATH] \
+    [--allow-shared-s3-credentials] \
+    [--allow-custom-domain] \
+    [--apply]
 
 prepare:
-  create -> deploy -> apply Directus schema -> configure backup -> activate operations
+  create -> deploy -> apply schema -> configure Spanish UI -> backup -> operations
 
 publish:
-  publica Caddy
+  publish Caddy
 
 all:
   prepare + publish
 
 DNS no se modifica desde este script.
-EOF
+USAGE
 }
 
 run_script() {
-  local label="$1"; shift
+  local label="$1"
+  shift
   log "============================================================"
-  log "${label}"
+  log "$label"
   log "============================================================"
   "$@"
 }
 
-tenant_exists() { [[ -f "${TENANTS_ROOT}/${TENANT}/config/tenant.env" ]]; }
+tenant_exists() {
+  [[ -f "${TENANTS_ROOT}/${TENANT}/config/tenant.env" ]]
+}
 
 validate_existing_tenant_identity() {
   local config="${TENANTS_ROOT}/${TENANT}/config/tenant.env"
   require_file "$config"
 
   local existing_id existing_name existing_domain
-  existing_id="$(bash -c "source '$config'; printf '%s' "\$TENANT_ID"")"
-  existing_name="$(bash -c "source '$config'; printf '%s' "\$TENANT_NAME"")"
-  existing_domain="$(bash -c "source '$config'; printf '%s' "\$BASE_DOMAIN"")"
+
+  existing_id="$(bash -c "source '$config'; printf '%s' \"\$TENANT_ID\"")"
+  existing_name="$(bash -c "source '$config'; printf '%s' \"\$TENANT_NAME\"")"
+  existing_domain="$(bash -c "source '$config'; printf '%s' \"\$BASE_DOMAIN\"")"
 
   [[ "$existing_id" == "$TENANT" ]] ||
     fail "El tenant existente tiene TENANT_ID=${existing_id}, esperado ${TENANT}."
@@ -100,14 +115,25 @@ validate_domain "$BASE_DOMAIN"
 validate_email "$ADMIN_EMAIL"
 [[ "$TENANT" != "aegora" ]] || fail "El tenant legacy 'aegora' está protegido."
 
-case "$STAGE" in prepare|publish|all) ;; *) fail "--stage debe ser prepare, publish o all." ;; esac
+case "$STAGE" in
+  prepare|publish|all) ;;
+  *) fail "--stage debe ser prepare, publish o all." ;;
+esac
 
-for f in "$CREATE_SCRIPT" "$DEPLOY_SCRIPT" "$APPLY_SCHEMA_SCRIPT" "$PUBLISH_SCRIPT" "$BACKUP_SCRIPT" "$OPERATIONS_SCRIPT"; do
-  require_file "$f"
+for required_script in \
+  "$CREATE_SCRIPT" \
+  "$DEPLOY_SCRIPT" \
+  "$APPLY_SCHEMA_SCRIPT" \
+  "$SPANISH_UI_SCRIPT" \
+  "$PUBLISH_SCRIPT" \
+  "$BACKUP_SCRIPT" \
+  "$OPERATIONS_SCRIPT"; do
+  require_file "$required_script"
 done
+
 [[ -z "$S3_CREDENTIALS_FILE" ]] || require_file "$S3_CREDENTIALS_FILE"
 
-cat <<EOF
+cat <<EOF2
 
 ============================================================
 AEGORA TENANT ONBOARDING
@@ -119,11 +145,12 @@ Dominio: ${BASE_DOMAIN}
 Admin: ${ADMIN_EMAIL}
 Etapa: ${STAGE}
 Modo: $([[ "$APPLY" == true ]] && echo APPLY || echo PLAN)
+Directus locale: es-ES
 DNS: NO gestionado por este script
 
 ============================================================
 
-EOF
+EOF2
 
 if [[ "$STAGE" == "prepare" || "$STAGE" == "all" ]]; then
   if tenant_exists; then
@@ -134,31 +161,35 @@ if [[ "$STAGE" == "prepare" || "$STAGE" == "all" ]]; then
   else
     create_args=(/usr/bin/bash "$CREATE_SCRIPT" --tenant "$TENANT" --name "$TENANT_NAME" --domain "$BASE_DOMAIN" --admin-email "$ADMIN_EMAIL")
     [[ "$APPLY" != true ]] || create_args+=(--apply)
-    run_script "1/5 · CREATE TENANT" "${create_args[@]}"
+    run_script "1/6 · CREATE TENANT" "${create_args[@]}"
   fi
 
   if [[ "$APPLY" != true && ! -f "${TENANTS_ROOT}/${TENANT}/config/tenant.env" ]]; then
     log "PLAN: el tenant aún no existe."
-    log "Los pasos deploy/schema/backup/operations se ejecutarán después de create en modo APPLY."
+    log "Los pasos deploy/schema/spanish-ui/backup/operations se ejecutarán después de create en modo APPLY."
     [[ "$STAGE" != "prepare" ]] || exit 0
   else
     deploy_args=(/usr/bin/bash "$DEPLOY_SCRIPT" --tenant "$TENANT")
     [[ "$APPLY" != true ]] || deploy_args+=(--apply)
-    run_script "2/5 · DEPLOY TENANT" "${deploy_args[@]}"
+    run_script "2/6 · DEPLOY TENANT" "${deploy_args[@]}"
 
     schema_args=(/usr/bin/bash "$APPLY_SCHEMA_SCRIPT" --tenant "$TENANT")
     [[ "$APPLY" != true ]] || schema_args+=(--apply)
-    run_script "3/5 · APPLY DIRECTUS SCHEMA" "${schema_args[@]}"
+    run_script "3/6 · APPLY DIRECTUS SCHEMA" "${schema_args[@]}"
+
+    spanish_ui_args=(/usr/bin/bash "$SPANISH_UI_SCRIPT" --tenant "$TENANT")
+    [[ "$APPLY" != true ]] || spanish_ui_args+=(--apply)
+    run_script "4/6 · CONFIGURE DIRECTUS SPANISH UI" "${spanish_ui_args[@]}"
 
     backup_args=(/usr/bin/bash "$BACKUP_SCRIPT" --tenant "$TENANT")
     [[ -z "$S3_CREDENTIALS_FILE" ]] || backup_args+=(--s3-credentials-file "$S3_CREDENTIALS_FILE")
     [[ "$ALLOW_SHARED_S3_CREDENTIALS" != true ]] || backup_args+=(--allow-shared-s3-credentials)
     [[ "$APPLY" != true ]] || backup_args+=(--apply)
-    run_script "4/5 · CONFIGURE BACKUP" "${backup_args[@]}"
+    run_script "5/6 · CONFIGURE BACKUP" "${backup_args[@]}"
 
     operations_args=(/usr/bin/bash "$OPERATIONS_SCRIPT" --tenant "$TENANT")
     [[ "$APPLY" != true ]] || operations_args+=(--apply)
-    run_script "5/5 · ACTIVATE OPERATIONS" "${operations_args[@]}"
+    run_script "6/6 · ACTIVATE OPERATIONS" "${operations_args[@]}"
   fi
 fi
 
@@ -172,23 +203,18 @@ if [[ "$STAGE" == "publish" || "$STAGE" == "all" ]]; then
   run_script "PUBLISH TENANT" "${publish_args[@]}"
 fi
 
-cat <<EOF
+cat <<EOF2
 
 ============================================================
 ONBOARDING COMPLETADO
 ============================================================
 
-Tenant:
-  ${TENANT}
-
-Etapa:
-  ${STAGE}
-
-Modo:
-  $([[ "$APPLY" == true ]] && echo APPLY || echo PLAN)
+Tenant: ${TENANT}
+Etapa: ${STAGE}
+Modo: $([[ "$APPLY" == true ]] && echo APPLY || echo PLAN)
 
 Estado:
   flujo solicitado completado
 
 ============================================================
-EOF
+EOF2
