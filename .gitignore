@@ -72,3 +72,10 @@ tmp/
 __pycache__/
 *.pyc
 *.pyo
+
+# =============================================================================
+# Directus exceptions
+# =============================================================================
+
+!directus/extensions/directus-extension-aegora-phone-display/dist/
+!directus/extensions/directus-extension-aegora-phone-display/dist/index.js
