@@ -244,7 +244,9 @@ DIRECTUS_HEALTH="$(
 DIRECTUS_VERSION="$(
   docker exec \
     "$DIRECTUS_CONTAINER" \
-    node /directus/cli.js --version |
+    node \
+      -p \
+      "require('/directus/package.json').version" |
     tr -d '\r\n'
 )"
 
