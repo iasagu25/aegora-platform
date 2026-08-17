@@ -25,7 +25,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "wget --spider -q http://127.0.0.1:8055/server/health || exit 1"
+          "wget --spider -q http://127.0.0.1:8055/server/info || exit 1"
         ]
       interval: 15s
       timeout: 5s

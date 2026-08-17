@@ -828,7 +828,7 @@ docker exec \
   wget \
     --spider \
     -q \
-    http://127.0.0.1:8055/server/health ||
+    http://127.0.0.1:8055/server/info ||
   fail \
     "La validación HTTP interna de Directus ha fallado."
 

@@ -14,7 +14,7 @@ readonly RENDERER="${PLATFORM_ROOT}/provisioning/tenant/render-template.py"
 
 readonly POSTGRES_CONTAINER="aegora-postgres"
 
-readonly DEFAULT_DIRECTUS_VERSION="11.17.4"
+readonly DEFAULT_DIRECTUS_VERSION="12.2.0"
 readonly DEFAULT_N8N_VERSION="2.31.7"
 
 DIRECTUS_VERSION="${DIRECTUS_VERSION:-$DEFAULT_DIRECTUS_VERSION}"
