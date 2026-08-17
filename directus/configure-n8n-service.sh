@@ -12,17 +12,29 @@ IFS=$'\n\t'
 #   policy: "Aegora · n8n Service"
 #   user:   n8n-service-<tenant>@aegora.es
 #
-# Permissions:
-#   contacts        create/read/update
-#   contact_phones  create/read/update
-#   tasks           create/read/update
-#   appointments    create/read/update
+# Collection/action permissions:
+#   contacts        create/read/update · all fields
+#   contact_phones  create/read/update · all fields
+#   tasks           create/read/update · all fields
+#   appointments    create/read/update · all fields
 #
 # Explicitly NOT granted:
 #   delete
 #   share
 #   admin_access
 #   app_access
+#
+# IMPORTANT:
+# Directus 12.2.0 in this installation rejects field-restricted permission
+# rules with:
+#
+#   custom_permission_rules_enabled is a restricted resource
+#
+# Therefore this script deliberately uses:
+#
+#   fields: ['*']
+#
+# for each explicitly granted collection/action rule.
 #
 # Secret:
 #   /opt/aegora/tenants/<tenant>/secrets/directus-n8n.env
@@ -51,6 +63,10 @@ DIRECTUS_HEALTH=""
 SERVICE_EMAIL=""
 SERVICE_TOKEN=""
 SECRET_CREATED=false
+
+# =============================================================================
+# Logging
+# =============================================================================
 
 log() {
   printf '[%s] %s\n' "$(date --iso-8601=seconds)" "$*"
@@ -137,7 +153,6 @@ while [[ $# -gt 0 ]]; do
     --tenant)
       [[ $# -ge 2 ]] ||
         fail "Falta valor para --tenant."
-
       TENANT="$2"
       shift 2
       ;;
@@ -240,6 +255,10 @@ ADMIN_STATE="$(
   fail \
     "ADMIN_EMAIL/ADMIN_PASSWORD no están disponibles dentro de ${DIRECTUS_CONTAINER}."
 
+# =============================================================================
+# Plan
+# =============================================================================
+
 cat <<EOF
 
 ============================================================
@@ -261,10 +280,10 @@ Policy:
   ${POLICY_NAME}
 
 Permissions:
-  contacts        create / read / update
-  contact_phones  create / read / update
-  tasks           create / read / update
-  appointments    create / read / update
+  contacts        create / read / update · all fields
+  contact_phones  create / read / update · all fields
+  tasks           create / read / update · all fields
+  appointments    create / read / update · all fields
 
 Not granted:
   delete
@@ -352,96 +371,15 @@ const policyName = process.env.AEGORA_N8N_POLICY_NAME;
 
 let adminToken = null;
 
+// IMPORTANT:
+// This is intentionally collection/action-level access with all fields.
+// Field-restricted rules trigger Directus' restricted
+// custom_permission_rules_enabled feature in this installation.
 const permissionModel = {
-  contacts: {
-    create: [
-      'first_name',
-      'last_name',
-      'company',
-      'email',
-      'status',
-      'notes',
-    ],
-    read: ['*'],
-    update: [
-      'first_name',
-      'last_name',
-      'company',
-      'email',
-      'status',
-      'notes',
-    ],
-  },
-
-  contact_phones: {
-    create: [
-      'contact_id',
-      'phone_number',
-      'phone_normalized',
-      'label',
-      'is_primary',
-      'can_whatsapp',
-    ],
-    read: ['*'],
-    update: [
-      'contact_id',
-      'phone_number',
-      'phone_normalized',
-      'label',
-      'is_primary',
-      'can_whatsapp',
-    ],
-  },
-
-  tasks: {
-    create: [
-      'contact_id',
-      'title',
-      'description',
-      'status',
-      'priority',
-      'due_at',
-      'completed_at',
-      'source',
-    ],
-    read: ['*'],
-    update: [
-      'contact_id',
-      'title',
-      'description',
-      'status',
-      'priority',
-      'due_at',
-      'completed_at',
-      'source',
-    ],
-  },
-
-  appointments: {
-    create: [
-      'contact_id',
-      'title',
-      'start_at',
-      'end_at',
-      'status',
-      'notes',
-      'source',
-      'external_provider',
-      'external_event_id',
-    ],
-    read: ['*'],
-    update: [
-      'contact_id',
-      'title',
-      'start_at',
-      'end_at',
-      'status',
-      'notes',
-      'source',
-      'external_provider',
-      'external_event_id',
-    ],
-  },
+  contacts: ['create', 'read', 'update'],
+  contact_phones: ['create', 'read', 'update'],
+  tasks: ['create', 'read', 'update'],
+  appointments: ['create', 'read', 'update'],
 };
 
 async function rawRequest(
@@ -533,7 +471,9 @@ async function loginAdmin() {
   adminToken = payload?.data?.access_token;
 
   if (!adminToken) {
-    throw new Error('Directus no devolvió access_token admin.');
+    throw new Error(
+      'Directus no devolvió access_token admin.'
+    );
   }
 
   console.log('Autenticación admin: OK');
@@ -615,11 +555,10 @@ async function listPolicyPermissions(policyId) {
 
 async function ensurePermissions(policyId) {
   const existing = await listPolicyPermissions(policyId);
-
   const targetKeys = new Set();
 
   for (const [collection, actions] of Object.entries(permissionModel)) {
-    for (const [action, fields] of Object.entries(actions)) {
+    for (const action of actions) {
       const key = `${collection}:${action}`;
       targetKeys.add(key);
 
@@ -642,7 +581,7 @@ async function ensurePermissions(policyId) {
         permissions: null,
         validation: null,
         presets: null,
-        fields,
+        fields: ['*'],
       };
 
       if (matches.length === 0) {
@@ -652,7 +591,9 @@ async function ensurePermissions(policyId) {
           payload
         );
 
-        console.log(`Permiso creado: ${key}`);
+        console.log(
+          `Permiso creado: ${key}`
+        );
       } else {
         await request(
           'PATCH',
@@ -660,12 +601,15 @@ async function ensurePermissions(policyId) {
           payload
         );
 
-        console.log(`Permiso actualizado: ${key}`);
+        console.log(
+          `Permiso actualizado: ${key}`
+        );
       }
     }
   }
 
-  // Do not silently leave delete/share rules on our managed collections.
+  // Remove any unexpected permission rule from the four managed collections.
+  // This guarantees that delete/share do not silently remain granted.
   for (const permission of existing) {
     if (
       Object.prototype.hasOwnProperty.call(
@@ -682,7 +626,9 @@ async function ensurePermissions(policyId) {
           `/permissions/${encodeURIComponent(permission.id)}`
         );
 
-        console.log(`Permiso no permitido eliminado: ${key}`);
+        console.log(
+          `Permiso no permitido eliminado: ${key}`
+        );
       }
     }
   }
@@ -694,8 +640,8 @@ async function ensureUser(policyId) {
   );
 
   if (!user) {
-    // Password is intentionally random and never exposed.
-    // The service authenticates exclusively using the static token.
+    // Password is intentionally random and discarded.
+    // n8n authenticates exclusively using the static token.
     const password =
       crypto.randomUUID() +
       crypto.randomUUID();
@@ -731,7 +677,9 @@ async function ensureUser(policyId) {
       }
     );
 
-    console.log('Usuario técnico existente actualizado.');
+    console.log(
+      'Usuario técnico existente actualizado.'
+    );
   }
 
   return user;
@@ -765,7 +713,7 @@ async function verifyServiceToken() {
   );
 
   for (const [collection, actions] of Object.entries(permissionModel)) {
-    for (const action of Object.keys(actions)) {
+    for (const action of actions) {
       const access =
         permissions?.data?.[collection]?.[action]?.access;
 
@@ -780,7 +728,11 @@ async function verifyServiceToken() {
       const access =
         permissions?.data?.[collection]?.[forbidden]?.access;
 
-      if (access && access !== 'none') {
+      if (
+        access !== undefined &&
+        access !== null &&
+        access !== 'none'
+      ) {
         throw new Error(
           `Permiso prohibido detectado: ${collection}.${forbidden}=${access}`
         );
@@ -789,7 +741,7 @@ async function verifyServiceToken() {
   }
 
   console.log('Static token: OK');
-  console.log('Permisos efectivos: OK');
+  console.log('Permisos efectivos C/R/U: OK');
   console.log('Delete/share: NO ACCESS');
 }
 
@@ -823,7 +775,10 @@ NODE
 
 log "Identidad técnica n8n configurada correctamente."
 
-# Verify the secret file without exposing it.
+# =============================================================================
+# Verify secret file without exposing it
+# =============================================================================
+
 [[ -s "$SECRET_FILE" ]] ||
   fail "El fichero secreto no existe o está vacío."
 
@@ -849,6 +804,16 @@ Service user:
 
 Policy:
   ${POLICY_NAME}
+
+Permissions:
+  create/read/update sobre las cuatro collections
+  con todos los fields de cada acción.
+
+No concedido:
+  delete
+  share
+  admin access
+  Data Studio access
 
 Token:
   almacenado de forma privada en
