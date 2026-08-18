@@ -9,6 +9,7 @@ readonly TENANTS_ROOT="/opt/aegora/tenants"
 readonly CREATE_SCRIPT="${PLATFORM_ROOT}/provisioning/tenant/create-tenant.sh"
 readonly DEPLOY_SCRIPT="${PLATFORM_ROOT}/provisioning/tenant/deploy-tenant.sh"
 readonly APPLY_SCHEMA_SCRIPT="${PLATFORM_ROOT}/directus/apply-schema.sh"
+readonly DIRECTUS_UI_SCRIPT="${PLATFORM_ROOT}/directus/configure-directus-ui.sh"
 readonly SPANISH_UI_SCRIPT="${PLATFORM_ROOT}/directus/configure-spanish-ui.sh"
 readonly PUBLISH_SCRIPT="${PLATFORM_ROOT}/provisioning/tenant/publish-tenant.sh"
 readonly BACKUP_SCRIPT="${PLATFORM_ROOT}/provisioning/tenant/configure-tenant-backup.sh"
@@ -34,19 +35,15 @@ validate_email() { [[ "$1" == *@*.* ]] || fail "Email inválido: $1"; }
 usage() {
   cat <<'USAGE'
 Uso:
-  onboard-tenant.sh \
-    --tenant TENANT \
-    --name "Nombre cliente" \
-    --domain tenant.aegora.es \
-    --admin-email admin@example.es \
-    [--stage prepare|publish|all] \
-    [--s3-credentials-file PATH] \
-    [--allow-shared-s3-credentials] \
-    [--allow-custom-domain] \
-    [--apply]
+  onboard-tenant.sh     --tenant TENANT     --name "Nombre cliente"     --domain tenant.aegora.es     --admin-email admin@example.es     [--stage prepare|publish|all]     [--s3-credentials-file PATH]     [--allow-shared-s3-credentials]     [--allow-custom-domain]     [--apply]
 
 prepare:
-  create -> deploy -> apply schema -> configure Spanish UI -> backup -> operations
+  create
+  -> deploy
+  -> apply schema + restore managed Directus UI overlay
+  -> configure Spanish UI
+  -> backup
+  -> operations
 
 publish:
   publish Caddy
@@ -55,6 +52,10 @@ all:
   prepare + publish
 
 DNS no se modifica desde este script.
+
+Nota:
+  apply-schema.sh restaura configure-directus-ui.sh después de aplicar
+  base.yaml. onboard-tenant.sh no duplica ese paso.
 USAGE
 }
 
@@ -83,8 +84,10 @@ validate_existing_tenant_identity() {
 
   [[ "$existing_id" == "$TENANT" ]] ||
     fail "El tenant existente tiene TENANT_ID=${existing_id}, esperado ${TENANT}."
+
   [[ "$existing_name" == "$TENANT_NAME" ]] ||
     fail "El tenant existente tiene TENANT_NAME='${existing_name}', esperado '${TENANT_NAME}'."
+
   [[ "$existing_domain" == "$BASE_DOMAIN" ]] ||
     fail "El tenant existente tiene BASE_DOMAIN=${existing_domain}, esperado ${BASE_DOMAIN}."
 }
@@ -120,20 +123,13 @@ case "$STAGE" in
   *) fail "--stage debe ser prepare, publish o all." ;;
 esac
 
-for required_script in \
-  "$CREATE_SCRIPT" \
-  "$DEPLOY_SCRIPT" \
-  "$APPLY_SCHEMA_SCRIPT" \
-  "$SPANISH_UI_SCRIPT" \
-  "$PUBLISH_SCRIPT" \
-  "$BACKUP_SCRIPT" \
-  "$OPERATIONS_SCRIPT"; do
+for required_script in   "$CREATE_SCRIPT"   "$DEPLOY_SCRIPT"   "$APPLY_SCHEMA_SCRIPT"   "$DIRECTUS_UI_SCRIPT"   "$SPANISH_UI_SCRIPT"   "$PUBLISH_SCRIPT"   "$BACKUP_SCRIPT"   "$OPERATIONS_SCRIPT"; do
   require_file "$required_script"
 done
 
 [[ -z "$S3_CREDENTIALS_FILE" ]] || require_file "$S3_CREDENTIALS_FILE"
 
-cat <<EOF2
+cat <<EOF
 
 ============================================================
 AEGORA TENANT ONBOARDING
@@ -146,11 +142,12 @@ Admin: ${ADMIN_EMAIL}
 Etapa: ${STAGE}
 Modo: $([[ "$APPLY" == true ]] && echo APPLY || echo PLAN)
 Directus locale: es-ES
+Directus UI: overlay administrado por apply-schema.sh
 DNS: NO gestionado por este script
 
 ============================================================
 
-EOF2
+EOF
 
 if [[ "$STAGE" == "prepare" || "$STAGE" == "all" ]]; then
   if tenant_exists; then
@@ -166,7 +163,7 @@ if [[ "$STAGE" == "prepare" || "$STAGE" == "all" ]]; then
 
   if [[ "$APPLY" != true && ! -f "${TENANTS_ROOT}/${TENANT}/config/tenant.env" ]]; then
     log "PLAN: el tenant aún no existe."
-    log "Los pasos deploy/schema/spanish-ui/backup/operations se ejecutarán después de create en modo APPLY."
+    log "Los pasos deploy/schema/ui/spanish-ui/backup/operations se ejecutarán después de create en modo APPLY."
     [[ "$STAGE" != "prepare" ]] || exit 0
   else
     deploy_args=(/usr/bin/bash "$DEPLOY_SCRIPT" --tenant "$TENANT")
@@ -175,7 +172,7 @@ if [[ "$STAGE" == "prepare" || "$STAGE" == "all" ]]; then
 
     schema_args=(/usr/bin/bash "$APPLY_SCHEMA_SCRIPT" --tenant "$TENANT")
     [[ "$APPLY" != true ]] || schema_args+=(--apply)
-    run_script "3/6 · APPLY DIRECTUS SCHEMA" "${schema_args[@]}"
+    run_script "3/6 · APPLY DIRECTUS SCHEMA + UI OVERLAY" "${schema_args[@]}"
 
     spanish_ui_args=(/usr/bin/bash "$SPANISH_UI_SCRIPT" --tenant "$TENANT")
     [[ "$APPLY" != true ]] || spanish_ui_args+=(--apply)
@@ -203,7 +200,7 @@ if [[ "$STAGE" == "publish" || "$STAGE" == "all" ]]; then
   run_script "PUBLISH TENANT" "${publish_args[@]}"
 fi
 
-cat <<EOF2
+cat <<EOF
 
 ============================================================
 ONBOARDING COMPLETADO
@@ -216,5 +213,10 @@ Modo: $([[ "$APPLY" == true ]] && echo APPLY || echo PLAN)
 Estado:
   flujo solicitado completado
 
+Directus:
+  schema base aplicado/verificado
+  UI overlay restaurado por apply-schema.sh
+  locale es-ES configurado
+
 ============================================================
-EOF2
+EOF

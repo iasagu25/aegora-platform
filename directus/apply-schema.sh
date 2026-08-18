@@ -5,6 +5,7 @@ IFS=$'\n\t'
 readonly PLATFORM_ROOT="/opt/aegora/platform"
 readonly TENANTS_ROOT="/opt/aegora/tenants"
 readonly SCHEMA_FILE="${PLATFORM_ROOT}/directus/schema/base.yaml"
+readonly CONFIGURE_UI_SCRIPT="${PLATFORM_ROOT}/directus/configure-directus-ui.sh"
 
 TENANT=""
 APPLY=false
@@ -23,11 +24,15 @@ fail() { log "ERROR: $*" >&2; exit 1; }
 cleanup() {
   local exit_code=$?
   trap - EXIT
-  if [[ -n "${DIRECTUS_CONTAINER:-}" ]] && docker inspect "$DIRECTUS_CONTAINER" >/dev/null 2>&1; then
+
+  if [[ -n "${DIRECTUS_CONTAINER:-}" ]] &&
+     docker inspect "$DIRECTUS_CONTAINER" >/dev/null 2>&1; then
     docker exec "$DIRECTUS_CONTAINER" rm -f "$CONTAINER_SCHEMA" >/dev/null 2>&1 || true
   fi
+
   exit "$exit_code"
 }
+
 trap cleanup EXIT
 trap 'fail "Fallo en la línea ${LINENO}: ${BASH_COMMAND}"' ERR
 
@@ -40,7 +45,12 @@ Sin --apply:
   valida el tenant y ejecuta Directus schema apply --dry-run.
 
 Con --apply:
-  aplica directus/schema/base.yaml al tenant.
+  aplica directus/schema/base.yaml al tenant, verifica el estado base
+  y restaura después la configuración UI administrada por Aegora.
+
+Nota:
+  Los custom displays se gestionan fuera de base.yaml mediante
+  configure-directus-ui.sh.
 EOF
 }
 
@@ -55,13 +65,20 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --tenant)
       [[ $# -ge 2 ]] || fail "Falta valor para --tenant."
-      TENANT="$2"; shift 2 ;;
+      TENANT="$2"
+      shift 2
+      ;;
     --apply)
-      APPLY=true; shift ;;
+      APPLY=true
+      shift
+      ;;
     --help|-h)
-      usage; exit 0 ;;
+      usage
+      exit 0
+      ;;
     *)
-      fail "Opción desconocida: $1" ;;
+      fail "Opción desconocida: $1"
+      ;;
   esac
 done
 
@@ -70,12 +87,14 @@ done
 
 require_command docker
 require_file "$SCHEMA_FILE"
+require_file "$CONFIGURE_UI_SCRIPT"
 
 TENANT_ROOT="${TENANTS_ROOT}/${TENANT}"
 TENANT_CONFIG="${TENANT_ROOT}/config/tenant.env"
 require_file "$TENANT_CONFIG"
 
 set -a
+# shellcheck disable=SC1090
 source "$TENANT_CONFIG"
 set +a
 
@@ -83,24 +102,33 @@ set +a
 : "${DIRECTUS_CONTAINER:?Falta DIRECTUS_CONTAINER}"
 : "${DIRECTUS_VERSION:?Falta DIRECTUS_VERSION}"
 
-[[ "$TENANT_ID" == "$TENANT" ]] || fail "TENANT_ID (${TENANT_ID}) no coincide con --tenant (${TENANT})."
+[[ "$TENANT_ID" == "$TENANT" ]] ||
+  fail "TENANT_ID (${TENANT_ID}) no coincide con --tenant (${TENANT})."
+
 DECLARED_DIRECTUS_VERSION="$DIRECTUS_VERSION"
 
-docker inspect "$DIRECTUS_CONTAINER" >/dev/null 2>&1 || fail "No existe el contenedor Directus: ${DIRECTUS_CONTAINER}"
-container_running "$DIRECTUS_CONTAINER" || fail "Directus no está running: ${DIRECTUS_CONTAINER}"
+docker inspect "$DIRECTUS_CONTAINER" >/dev/null 2>&1 ||
+  fail "No existe el contenedor Directus: ${DIRECTUS_CONTAINER}"
+
+container_running "$DIRECTUS_CONTAINER" ||
+  fail "Directus no está running: ${DIRECTUS_CONTAINER}"
 
 DIRECTUS_HEALTH="$(container_health "$DIRECTUS_CONTAINER")"
-[[ "$DIRECTUS_HEALTH" == "healthy" ]] || fail "Directus no está healthy: ${DIRECTUS_HEALTH}"
+
+[[ "$DIRECTUS_HEALTH" == "healthy" ]] ||
+  fail "Directus no está healthy: ${DIRECTUS_HEALTH}"
 
 DIRECTUS_VERSION="$(
-  docker exec "$DIRECTUS_CONTAINER" node -p "require('/directus/package.json').version" | tr -d '\r\n'
+  docker exec     "$DIRECTUS_CONTAINER"     node     -p "require('/directus/package.json').version" |
+    tr -d '\r\n'
 )"
 
 [[ "$DIRECTUS_VERSION" == "$DECLARED_DIRECTUS_VERSION" ]] ||
   fail "Versión Directus inconsistente. Declarada=${DECLARED_DIRECTUS_VERSION}, contenedor=${DIRECTUS_VERSION}"
 
 log "Copiando schema versionado al contenedor."
-docker cp "$SCHEMA_FILE" "${DIRECTUS_CONTAINER}:${CONTAINER_SCHEMA}"
+
+docker cp   "$SCHEMA_FILE"   "${DIRECTUS_CONTAINER}:${CONTAINER_SCHEMA}"
 
 cat <<EOF
 
@@ -120,6 +148,9 @@ Directus:
 Schema:
   ${SCHEMA_FILE}
 
+UI overlay:
+  ${CONFIGURE_UI_SCRIPT}
+
 Modo:
   $([[ "$APPLY" == true ]] && printf 'APPLY' || printf 'DRY RUN')
 
@@ -129,20 +160,47 @@ EOF
 
 if [[ "$APPLY" != true ]]; then
   log "Calculando diferencias de schema. No se realizarán cambios."
-  docker exec "$DIRECTUS_CONTAINER" node /directus/cli.js schema apply --dry-run "$CONTAINER_SCHEMA"
+
+  docker exec     "$DIRECTUS_CONTAINER"     node     /directus/cli.js     schema apply     --dry-run     "$CONTAINER_SCHEMA"
+
   log "Dry-run completado correctamente."
+
+  cat <<'EOF'
+
+Nota:
+  El dry-run puede mostrar diferencias en custom displays mientras
+  el overlay UI administrado esté activo. Es esperado.
+
+EOF
+
   exit 0
 fi
 
 [[ $EUID -eq 0 ]] || fail "--apply debe ejecutarse como root."
 
 log "Aplicando schema al tenant '${TENANT_ID}'."
-docker exec "$DIRECTUS_CONTAINER" node /directus/cli.js schema apply --yes "$CONTAINER_SCHEMA"
+
+docker exec   "$DIRECTUS_CONTAINER"   node   /directus/cli.js   schema apply   --yes   "$CONTAINER_SCHEMA"
+
 log "Schema aplicado correctamente."
 
-log "Verificando estado posterior mediante dry-run."
-docker exec "$DIRECTUS_CONTAINER" node /directus/cli.js schema apply --dry-run "$CONTAINER_SCHEMA"
-log "Verificación posterior completada."
+log "Verificando estado base posterior mediante dry-run."
+
+docker exec   "$DIRECTUS_CONTAINER"   node   /directus/cli.js   schema apply   --dry-run   "$CONTAINER_SCHEMA"
+
+log "Verificación posterior del schema completada."
+
+log "Restaurando configuración UI administrada por Aegora."
+
+/usr/bin/bash   "$CONFIGURE_UI_SCRIPT"   --tenant "$TENANT_ID"   --apply
+
+log "Configuración UI administrada restaurada."
+
+log "Verificando overlay UI administrado."
+
+/usr/bin/bash   "$CONFIGURE_UI_SCRIPT"   --tenant "$TENANT_ID"
+
+log "Overlay UI verificado."
 
 cat <<EOF
 
@@ -155,6 +213,9 @@ Tenant:
 
 Schema:
   ${SCHEMA_FILE}
+
+UI overlay:
+  restaurado y verificado
 
 Estado:
   OK
