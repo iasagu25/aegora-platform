@@ -222,8 +222,12 @@ export default {
         return;
       }
 
+      const adminBase =
+        window.location.pathname
+          .split('/content/')[0] || '/admin';
+
       window.location.assign(
-        `/content/${encodeURIComponent(
+        `${adminBase}/content/${encodeURIComponent(
           props.collection
         )}/${encodeURIComponent(item.id)}`
       );
