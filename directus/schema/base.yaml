@@ -767,11 +767,8 @@ fields:
     meta:
       collection: contact_phones
       conditions: null
-      display: field-actions
-      display_options:
-        linkPrefix: 'tel:'
-        showCopy: true
-        showLink: true
+      display: null
+      display_options: null
       field: phone_number
       group: null
       hidden: false
@@ -1461,9 +1458,8 @@ fields:
     meta:
       collection: contacts
       conditions: null
-      display: aegora-phone-display
-      display_options:
-        template: '{{phone_number}}'
+      display: null
+      display_options: null
       field: phones
       group: null
       hidden: false
