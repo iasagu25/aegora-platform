@@ -11,6 +11,7 @@ IFS=$'\n\t'
 #   - validar un tenant previamente provisionado;
 #   - validar Docker Compose;
 #   - descargar las imágenes fijadas;
+#   - instalar/sincronizar extensiones Directus gestionadas;
 #   - preparar permisos de datos persistentes;
 #   - desplegar Directus;
 #   - desplegar n8n;
@@ -34,6 +35,7 @@ IFS=$'\n\t'
 
 readonly PLATFORM_ROOT="/opt/aegora/platform"
 readonly TENANTS_ROOT="/opt/aegora/tenants"
+readonly DIRECTUS_EXTENSIONS_SCRIPT="${PLATFORM_ROOT}/directus/configure-directus-extensions.sh"
 
 readonly POSTGRES_CONTAINER="aegora-postgres"
 readonly PROXY_NETWORK="aegora_proxy"
@@ -105,6 +107,7 @@ Sin --apply:
 Con --apply:
   - valida configuración;
   - descarga imágenes;
+  - instala/sincroniza extensiones Directus gestionadas;
   - prepara ownership de datos persistentes;
   - despliega Directus;
   - espera healthcheck;
@@ -507,6 +510,8 @@ require_command grep
 require_command chown
 require_command sleep
 
+require_file "$DIRECTUS_EXTENSIONS_SCRIPT"
+
 TENANT_ROOT="${TENANTS_ROOT}/${TENANT}"
 TENANT_CONFIG_ROOT="${TENANT_ROOT}/config"
 TENANT_CONFIG="${TENANT_CONFIG_ROOT}/tenant.env"
@@ -684,6 +689,9 @@ Imágenes:
   Directus: ${DIRECTUS_IMAGE}
   n8n:      ${N8N_IMAGE}
 
+Extensiones Directus:
+  gestionadas desde ${PLATFORM_ROOT}/directus/extensions
+
 Contenedores:
   Directus: ${DIRECTUS_CONTAINER}
   n8n:      ${N8N_CONTAINER}
@@ -710,6 +718,12 @@ Health timeout:
 EOF
 
 if [[ "$APPLY" != true ]]; then
+  log "Validando plan de extensiones Directus."
+
+  /usr/bin/bash \
+    "$DIRECTUS_EXTENSIONS_SCRIPT" \
+    --tenant "$TENANT"
+
   log "PLAN ONLY. No se ha desplegado ningún servicio."
   log "Añade --apply para ejecutar el deploy."
 
@@ -732,6 +746,19 @@ log "Descargando/verificando imagen n8n."
 compose_pull \
   "$N8N_ENV" \
   "$N8N_COMPOSE"
+
+# =============================================================================
+# Extensiones Directus gestionadas
+# =============================================================================
+
+log "Instalando/sincronizando extensiones Directus gestionadas."
+
+/usr/bin/bash \
+  "$DIRECTUS_EXTENSIONS_SCRIPT" \
+  --tenant "$TENANT" \
+  --apply
+
+log "Extensiones Directus gestionadas: OK."
 
 # =============================================================================
 # Ownership persistencia
@@ -760,6 +787,14 @@ log "Desplegando Directus."
 compose_up \
   "$DIRECTUS_ENV" \
   "$DIRECTUS_COMPOSE"
+
+if [[ "$DIRECTUS_EXISTED_BEFORE" == true ]]; then
+  log "Reiniciando Directus existente para cargar extensiones gestionadas."
+
+  docker restart \
+    "$DIRECTUS_CONTAINER" \
+    >/dev/null
+fi
 
 wait_for_healthy \
   "$DIRECTUS_CONTAINER"
