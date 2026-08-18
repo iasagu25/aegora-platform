@@ -25,6 +25,7 @@ readonly EXTENSIONS_SOURCE_ROOT="${PLATFORM_ROOT}/directus/extensions"
 
 readonly MANAGED_EXTENSIONS=(
   "directus-extension-aegora-phone-display"
+  "directus-extension-aegora-tasks-layout"
 )
 
 TENANT=""
