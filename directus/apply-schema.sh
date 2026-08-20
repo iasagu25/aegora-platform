@@ -146,9 +146,6 @@ Directus:
 Schema:
   ${SCHEMA_FILE}
 
-UI overlay:
-  ${CONFIGURE_UI_SCRIPT}
-
 Modo:
   $([[ "$APPLY" == true ]] && printf 'APPLY' || printf 'DRY RUN')
 
