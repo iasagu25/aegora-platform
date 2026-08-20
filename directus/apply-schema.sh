@@ -5,7 +5,6 @@ IFS=$'\n\t'
 readonly PLATFORM_ROOT="/opt/aegora/platform"
 readonly TENANTS_ROOT="/opt/aegora/tenants"
 readonly SCHEMA_FILE="${PLATFORM_ROOT}/directus/schema/base.yaml"
-readonly CONFIGURE_UI_SCRIPT="${PLATFORM_ROOT}/directus/configure-directus-ui.sh"
 
 TENANT=""
 APPLY=false
@@ -87,7 +86,6 @@ done
 
 require_command docker
 require_file "$SCHEMA_FILE"
-require_file "$CONFIGURE_UI_SCRIPT"
 
 TENANT_ROOT="${TENANTS_ROOT}/${TENANT}"
 TENANT_CONFIG="${TENANT_ROOT}/config/tenant.env"
@@ -190,18 +188,6 @@ docker exec   "$DIRECTUS_CONTAINER"   node   /directus/cli.js   schema apply   -
 
 log "Verificación posterior del schema completada."
 
-log "Restaurando configuración UI administrada por Aegora."
-
-/usr/bin/bash   "$CONFIGURE_UI_SCRIPT"   --tenant "$TENANT_ID"   --apply
-
-log "Configuración UI administrada restaurada."
-
-log "Verificando overlay UI administrado."
-
-/usr/bin/bash   "$CONFIGURE_UI_SCRIPT"   --tenant "$TENANT_ID"
-
-log "Overlay UI verificado."
-
 cat <<EOF
 
 ============================================================
@@ -213,9 +199,6 @@ Tenant:
 
 Schema:
   ${SCHEMA_FILE}
-
-UI overlay:
-  restaurado y verificado
 
 Estado:
   OK
