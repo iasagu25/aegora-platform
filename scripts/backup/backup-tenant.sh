@@ -15,7 +15,7 @@ readonly CONTEXT_LIB="${PLATFORM_ROOT}/scripts/backup/tenant-context.sh"
 readonly EXCLUDES_FILE="${PLATFORM_ROOT}/scripts/backup/excludes.txt"
 
 TENANT="${TENANT:-aegora}"
-LOCK_FILE="/run/lock/aegora-backup-${TENANT}.lock"
+LOCK_FILE=""
 
 TENANT_ROOT=""
 TENANT_CONFIG=""
@@ -46,6 +46,28 @@ fail() {
   log "ERROR: $*" >&2
   exit 1
 }
+
+usage() {
+cat <<'EOF'
+ Uso:
+   backup-tenant.sh [--tenant TENANT]
+
+ Opciones:
+   --tenant TENANT
+       Ejecuta el backup del tenant indicado.
+
+       Si no se especifica, se utiliza la variable de entorno TENANT.
+       Si tampoco existe, se utiliza "aegora" por compatibilidad legacy.
+
+   --help, -h
+       Muestra esta ayuda y termina sin realizar cambios.
+EOF
+ }
+
+ validate_tenant_id() {
+   [[ "$1" =~ ^[a-z][a-z0-9-]{2,30}$ ]] ||
+     fail "Tenant inválido: $1"
+ }
 
 cleanup() {
   local exit_code=$?
@@ -303,6 +325,36 @@ for entry in manifest["configuration_files"]:
         sys.stdout.write("\0")
 PY
 }
+
+# =============================================================================
+# Argumentos
+# =============================================================================
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --tenant)
+      [[ $# -ge 2 ]] ||
+        fail "Falta valor para --tenant."
+
+      TENANT="$2"
+      shift 2
+      ;;
+
+    --help|-h)
+      usage
+      exit 0
+      ;;
+
+    *)
+      fail "Opción desconocida: $1"
+      ;;
+  esac
+done
+
+validate_tenant_id "$TENANT"
+
+LOCK_FILE="/run/lock/aegora-backup-${TENANT}.lock"
+readonly LOCK_FILE
 
 # =============================================================================
 # Prerrequisitos

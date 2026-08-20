@@ -12,7 +12,7 @@ readonly SECRETS_ROOT="/opt/aegora/secrets"
 readonly CONTEXT_LIB="${PLATFORM_ROOT}/scripts/backup/tenant-context.sh"
 
 TENANT="${TENANT:-aegora}"
-LOCK_FILE="/run/lock/aegora-backup-health-${TENANT}.lock"
+LOCK_FILE=""
 
 # El último snapshot no debe superar esta antigüedad.
 MAX_SNAPSHOT_AGE_HOURS="${MAX_SNAPSHOT_AGE_HOURS:-30}"
@@ -46,6 +46,28 @@ warn() {
 fail() {
   log "ERROR: $*" >&2
   exit 1
+}
+
+usage() {
+  cat <<'EOF'
+Uso:
+  backup-health-tenant.sh [--tenant TENANT]
+
+Opciones:
+  --tenant TENANT
+      Comprueba la salud de backups del tenant indicado.
+
+      Si no se especifica, se utiliza la variable de entorno TENANT.
+      Si tampoco existe, se utiliza "aegora" por compatibilidad legacy.
+
+  --help, -h
+      Muestra esta ayuda y termina sin realizar cambios.
+EOF
+}
+
+validate_tenant_id() {
+  [[ "$1" =~ ^[a-z][a-z0-9-]{2,30}$ ]] ||
+    fail "Tenant inválido: $1"
 }
 
 cleanup() {
@@ -152,6 +174,36 @@ check_service_result() {
       ;;
   esac
 }
+
+# =============================================================================
+# Argumentos
+# =============================================================================
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --tenant)
+      [[ $# -ge 2 ]] ||
+        fail "Falta valor para --tenant."
+
+      TENANT="$2"
+      shift 2
+      ;;
+
+    --help|-h)
+      usage
+      exit 0
+      ;;
+
+    *)
+      fail "Opción desconocida: $1"
+      ;;
+  esac
+done
+
+validate_tenant_id "$TENANT"
+
+LOCK_FILE="/run/lock/aegora-backup-health-${TENANT}.lock"
+readonly LOCK_FILE
 
 # =============================================================================
 # Prerrequisitos
