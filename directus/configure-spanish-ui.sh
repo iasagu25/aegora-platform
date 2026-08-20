@@ -862,9 +862,5 @@ Collections:
 Estado:
   OK
 
-Siguiente paso:
-  generar un nuevo schema snapshot y sustituir
-  directus/schema/base.yaml
-
 ============================================================
 EOF
