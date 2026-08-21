@@ -13,8 +13,17 @@ export default {
 
   options: null,
 
-  fields: ({ collection, field }) => {
-    if (collection === 'contacts' && field === 'phones') {
+  fields: (_options, context) => {
+    const collection =
+      context?.collection ?? null;
+
+    const field =
+      context?.field ?? null;
+
+    if (
+      collection === 'contacts' &&
+      field === 'phones'
+    ) {
       return [
         'phone_number',
         'phone_normalized',
