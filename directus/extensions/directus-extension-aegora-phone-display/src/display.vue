@@ -57,6 +57,14 @@ export default {
   },
 
   setup(props) {
+    console.log(
+      '[Aegora Phone Display] value:',
+      props.value,
+      'type:',
+      typeof props.value,
+      'array:',
+      Array.isArray(props.value)
+    );
     const isScalar = computed(() => {
       return typeof props.value === 'string';
     });
