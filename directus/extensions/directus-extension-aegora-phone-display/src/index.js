@@ -9,7 +9,6 @@ export default {
   component: DisplayComponent,
 
   types: ['string', 'alias'],
-  localTypes: ['o2m'],
 
   options: null,
 
