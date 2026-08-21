@@ -1,0 +1,32 @@
+{
+  "name": "directus-extension-aegora-phone-normalizer",
+  "description": "Aegora server-side phone normalization for contacts and employees.",
+  "icon": "phone",
+  "version": "1.0.0",
+  "license": "UNLICENSED",
+  "private": true,
+  "keywords": [
+    "directus",
+    "directus-extension",
+    "directus-extension-hook"
+  ],
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "directus:extension": {
+    "type": "hook",
+    "path": "dist/index.js",
+    "source": "src/index.js",
+    "host": "^10.10.0"
+  },
+  "scripts": {
+    "build": "directus-extension build",
+    "dev": "directus-extension build -w --no-minify",
+    "link": "directus-extension link",
+    "validate": "directus-extension validate"
+  },
+  "devDependencies": {
+    "@directus/extensions-sdk": "18.0.2"
+  }
+}
