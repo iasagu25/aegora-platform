@@ -1,10 +1,10 @@
 <template>
   <div
-    v-if="primaryPhone"
+    v-if="displayPhone"
     class="aegora-phone"
   >
     <span class="phone-number">
-      {{ primaryPhone.phone_number || primaryPhone.phone_normalized }}
+      {{ displayPhone }}
     </span>
 
     <button
@@ -51,14 +51,21 @@ import { computed } from 'vue';
 export default {
   props: {
     value: {
-      type: [Array, Object],
+      type: [String, Array, Object],
       default: null,
     },
   },
 
   setup(props) {
+    const isScalar = computed(() => {
+      return typeof props.value === 'string';
+    });
+
     const phones = computed(() => {
-      if (!props.value) {
+      if (
+        !props.value ||
+        isScalar.value
+      ) {
         return [];
       }
 
@@ -82,7 +89,29 @@ export default {
       );
     });
 
+    const displayPhone = computed(() => {
+      if (isScalar.value) {
+        return props.value || null;
+      }
+
+      const phone = primaryPhone.value;
+
+      if (!phone) {
+        return null;
+      }
+
+      return (
+        phone.phone_number ??
+        phone.phone_normalized ??
+        null
+      );
+    });
+
     const callNumber = computed(() => {
+      if (isScalar.value) {
+        return props.value || null;
+      }
+
       const phone = primaryPhone.value;
 
       if (!phone) {
@@ -97,6 +126,10 @@ export default {
     });
 
     const extraPhones = computed(() => {
+      if (isScalar.value) {
+        return 0;
+      }
+
       return Math.max(
         phones.value.length - 1,
         0
@@ -121,7 +154,7 @@ export default {
     }
 
     return {
-      primaryPhone,
+      displayPhone,
       callNumber,
       extraPhones,
       copyPhone,

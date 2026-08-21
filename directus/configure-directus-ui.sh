@@ -99,6 +99,10 @@ UI administrada:
     display:         aegora-phone-display
     display_options: null
 
+  employees.phone
+    display:         aegora-phone-display
+    display_options: null
+
 Modo:
   $MODE
 
@@ -121,6 +125,14 @@ const uiModel = [
   {
     collection: 'contacts',
     field: 'phones',
+    meta: {
+      display: 'aegora-phone-display',
+      display_options: null,
+    },
+  },
+  {
+    collection: 'employees',
+    field: 'phone',
     meta: {
       display: 'aegora-phone-display',
       display_options: null,

@@ -31,7 +31,7 @@ IFS=$'\n\t'
 # Seguridad:
 #   - PLAN por defecto;
 #   - --apply requerido para modificar Directus;
-#   - solo opera sobre las cuatro collections base de Aegora;
+#   - solo opera sobre las collections base administradas por Aegora;
 #   - conserva traducciones existentes de otros idiomas;
 #   - conserva el resto de metadata/opciones de cada field;
 #   - no imprime credenciales ni access tokens.
@@ -259,6 +259,7 @@ Idioma:
 Collections:
   contacts       -> Contactos
   contact_phones -> Teléfonos
+  employees      -> Empleados
   tasks          -> Tareas
   appointments   -> Citas
 
@@ -321,6 +322,12 @@ const collectionTranslations = {
     translation: 'Teléfonos',
   },
 
+  employees: {
+    singular: 'Empleado',
+    plural: 'Empleados',
+    translation: 'Empleados',
+  },
+
   tasks: {
     singular: 'Tarea',
     plural: 'Tareas',
@@ -362,9 +369,26 @@ const fieldTranslations = {
     updated_at: 'Última modificación',
   },
 
+  employees: {
+    id: 'ID',
+    first_name: 'Nombre',
+    last_name: 'Apellidos',
+    email: 'Correo electrónico',
+    phone: 'Teléfono',
+    phone_normalized: 'Teléfono normalizado',
+    whatsapp_notifications: 'Notificaciones por WhatsApp',
+    status: 'Estado',
+    role: 'Puesto / función',
+    directus_user_id: 'Usuario Directus',
+    created_at: 'Fecha de creación',
+    updated_at: 'Última modificación',
+  },
+
   tasks: {
     id: 'ID',
     contact_id: 'Contacto',
+    assignee_id: 'Responsable',
+    assigned_at: 'Fecha de asignación',
     title: 'Título',
     description: 'Descripción',
     status: 'Estado',
@@ -405,6 +429,11 @@ const choiceTranslations = {
     work: 'Trabajo',
     home: 'Casa',
     other: 'Otro',
+  },
+
+  'employees.status': {
+    active: 'Activo',
+    inactive: 'Inactivo',
   },
 
   'tasks.status': {
