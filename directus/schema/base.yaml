@@ -164,7 +164,7 @@ fields:
       note: null
       options: null
       readonly: true
-      required: true
+      required: false
       searchable: true
       sort: 1
       special:
@@ -690,7 +690,7 @@ fields:
       note: null
       options: null
       readonly: true
-      required: true
+      required: false
       searchable: true
       sort: 1
       special:
@@ -1081,7 +1081,7 @@ fields:
       note: null
       options: null
       readonly: true
-      required: true
+      required: false
       searchable: true
       sort: 1
       special:
@@ -1676,7 +1676,7 @@ fields:
       note: null
       options: null
       readonly: true
-      required: true
+      required: false
       searchable: true
       sort: 1
       special:
