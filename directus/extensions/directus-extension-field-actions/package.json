@@ -1,0 +1,70 @@
+{
+  "name": "directus-extension-field-actions",
+  "version": "2.2.0",
+  "type": "module",
+  "icon": "web_traffic",
+  "directus:extension": {
+    "host": "^10.0.0 || ^11.0.0 || ^12.0.0",
+    "type": "bundle",
+    "path": {
+      "app": "dist/app.js",
+      "api": "dist/api.js"
+    },
+    "entries": [
+      {
+        "type": "interface",
+        "name": "interface",
+        "source": "src/interface/index.ts"
+      },
+      {
+        "type": "display",
+        "name": "display",
+        "source": "src/display/index.ts"
+      }
+    ]
+  },
+  "description": "Add advanced link & copy functionalities to your directus fields. Supports interfaces as well as displays.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/utomic-media/directus-extension-field-actions.git"
+  },
+  "keywords": [
+    "directus",
+    "directus-extension",
+    "directus-interface",
+    "directus-display",
+    "directus-field-action",
+    "directus-copy-to-clipboard",
+    "directus-link",
+    "directus-custom-bundle"
+  ],
+  "author": "Dominic Marcelino | Utomic Media",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/utomic-media/directus-extension-field-actions/issues"
+  },
+  "homepage": "https://github.com/utomic-media/directus-extension-field-actions.git#readme",
+  "devDependencies": {
+    "@directus/extensions-sdk": "^18.0.0",
+    "@directus/types": "^16.0.0",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "@vue/test-utils": "^2.4.11",
+    "jsdom": "^29.1.1",
+    "sass": "^1.101.0",
+    "sass-loader": "^17.0.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8",
+    "vue": "^3.5.38",
+    "vue-i18n": "^11.4.5"
+  },
+  "files": [
+    "dist/**/*"
+  ],
+  "scripts": {
+    "build": "directus-extension build",
+    "dev": "directus-extension build -w --no-minify",
+    "link": "directus-extension link",
+    "add": "directus-extension add",
+    "test": "vitest run"
+  }
+}

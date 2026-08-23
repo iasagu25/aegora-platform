@@ -100,8 +100,12 @@ UI administrada:
     display_options: null
 
   employees.phone
-    display:         aegora-phone-display
-    display_options: null
+    display:         field-actions
+    display_options:
+      showCopy:       true
+      linkPrefix:     tel:
+      linkButtonLabel: null
+      showLink:       true
 
 Modo:
   $MODE
@@ -134,8 +138,21 @@ const uiModel = [
     collection: 'employees',
     field: 'phone',
     meta: {
-      display: 'aegora-phone-display',
-      display_options: null,
+      display: 'field-actions',
+      display_options: {
+        showCopy: true,
+        linkPrefix: 'tel:',
+        linkButtonLabel: null,
+        showLink: true,
+      },
+    },
+  },
+  {
+    collection: 'employees',
+    field: 'phone_normalized',
+    meta: {
+      hidden: true,
+      readonly: true,
     },
   },
 ];

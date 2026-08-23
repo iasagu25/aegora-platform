@@ -27,6 +27,7 @@ readonly MANAGED_EXTENSIONS=(
   "directus-extension-aegora-phone-display"
   "directus-extension-aegora-phone-normalizer"
   "directus-extension-aegora-tasks-layout"
+  "directus-extension-field-actions"
 )
 
 TENANT=""
@@ -106,6 +107,12 @@ runtime_file_list() {
     [[ -f "${root}/package.json" ]] &&
       printf '%s\n' "package.json"
 
+    [[ -f "${root}/LICENSE" ]] &&
+      printf '%s\n' "LICENSE"
+
+    [[ -f "${root}/README.md" ]] &&
+      printf '%s\n' "README.md"
+
     if [[ -d "${root}/dist" ]]; then
       find "${root}/dist" -type f -print |
         sed "s#^${root}/##"
@@ -168,6 +175,15 @@ install_extension() {
     -m 644 \
     "${source_dir}/package.json" \
     "${target_dir}/package.json"
+
+  for optional_file in LICENSE README.md; do
+    if [[ -f "${source_dir}/${optional_file}" ]]; then
+      install \
+        -m 644 \
+        "${source_dir}/${optional_file}" \
+        "${target_dir}/${optional_file}"
+    fi
+  done
 
   cp -a \
     "${source_dir}/dist" \
