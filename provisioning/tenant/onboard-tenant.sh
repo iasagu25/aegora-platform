@@ -10,6 +10,7 @@ readonly CREATE_SCRIPT="${PLATFORM_ROOT}/provisioning/tenant/create-tenant.sh"
 readonly DEPLOY_SCRIPT="${PLATFORM_ROOT}/provisioning/tenant/deploy-tenant.sh"
 
 readonly APPLY_SCHEMA_SCRIPT="${PLATFORM_ROOT}/directus/apply-schema.sh"
+readonly DIRECTUS_ACCESS_SCRIPT="${PLATFORM_ROOT}/directus/provision-directus-access.sh"
 readonly DIRECTUS_UI_SCRIPT="${PLATFORM_ROOT}/directus/configure-directus-ui.sh"
 readonly SPANISH_UI_SCRIPT="${PLATFORM_ROOT}/directus/configure-spanish-ui.sh"
 
@@ -85,6 +86,7 @@ prepare:
   -> deploy
   -> apply Directus schema
   -> restart Directus + wait healthy
+  -> provision Directus technical access
   -> configure managed Directus UI
   -> configure Spanish UI
   -> backup
@@ -201,10 +203,9 @@ wait_for_directus_healthy() {
 
     sleep "$DIRECTUS_HEALTH_INTERVAL_SECONDS"
 
-    elapsed=$(
-      elapsed +
-      DIRECTUS_HEALTH_INTERVAL_SECONDS
-    )
+    elapsed=$((
+      elapsed + DIRECTUS_HEALTH_INTERVAL_SECONDS
+    ))
   done
 
   fail \
@@ -351,6 +352,7 @@ for required_script in \
   "$CREATE_SCRIPT" \
   "$DEPLOY_SCRIPT" \
   "$APPLY_SCHEMA_SCRIPT" \
+  "$DIRECTUS_ACCESS_SCRIPT" \
   "$DIRECTUS_UI_SCRIPT" \
   "$SPANISH_UI_SCRIPT" \
   "$PUBLISH_SCRIPT" \
@@ -428,7 +430,7 @@ if [[ "$STAGE" == "prepare" ||
       create_args+=(--apply)
 
     run_script \
-      "1/7 · CREATE TENANT" \
+      "1/8 · CREATE TENANT" \
       "${create_args[@]}"
   fi
 
@@ -439,7 +441,7 @@ if [[ "$STAGE" == "prepare" ||
       "PLAN: el tenant aún no existe."
 
     log \
-      "Los pasos deploy/schema/restart/ui/spanish-ui/backup/operations se ejecutarán después de create en modo APPLY."
+      "Los pasos deploy/schema/restart/directus-access/ui/spanish-ui/backup/operations se ejecutarán después de create en modo APPLY."
 
     [[ "$STAGE" != "prepare" ]] ||
       exit 0
@@ -455,7 +457,7 @@ if [[ "$STAGE" == "prepare" ||
       deploy_args+=(--apply)
 
     run_script \
-      "2/7 · DEPLOY TENANT" \
+      "2/8 · DEPLOY TENANT" \
       "${deploy_args[@]}"
 
     schema_args=(
@@ -468,7 +470,7 @@ if [[ "$STAGE" == "prepare" ||
       schema_args+=(--apply)
 
     run_script \
-      "3/7 · APPLY DIRECTUS SCHEMA" \
+      "3/8 · APPLY DIRECTUS SCHEMA" \
       "${schema_args[@]}"
 
     if [[ "$APPLY" == true ]]; then
@@ -487,6 +489,19 @@ if [[ "$STAGE" == "prepare" ||
         "PLAN: Directus se reiniciará después del schema en modo APPLY."
     fi
 
+    directus_access_args=(
+      /usr/bin/bash
+      "$DIRECTUS_ACCESS_SCRIPT"
+      --tenant "$TENANT"
+    )
+
+    [[ "$APPLY" != true ]] ||
+      directus_access_args+=(--apply)
+
+    run_script \
+      "4/8 · PROVISION DIRECTUS TECHNICAL ACCESS" \
+      "${directus_access_args[@]}"
+
     directus_ui_args=(
       /usr/bin/bash
       "$DIRECTUS_UI_SCRIPT"
@@ -497,7 +512,7 @@ if [[ "$STAGE" == "prepare" ||
       directus_ui_args+=(--apply)
 
     run_script \
-      "4/7 · CONFIGURE DIRECTUS UI" \
+      "5/8 · CONFIGURE DIRECTUS UI" \
       "${directus_ui_args[@]}"
 
     spanish_ui_args=(
@@ -510,7 +525,7 @@ if [[ "$STAGE" == "prepare" ||
       spanish_ui_args+=(--apply)
 
     run_script \
-      "5/7 · CONFIGURE DIRECTUS SPANISH UI" \
+      "6/8 · CONFIGURE DIRECTUS SPANISH UI" \
       "${spanish_ui_args[@]}"
 
     backup_args=(
@@ -534,7 +549,7 @@ if [[ "$STAGE" == "prepare" ||
       backup_args+=(--apply)
 
     run_script \
-      "6/7 · CONFIGURE BACKUP" \
+      "7/8 · CONFIGURE BACKUP" \
       "${backup_args[@]}"
 
     operations_args=(
@@ -547,7 +562,7 @@ if [[ "$STAGE" == "prepare" ||
       operations_args+=(--apply)
 
     run_script \
-      "7/7 · ACTIVATE OPERATIONS" \
+      "8/8 · ACTIVATE OPERATIONS" \
       "${operations_args[@]}"
   fi
 fi
@@ -601,6 +616,7 @@ Estado:
 Directus:
   schema aplicado
   restart post-schema realizado en APPLY
+  acceso técnico de provisioning configurado
   UI overlay configurado
   locale es-ES configurado
 
