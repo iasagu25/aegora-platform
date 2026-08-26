@@ -2,9 +2,15 @@
 set -Eeuo pipefail
 
 EXPECTED_DIRECTUS_VERSION="12.2.0"
+TENANTS_ROOT="/opt/aegora/tenants"
 
 TENANT=""
 APPLY=false
+
+TENANT_ROOT=""
+TENANT_CONFIG=""
+DIRECTUS_PROVISIONING_SECRET=""
+DIRECTUS_PROVISIONING_TOKEN=""
 
 log() {
   printf '[%s] %s\n' "$(date -Iseconds)" "$*"
@@ -53,7 +59,32 @@ done
 [[ "$TENANT" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
   || die "Tenant inválido: $TENANT"
 
-DIRECTUS_CONTAINER="${TENANT}-directus"
+TENANT_ROOT="${TENANTS_ROOT}/${TENANT}"
+TENANT_CONFIG="${TENANT_ROOT}/config/tenant.env"
+DIRECTUS_PROVISIONING_SECRET="${TENANT_ROOT}/secrets/directus-provisioning.env"
+
+[[ -f "$TENANT_CONFIG" ]] \
+  || die "Falta configuración del tenant: $TENANT_CONFIG"
+
+[[ -f "$DIRECTUS_PROVISIONING_SECRET" ]] \
+  || die "Falta credencial técnica Directus: $DIRECTUS_PROVISIONING_SECRET"
+
+set -a
+
+# shellcheck disable=SC1090
+source "$TENANT_CONFIG"
+
+# shellcheck disable=SC1090
+source "$DIRECTUS_PROVISIONING_SECRET"
+
+set +a
+
+: "${TENANT_ID:?Falta TENANT_ID}"
+: "${DIRECTUS_CONTAINER:?Falta DIRECTUS_CONTAINER}"
+: "${DIRECTUS_PROVISIONING_TOKEN:?Falta DIRECTUS_PROVISIONING_TOKEN}"
+
+[[ "$TENANT_ID" == "$TENANT" ]] \
+  || die "TENANT_ID (${TENANT_ID}) no coincide con --tenant (${TENANT})."
 
 docker inspect "$DIRECTUS_CONTAINER" >/dev/null 2>&1 \
   || die "No existe el contenedor $DIRECTUS_CONTAINER."
@@ -116,6 +147,7 @@ EOF_HEADER
 
 docker exec -i \
   -e AEGORA_APPLY="$APPLY" \
+  -e DIRECTUS_PROVISIONING_TOKEN="$DIRECTUS_PROVISIONING_TOKEN" \
   "$DIRECTUS_CONTAINER" \
   node - <<'NODE'
 'use strict';
@@ -123,7 +155,13 @@ docker exec -i \
 const BASE_URL = 'http://127.0.0.1:8055';
 const APPLY = process.env.AEGORA_APPLY === 'true';
 
-let adminToken = null;
+const adminToken = process.env.DIRECTUS_PROVISIONING_TOKEN;
+
+if (!adminToken) {
+  throw new Error(
+    'DIRECTUS_PROVISIONING_TOKEN no está disponible.'
+  );
+}
 
 const uiModel = [
   {
@@ -225,42 +263,29 @@ async function request(
   return payload;
 }
 
-async function loginAdmin() {
-  const email = process.env.ADMIN_EMAIL;
-  const password = process.env.ADMIN_PASSWORD;
-
-  if (!email || !password) {
-    throw new Error(
-      'ADMIN_EMAIL / ADMIN_PASSWORD no están disponibles en el contenedor.'
-    );
-  }
-
+async function verifyProvisioningAuth() {
   const { response, payload } = await rawRequest(
-    'POST',
-    '/auth/login',
-    {
-      email,
-      password,
-      mode: 'json',
-    },
-    null
+    'GET',
+    '/users/me?fields=id,email,status',
+    undefined,
+    adminToken
   );
 
   if (!response.ok) {
     throw new Error(
-      `Login admin fallido: HTTP ${response.status}`
+      `Credencial técnica Directus inválida: HTTP ${response.status}`
     );
   }
 
-  adminToken = payload?.data?.access_token;
-
-  if (!adminToken) {
+  if (payload?.data?.status !== 'active') {
     throw new Error(
-      'Directus no devolvió access_token admin.'
+      'El usuario técnico Directus no está activo.'
     );
   }
 
-  console.log('Autenticación Directus: OK');
+  console.log(
+    `Autenticación técnica Directus: OK (${payload.data.email})`
+  );
 }
 
 async function getField(collection, field) {
@@ -380,7 +405,7 @@ async function verifyField(target) {
 }
 
 async function main() {
-  await loginAdmin();
+  await verifyProvisioningAuth();
 
   let changes = 0;
 

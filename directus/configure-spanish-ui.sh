@@ -46,6 +46,8 @@ APPLY=false
 
 TENANT_ROOT=""
 TENANT_CONFIG=""
+DIRECTUS_PROVISIONING_SECRET=""
+DIRECTUS_PROVISIONING_TOKEN=""
 
 TENANT_ID=""
 DIRECTUS_CONTAINER=""
@@ -172,19 +174,25 @@ require_command docker
 
 TENANT_ROOT="${TENANTS_ROOT}/${TENANT}"
 TENANT_CONFIG="${TENANT_ROOT}/config/tenant.env"
+DIRECTUS_PROVISIONING_SECRET="${TENANT_ROOT}/secrets/directus-provisioning.env"
 
 require_file "$TENANT_CONFIG"
+require_file "$DIRECTUS_PROVISIONING_SECRET"
 
 set -a
 
 # shellcheck disable=SC1090
 source "$TENANT_CONFIG"
 
+# shellcheck disable=SC1090
+source "$DIRECTUS_PROVISIONING_SECRET"
+
 set +a
 
 : "${TENANT_ID:?Falta TENANT_ID}"
 : "${DIRECTUS_CONTAINER:?Falta DIRECTUS_CONTAINER}"
 : "${DIRECTUS_VERSION:?Falta DIRECTUS_VERSION}"
+: "${DIRECTUS_PROVISIONING_TOKEN:?Falta DIRECTUS_PROVISIONING_TOKEN}"
 
 [[ "$TENANT_ID" == "$TENANT" ]] ||
   fail \
@@ -214,26 +222,17 @@ ACTUAL_DIRECTUS_VERSION="$(
     tr -d '\r\n'
 )"
 
+
+BOOTSTRAP_ADMIN_EMAIL="$(
+  docker exec     "$DIRECTUS_CONTAINER"     sh -c 'printf "%s" "${ADMIN_EMAIL:-}"'
+)"
+
+[[ -n "$BOOTSTRAP_ADMIN_EMAIL" ]] ||
+  fail "ADMIN_EMAIL no está disponible dentro de ${DIRECTUS_CONTAINER}."
+
 [[ "$ACTUAL_DIRECTUS_VERSION" == "$DECLARED_DIRECTUS_VERSION" ]] ||
   fail \
     "Versión Directus inconsistente. Declarada=${DECLARED_DIRECTUS_VERSION}, contenedor=${ACTUAL_DIRECTUS_VERSION}"
-
-ADMIN_STATE="$(
-  docker exec \
-    "$DIRECTUS_CONTAINER" \
-    sh -c '
-      if [ -n "${ADMIN_EMAIL:-}" ] &&
-         [ -n "${ADMIN_PASSWORD:-}" ]; then
-        printf "loaded"
-      else
-        printf "missing"
-      fi
-    '
-)"
-
-[[ "$ADMIN_STATE" == "loaded" ]] ||
-  fail \
-    "ADMIN_EMAIL/ADMIN_PASSWORD no están disponibles dentro de ${DIRECTUS_CONTAINER}."
 
 # =============================================================================
 # Plan
@@ -296,6 +295,8 @@ log "Configurando traducciones y locale mediante la API de Directus."
 
 docker exec \
   -i \
+  -e DIRECTUS_PROVISIONING_TOKEN="$DIRECTUS_PROVISIONING_TOKEN" \
+  -e AEGORA_BOOTSTRAP_ADMIN_EMAIL="$BOOTSTRAP_ADMIN_EMAIL" \
   "$DIRECTUS_CONTAINER" \
   node - <<'NODE'
 'use strict';
@@ -303,7 +304,23 @@ docker exec \
 const BASE_URL = 'http://127.0.0.1:8055';
 const LANGUAGE = 'es-ES';
 
-let accessToken = null;
+const accessToken =
+  process.env.DIRECTUS_PROVISIONING_TOKEN;
+
+const bootstrapAdminEmail =
+  process.env.AEGORA_BOOTSTRAP_ADMIN_EMAIL;
+
+if (!accessToken) {
+  throw new Error(
+    'DIRECTUS_PROVISIONING_TOKEN no está disponible.'
+  );
+}
+
+if (!bootstrapAdminEmail) {
+  throw new Error(
+    'AEGORA_BOOTSTRAP_ADMIN_EMAIL no está disponible.'
+  );
+}
 
 // =============================================================================
 // Desired translations
@@ -541,42 +558,29 @@ async function request(method, path, body = undefined) {
 // Authentication
 // =============================================================================
 
-async function login() {
-  const email = process.env.ADMIN_EMAIL;
-  const password = process.env.ADMIN_PASSWORD;
-
-  if (!email || !password) {
-    throw new Error(
-      'ADMIN_EMAIL o ADMIN_PASSWORD no están definidos.'
-    );
-  }
-
+async function verifyProvisioningAuth() {
   const { response, payload } = await rawRequest(
-    'POST',
-    '/auth/login',
-    {
-      email,
-      password,
-      mode: 'json',
-    },
-    false
+    'GET',
+    '/users/me?fields=id,email,status',
+    undefined,
+    true
   );
 
   if (!response.ok) {
     throw new Error(
-      `Login Directus fallido: HTTP ${response.status}`
+      `Credencial técnica Directus inválida: HTTP ${response.status}`
     );
   }
 
-  accessToken = payload?.data?.access_token;
-
-  if (!accessToken) {
+  if (payload?.data?.status !== 'active') {
     throw new Error(
-      'Directus no devolvió access_token.'
+      'El usuario técnico Directus no está activo.'
     );
   }
 
-  console.log('Autenticación Directus: OK');
+  console.log(
+    `Autenticación técnica Directus: OK (${payload.data.email})`
+  );
 }
 
 // =============================================================================
@@ -748,17 +752,38 @@ async function configureProjectLocale() {
   );
 }
 
-async function configureCurrentUserLocale() {
+async function getBootstrapAdmin() {
+  const result = await request(
+    'GET',
+    `/users?filter[email][_eq]=${encodeURIComponent(bootstrapAdminEmail)}&fields=id,email,status,language`
+  );
+
+  const users = Array.isArray(result?.data)
+    ? result.data
+    : [];
+
+  if (users.length !== 1) {
+    throw new Error(
+      `Se esperaba exactamente un usuario bootstrap/admin con email ${bootstrapAdminEmail}; encontrados=${users.length}.`
+    );
+  }
+
+  return users[0];
+}
+
+async function configureBootstrapAdminLocale() {
+  const admin = await getBootstrapAdmin();
+
   await request(
     'PATCH',
-    '/users/me',
+    `/users/${encodeURIComponent(admin.id)}`,
     {
       language: LANGUAGE,
     }
   );
 
   console.log(
-    `Current admin language: ${LANGUAGE}`
+    `Bootstrap/admin language: ${LANGUAGE} (${admin.email})`
   );
 }
 
@@ -778,14 +803,11 @@ async function verify() {
     );
   }
 
-  const me = await request(
-    'GET',
-    '/users/me?fields=id,email,language'
-  );
+  const admin = await getBootstrapAdmin();
 
-  if (me?.data?.language !== LANGUAGE) {
+  if (admin?.language !== LANGUAGE) {
     throw new Error(
-      `El usuario actual no quedó en ${LANGUAGE}.`
+      `El usuario bootstrap/admin no quedó en ${LANGUAGE}.`
     );
   }
 
@@ -846,12 +868,12 @@ async function verify() {
 // =============================================================================
 
 async function main() {
-  await login();
+  await verifyProvisioningAuth();
 
   await configureCollectionTranslations();
   await configureFieldTranslations();
   await configureProjectLocale();
-  await configureCurrentUserLocale();
+  await configureBootstrapAdminLocale();
 
   await verify();
 
@@ -885,6 +907,7 @@ Idioma:
 Collections:
   Contactos
   Teléfonos
+  Empleados
   Tareas
   Citas
 
