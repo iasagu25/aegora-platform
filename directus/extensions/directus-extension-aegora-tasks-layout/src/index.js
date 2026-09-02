@@ -38,6 +38,9 @@ export default {
       'contact_id.first_name',
       'contact_id.last_name',
       'contact_id.company',
+      'assignee_id.id',
+      'assignee_id.first_name',
+      'assignee_id.last_name',
     ]);
 
     const sort = ref([

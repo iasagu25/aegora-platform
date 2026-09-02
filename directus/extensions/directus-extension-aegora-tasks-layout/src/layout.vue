@@ -83,6 +83,14 @@
               {{ dueInfo(item).label }}
             </span>
 
+            <span class="task-assignee">
+              <v-icon
+                name="person"
+                small
+              />
+              {{ assigneeLabel(item.assignee_id) }}
+            </span>
+
             <span
               v-if="taskStateLabel(item)"
               class="task-status"
@@ -255,6 +263,22 @@ export default {
         name ||
         'Sin contacto'
       );
+    }
+
+    function assigneeLabel(assignee) {
+      if (!assignee) {
+        return 'Sin asignar';
+      }
+
+      const name = [
+        assignee.first_name,
+        assignee.last_name,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+
+      return name || 'Sin asignar';
     }
 
     function priorityLabel(priority) {
@@ -476,6 +500,7 @@ export default {
       toggleSelection,
       handleCardClick,
       contactLabel,
+      assigneeLabel,
       priorityLabel,
       taskStateLabel,
       dueInfo,
@@ -620,7 +645,8 @@ export default {
   margin-top: 13px;
 }
 
-.due-state {
+.due-state,
+.task-assignee {
   display: inline-flex;
   align-items: center;
 
@@ -633,6 +659,10 @@ export default {
 
   font-size: 12px;
   font-weight: 600;
+}
+
+.task-assignee {
+  font-weight: 500;
 }
 
 .due-state--overdue {
