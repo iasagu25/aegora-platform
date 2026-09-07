@@ -2,7 +2,7 @@ name: aegora-directus
 
 services:
   directus:
-    image: directus/directus:11.17.4
+    image: directus/directus:12.2.0
     container_name: aegora-directus
     restart: unless-stopped
     init: true

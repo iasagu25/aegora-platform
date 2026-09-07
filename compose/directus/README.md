@@ -4,7 +4,7 @@ Backoffice, API y administración de datos operativos de Aegora.
 
 ## Imagen
 
-- `directus/directus:11.17.4`
+- `directus/directus:12.2.0`
 
 La versión está fijada para evitar actualizaciones automáticas no controladas.
 
