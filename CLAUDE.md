@@ -96,13 +96,27 @@ documentado sigue siendo cierto.
     `requires_confirmation`), `appointments.idempotency_key`, concurrencia por
     advisory lock + recheck en TX (sin cambios en `appointment_resources`),
     `book` siempre crea `scheduled` (bloquean `scheduled` y `confirmed`),
-    `BOOKING_API_TOKEN` por tenant, BD única `directus_<tenant>`
-    (`booking_<tenant>` se elimina — pendiente en provisioning), y el modelo
-    `primary`/`participant`. Delta de esquema ya aplicado en `demo` y en
-    `base.yaml`.
-- Siguiente: aplicar `base.yaml` + `booking-indexes.sql` en los tenants;
-  quitar `booking_<tenant>` del provisioning; reescribir `lib/booking/` de
-  `aegora-booking` contra el modelo nuevo (empezando por `GET /availability`).
+    `BOOKING_API_TOKEN` por tenant, BD única `directus_<tenant>`, y el modelo
+    `primary`/`participant`. Delta de esquema ya aplicado en `demo` y en `base.yaml`.
+  - `aegora-booking/lib/booking/` reescrito contra el modelo nuevo y validado
+    en `demo` (availability, book, idempotencia, reschedule, cancel, auth).
+    Buffers simétricos (slot y citas se amplían por `buffer_before/after`).
+  - Despliegue por tenant (opción A, build local en el VPS):
+    `provisioning/tenant/provision-booking-access.sh` (token en
+    `secrets/booking.env`) + `provisioning/tenant/deploy-booking.sh` (checkout
+    en `/opt/aegora/src/aegora-booking` vía deploy key SSH `github-aegora-booking`
+    en `/root/.ssh/`, build `aegora-booking:<sha>`, render de
+    `templates/tenant-stack/booking/`, deploy, espera `/api/health`).
+    Integrado como etapas en `onboard-tenant.sh`; ruta Caddy `${BOOKING_HOST}`
+    en `publish-tenant.sh` (condicional a que el contenedor exista).
+    `demo-booking` desplegado y healthy.
+- Pendiente P3:
+  - Quitar `booking_<tenant>` (DB + rol) de `create-tenant.sh` + `backup.manifest.json`
+    (customers + template). El `booking_<tenant>` vacío actual es peso muerto inofensivo.
+  - `availability_exceptions.start_at/end_at` son `timestamp` sin zona vs
+    `appointments` `timestamptz` — unificar a `timestamptz`.
+  - Migrar build A → imagen en GHCR (CI en `aegora-booking`).
+  - Herramienta n8n *Appointment Availability* que consume el Booking API (P4).
 
 ## Estilo de trabajo esperado
 - PLAN antes de APPLY siempre. No inventar flags de script sin confirmar
