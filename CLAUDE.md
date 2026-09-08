@@ -7,8 +7,8 @@ componente autoritativo de disponibilidad). PostgreSQL y Caddy compartidos
 a nivel de plataforma; cada tenant tiene su propio Directus + n8n.
 
 Handover técnico completo (arquitectura, backups, runbooks): ver
-`AEGORA_handover_tecnico_post_Lumadock.docx` — si no está en este repo,
-pídele al usuario que lo copie a `docs/` para que puedas leerlo directo.
+`docs/AEGORA_handover_tecnico_post_Lumadock.md` (conversión versionada del
+`.docx` original, que es la copia de referencia y no se versiona).
 
 ## Contexto crítico: reconstrucción post-incidente
 En abril/2026 el proveedor VPS (LumaDock) sufrió un fallo de disco sin
