@@ -304,6 +304,32 @@ collections:
       versioning: false
     schema:
       name: resources
+  - collection: service_resources
+    meta:
+      accountability: all
+      archive_app_filter: true
+      archive_field: null
+      archive_value: null
+      autosave_revision_interval: null
+      collapse: open
+      collection: service_resources
+      color: null
+      display_template: null
+      group: null
+      hidden: false
+      icon: null
+      item_duplication_fields: null
+      note: null
+      preview_url: null
+      singleton: false
+      sort: null
+      sort_field: null
+      status: active
+      translations: null
+      unarchive_value: null
+      versioning: false
+    schema:
+      name: service_resources
   - collection: services
     meta:
       accountability: all
@@ -330,32 +356,6 @@ collections:
       versioning: false
     schema:
       name: services
-  - collection: services_resources
-    meta:
-      accountability: all
-      archive_app_filter: true
-      archive_field: null
-      archive_value: null
-      autosave_revision_interval: null
-      collapse: open
-      collection: services_resources
-      color: null
-      display_template: null
-      group: null
-      hidden: true
-      icon: import_export
-      item_duplication_fields: null
-      note: null
-      preview_url: null
-      singleton: false
-      sort: null
-      sort_field: null
-      status: active
-      translations: null
-      unarchive_value: null
-      versioning: false
-    schema:
-      name: services_resources
   - collection: tasks
     meta:
       accountability: all
@@ -547,7 +547,7 @@ fields:
       numeric_scale: null
       is_nullable: true
       is_unique: false
-      is_indexed: false
+      is_indexed: true
       is_primary_key: false
       is_generated: false
       generation_expression: null
@@ -589,7 +589,7 @@ fields:
       numeric_scale: null
       is_nullable: true
       is_unique: false
-      is_indexed: false
+      is_indexed: true
       is_primary_key: false
       is_generated: false
       generation_expression: null
@@ -799,7 +799,7 @@ fields:
       numeric_scale: null
       is_nullable: false
       is_unique: false
-      is_indexed: false
+      is_indexed: true
       is_primary_key: false
       is_generated: false
       generation_expression: null
@@ -841,7 +841,7 @@ fields:
       numeric_scale: null
       is_nullable: false
       is_unique: false
-      is_indexed: false
+      is_indexed: true
       is_primary_key: false
       is_generated: false
       generation_expression: null
@@ -894,7 +894,7 @@ fields:
       numeric_scale: null
       is_nullable: false
       is_unique: false
-      is_indexed: false
+      is_indexed: true
       is_primary_key: false
       is_generated: false
       generation_expression: null
@@ -1197,7 +1197,7 @@ fields:
       numeric_scale: null
       is_nullable: true
       is_unique: false
-      is_indexed: false
+      is_indexed: true
       is_primary_key: false
       is_generated: false
       generation_expression: null
@@ -1239,7 +1239,7 @@ fields:
       numeric_scale: null
       is_nullable: true
       is_unique: false
-      is_indexed: false
+      is_indexed: true
       is_primary_key: false
       is_generated: false
       generation_expression: null
@@ -1281,7 +1281,7 @@ fields:
       numeric_scale: null
       is_nullable: true
       is_unique: false
-      is_indexed: false
+      is_indexed: true
       is_primary_key: false
       is_generated: false
       generation_expression: null
@@ -1449,7 +1449,7 @@ fields:
       numeric_scale: null
       is_nullable: true
       is_unique: false
-      is_indexed: false
+      is_indexed: true
       is_primary_key: false
       is_generated: false
       generation_expression: null
@@ -1826,7 +1826,7 @@ fields:
       numeric_scale: null
       is_nullable: true
       is_unique: false
-      is_indexed: false
+      is_indexed: true
       is_primary_key: false
       is_generated: false
       generation_expression: null
@@ -2716,3 +2716,4092 @@ fields:
           translation: Tipo
       validation: null
       validation_message: null
+      width: half
+    schema:
+      name: label
+      table: contact_phones
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: contact_phones
+    field: is_primary
+    type: boolean
+    meta:
+      collection: contact_phones
+      conditions: null
+      display: null
+      display_options: null
+      field: is_primary
+      group: null
+      hidden: false
+      interface: boolean
+      note: Preferred telephone number for this contact.
+      options: null
+      readonly: false
+      required: true
+      searchable: true
+      sort: 6
+      special: null
+      translations:
+        - language: es-ES
+          translation: Principal
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: is_primary
+      table: contact_phones
+      data_type: boolean
+      default_value: false
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: contact_phones
+    field: can_whatsapp
+    type: boolean
+    meta:
+      collection: contact_phones
+      conditions: null
+      display: null
+      display_options: null
+      field: can_whatsapp
+      group: null
+      hidden: false
+      interface: boolean
+      note: Number can be used for WhatsApp.
+      options: null
+      readonly: false
+      required: true
+      searchable: true
+      sort: 7
+      special: null
+      translations:
+        - language: es-ES
+          translation: WhatsApp
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: can_whatsapp
+      table: contact_phones
+      data_type: boolean
+      default_value: false
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: contact_phones
+    field: created_at
+    type: timestamp
+    meta:
+      collection: contact_phones
+      conditions: null
+      display: null
+      display_options: null
+      field: created_at
+      group: null
+      hidden: false
+      interface: datetime
+      note: Creation timestamp managed by Directus.
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 8
+      special:
+        - date-created
+      translations:
+        - language: es-ES
+          translation: Fecha de creación
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: created_at
+      table: contact_phones
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: contact_phones
+    field: updated_at
+    type: timestamp
+    meta:
+      collection: contact_phones
+      conditions: null
+      display: null
+      display_options: null
+      field: updated_at
+      group: null
+      hidden: false
+      interface: datetime
+      note: Last update timestamp managed by Directus.
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 9
+      special:
+        - date-updated
+      translations:
+        - language: es-ES
+          translation: Última modificación
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: updated_at
+      table: contact_phones
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: contacts
+    field: id
+    type: uuid
+    meta:
+      collection: contacts
+      conditions: null
+      display: null
+      display_options: null
+      field: id
+      group: null
+      hidden: true
+      interface: input
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 1
+      special:
+        - uuid
+      translations:
+        - language: es-ES
+          translation: ID
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: id
+      table: contacts
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: true
+      is_indexed: false
+      is_primary_key: true
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: contacts
+    field: first_name
+    type: string
+    meta:
+      collection: contacts
+      conditions: null
+      display: null
+      display_options: null
+      field: first_name
+      group: null
+      hidden: false
+      interface: input
+      note: Contact first name.
+      options: null
+      readonly: false
+      required: true
+      searchable: true
+      sort: 2
+      special: null
+      translations:
+        - language: es-ES
+          translation: Nombre
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: first_name
+      table: contacts
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: contacts
+    field: last_name
+    type: string
+    meta:
+      collection: contacts
+      conditions: null
+      display: null
+      display_options: null
+      field: last_name
+      group: null
+      hidden: false
+      interface: input
+      note: Contact last name.
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 3
+      special: null
+      translations:
+        - language: es-ES
+          translation: Apellidos
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: last_name
+      table: contacts
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: contacts
+    field: company
+    type: string
+    meta:
+      collection: contacts
+      conditions: null
+      display: null
+      display_options: null
+      field: company
+      group: null
+      hidden: false
+      interface: input
+      note: Company or business used to identify the contact.
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 4
+      special: null
+      translations:
+        - language: es-ES
+          translation: Empresa
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: company
+      table: contacts
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: true
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: contacts
+    field: email
+    type: string
+    meta:
+      collection: contacts
+      conditions: null
+      display: null
+      display_options: null
+      field: email
+      group: null
+      hidden: false
+      interface: input
+      note: Primary email address.
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 5
+      special: null
+      translations:
+        - language: es-ES
+          translation: Correo electrónico
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: email
+      table: contacts
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: contacts
+    field: status
+    type: string
+    meta:
+      collection: contacts
+      conditions: null
+      display: null
+      display_options: null
+      field: status
+      group: null
+      hidden: false
+      interface: select-dropdown
+      note: null
+      options:
+        choices:
+          - text: Activo
+            value: active
+          - text: Inactivo
+            value: inactive
+      readonly: false
+      required: true
+      searchable: true
+      sort: 6
+      special: null
+      translations:
+        - language: es-ES
+          translation: Estado
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: status
+      table: contacts
+      data_type: character varying
+      default_value: active
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: contacts
+    field: notes
+    type: text
+    meta:
+      collection: contacts
+      conditions: null
+      display: null
+      display_options: null
+      field: notes
+      group: null
+      hidden: false
+      interface: input-multiline
+      note: Free-form operational notes.
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 7
+      special: null
+      translations:
+        - language: es-ES
+          translation: Notas
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: notes
+      table: contacts
+      data_type: text
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: contacts
+    field: created_at
+    type: timestamp
+    meta:
+      collection: contacts
+      conditions: null
+      display: null
+      display_options: null
+      field: created_at
+      group: null
+      hidden: false
+      interface: datetime
+      note: Creation timestamp managed by Directus.
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 8
+      special:
+        - date-created
+      translations:
+        - language: es-ES
+          translation: Fecha de creación
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: created_at
+      table: contacts
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: contacts
+    field: updated_at
+    type: timestamp
+    meta:
+      collection: contacts
+      conditions: null
+      display: null
+      display_options: null
+      field: updated_at
+      group: null
+      hidden: false
+      interface: datetime
+      note: Last update timestamp managed by Directus.
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 9
+      special:
+        - date-updated
+      translations:
+        - language: es-ES
+          translation: Última modificación
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: updated_at
+      table: contacts
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: contacts
+    field: phones
+    type: alias
+    meta:
+      collection: contacts
+      conditions: null
+      display: null
+      display_options: null
+      field: phones
+      group: null
+      hidden: false
+      interface: list-o2m
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 10
+      special:
+        - o2m
+      translations:
+        - language: es-ES
+          translation: Teléfonos
+      validation: null
+      validation_message: null
+      width: full
+  - collection: contacts
+    field: tasks
+    type: alias
+    meta:
+      collection: contacts
+      conditions: null
+      display: null
+      display_options: null
+      field: tasks
+      group: null
+      hidden: false
+      interface: list-o2m
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 11
+      special:
+        - o2m
+      translations:
+        - language: es-ES
+          translation: Tareas
+      validation: null
+      validation_message: null
+      width: full
+  - collection: contacts
+    field: appointments
+    type: alias
+    meta:
+      collection: contacts
+      conditions: null
+      display: null
+      display_options: null
+      field: appointments
+      group: null
+      hidden: false
+      interface: list-o2m
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 12
+      special:
+        - o2m
+      translations:
+        - language: es-ES
+          translation: Citas
+      validation: null
+      validation_message: null
+      width: full
+  - collection: employees
+    field: id
+    type: uuid
+    meta:
+      collection: employees
+      conditions: null
+      display: null
+      display_options: null
+      field: id
+      group: null
+      hidden: true
+      interface: input
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 1
+      special:
+        - uuid
+      translations:
+        - language: es-ES
+          translation: ID
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: id
+      table: employees
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: true
+      is_indexed: false
+      is_primary_key: true
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: employees
+    field: first_name
+    type: string
+    meta:
+      collection: employees
+      conditions: null
+      display: null
+      display_options: null
+      field: first_name
+      group: null
+      hidden: false
+      interface: input
+      note: null
+      options: null
+      readonly: false
+      required: true
+      searchable: true
+      sort: 2
+      special: null
+      translations:
+        - language: es-ES
+          translation: Nombre
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: first_name
+      table: employees
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: employees
+    field: last_name
+    type: string
+    meta:
+      collection: employees
+      conditions: null
+      display: null
+      display_options: null
+      field: last_name
+      group: null
+      hidden: false
+      interface: input
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 3
+      special: null
+      translations:
+        - language: es-ES
+          translation: Apellidos
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: last_name
+      table: employees
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: employees
+    field: email
+    type: string
+    meta:
+      collection: employees
+      conditions: null
+      display: null
+      display_options: null
+      field: email
+      group: null
+      hidden: false
+      interface: input
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 4
+      special: null
+      translations:
+        - language: es-ES
+          translation: Correo electrónico
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: email
+      table: employees
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: employees
+    field: phone
+    type: string
+    meta:
+      collection: employees
+      conditions: null
+      display: null
+      display_options: null
+      field: phone
+      group: null
+      hidden: false
+      interface: input
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 5
+      special: null
+      translations:
+        - language: es-ES
+          translation: Teléfono
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: phone
+      table: employees
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: employees
+    field: phone_normalized
+    type: string
+    meta:
+      collection: employees
+      conditions: null
+      display: null
+      display_options: null
+      field: phone_normalized
+      group: null
+      hidden: true
+      interface: input
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 6
+      special: null
+      translations:
+        - language: es-ES
+          translation: Teléfono normalizado
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: phone_normalized
+      table: employees
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: employees
+    field: whatsapp_notifications
+    type: boolean
+    meta:
+      collection: employees
+      conditions: null
+      display: null
+      display_options: null
+      field: whatsapp_notifications
+      group: null
+      hidden: false
+      interface: boolean
+      note: null
+      options: null
+      readonly: false
+      required: true
+      searchable: true
+      sort: 7
+      special:
+        - cast-boolean
+      translations:
+        - language: es-ES
+          translation: Notificaciones por WhatsApp
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: whatsapp_notifications
+      table: employees
+      data_type: boolean
+      default_value: false
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: employees
+    field: status
+    type: string
+    meta:
+      collection: employees
+      conditions: null
+      display: null
+      display_options: null
+      field: status
+      group: null
+      hidden: false
+      interface: select-dropdown
+      note: null
+      options:
+        choices:
+          - text: active
+            value: Active
+          - text: inactive
+            value: Inactive
+      readonly: false
+      required: true
+      searchable: true
+      sort: 8
+      special: null
+      translations:
+        - language: es-ES
+          translation: Estado
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: status
+      table: employees
+      data_type: character varying
+      default_value: active
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: employees
+    field: role
+    type: string
+    meta:
+      collection: employees
+      conditions: null
+      display: null
+      display_options: null
+      field: role
+      group: null
+      hidden: false
+      interface: input
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 9
+      special: null
+      translations:
+        - language: es-ES
+          translation: Puesto / función
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: role
+      table: employees
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: employees
+    field: directus_user_id
+    type: uuid
+    meta:
+      collection: employees
+      conditions: null
+      display: null
+      display_options: null
+      field: directus_user_id
+      group: null
+      hidden: false
+      interface: select-dropdown-m2o
+      note: null
+      options:
+        template: '{{first_name}}'
+      readonly: false
+      required: false
+      searchable: true
+      sort: 11
+      special:
+        - m2o
+      translations:
+        - language: es-ES
+          translation: Usuario Directus
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: directus_user_id
+      table: employees
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: directus_users
+      foreign_key_column: id
+  - collection: employees
+    field: created_at
+    type: timestamp
+    meta:
+      collection: employees
+      conditions: null
+      display: null
+      display_options: null
+      field: created_at
+      group: null
+      hidden: false
+      interface: datetime
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 12
+      special:
+        - date-created
+      translations:
+        - language: es-ES
+          translation: Fecha de creación
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: created_at
+      table: employees
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: employees
+    field: updated_at
+    type: timestamp
+    meta:
+      collection: employees
+      conditions: null
+      display: null
+      display_options: null
+      field: updated_at
+      group: null
+      hidden: false
+      interface: datetime
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 13
+      special:
+        - date-updated
+      translations:
+        - language: es-ES
+          translation: Última modificación
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: updated_at
+      table: employees
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: employees
+    field: resources
+    type: alias
+    meta:
+      collection: employees
+      conditions: null
+      display: related-values
+      display_options:
+        template: '{{name}}'
+      field: resources
+      group: null
+      hidden: false
+      interface: list-o2m
+      note: null
+      options:
+        template: '{{name}}'
+      readonly: false
+      required: false
+      searchable: true
+      sort: 10
+      special:
+        - o2m
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+  - collection: languages
+    field: code
+    type: string
+    meta:
+      collection: languages
+      conditions: null
+      display: null
+      display_options: null
+      field: code
+      group: null
+      hidden: false
+      interface: null
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 1
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: code
+      table: languages
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: true
+      is_indexed: false
+      is_primary_key: true
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: languages
+    field: name
+    type: string
+    meta:
+      collection: languages
+      conditions: null
+      display: null
+      display_options: null
+      field: name
+      group: null
+      hidden: false
+      interface: null
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 2
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: name
+      table: languages
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: languages
+    field: direction
+    type: string
+    meta:
+      collection: languages
+      conditions: null
+      display: labels
+      display_options:
+        choices:
+          - text: $t:left_to_right
+            value: ltr
+          - text: $t:right_to_left
+            value: rtl
+        format: false
+      field: direction
+      group: null
+      hidden: false
+      interface: select-dropdown
+      note: null
+      options:
+        choices:
+          - text: $t:left_to_right
+            value: ltr
+          - text: $t:right_to_left
+            value: rtl
+      readonly: false
+      required: false
+      searchable: true
+      sort: 3
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: direction
+      table: languages
+      data_type: character varying
+      default_value: ltr
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: locations
+    field: id
+    type: uuid
+    meta:
+      collection: locations
+      conditions: null
+      display: null
+      display_options: null
+      field: id
+      group: null
+      hidden: true
+      interface: input
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 1
+      special:
+        - uuid
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: id
+      table: locations
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: true
+      is_indexed: false
+      is_primary_key: true
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: locations
+    field: date_created
+    type: timestamp
+    meta:
+      collection: locations
+      conditions: null
+      display: datetime
+      display_options:
+        relative: true
+      field: date_created
+      group: null
+      hidden: true
+      interface: datetime
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 2
+      special:
+        - date-created
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: date_created
+      table: locations
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: locations
+    field: date_updated
+    type: timestamp
+    meta:
+      collection: locations
+      conditions: null
+      display: datetime
+      display_options:
+        relative: true
+      field: date_updated
+      group: null
+      hidden: true
+      interface: datetime
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 3
+      special:
+        - date-updated
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: date_updated
+      table: locations
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: locations
+    field: name
+    type: string
+    meta:
+      collection: locations
+      conditions: null
+      display: null
+      display_options: null
+      field: name
+      group: null
+      hidden: false
+      interface: input
+      note: null
+      options: null
+      readonly: false
+      required: true
+      searchable: true
+      sort: 4
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: name
+      table: locations
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: locations
+    field: code
+    type: string
+    meta:
+      collection: locations
+      conditions: null
+      display: null
+      display_options: null
+      field: code
+      group: null
+      hidden: false
+      interface: input
+      note: Código interno opcional de la ubicación.
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 5
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: code
+      table: locations
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: locations
+    field: address
+    type: text
+    meta:
+      collection: locations
+      conditions: null
+      display: null
+      display_options: null
+      field: address
+      group: null
+      hidden: false
+      interface: input-multiline
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 7
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: address
+      table: locations
+      data_type: text
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: locations
+    field: phone
+    type: string
+    meta:
+      collection: locations
+      conditions: null
+      display: null
+      display_options: null
+      field: phone
+      group: null
+      hidden: false
+      interface: input
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 8
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: phone
+      table: locations
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: locations
+    field: email
+    type: string
+    meta:
+      collection: locations
+      conditions: null
+      display: null
+      display_options: null
+      field: email
+      group: null
+      hidden: false
+      interface: input
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 9
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: email
+      table: locations
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: locations
+    field: active
+    type: boolean
+    meta:
+      collection: locations
+      conditions: null
+      display: null
+      display_options: null
+      field: active
+      group: null
+      hidden: false
+      interface: boolean
+      note: null
+      options:
+        label: Activo
+      readonly: false
+      required: false
+      searchable: true
+      sort: 12
+      special:
+        - cast-boolean
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: active
+      table: locations
+      data_type: boolean
+      default_value: true
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: locations
+    field: created_at
+    type: dateTime
+    meta:
+      collection: locations
+      conditions: null
+      display: null
+      display_options: null
+      field: created_at
+      group: null
+      hidden: false
+      interface: datetime
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 13
+      special:
+        - date-created
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: created_at
+      table: locations
+      data_type: timestamp without time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: locations
+    field: updated_at
+    type: dateTime
+    meta:
+      collection: locations
+      conditions: null
+      display: null
+      display_options: null
+      field: updated_at
+      group: null
+      hidden: false
+      interface: datetime
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 14
+      special:
+        - date-updated
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: updated_at
+      table: locations
+      data_type: timestamp without time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: locations
+    field: timezone
+    type: string
+    meta:
+      collection: locations
+      conditions: null
+      display: null
+      display_options: null
+      field: timezone
+      group: null
+      hidden: false
+      interface: input
+      note: Zona horaria utilizada para interpretar horarios y disponibilidad.
+      options: null
+      readonly: false
+      required: true
+      searchable: true
+      sort: 6
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: timezone
+      table: locations
+      data_type: character varying
+      default_value: Europe/Madrid
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: locations
+    field: calendars
+    type: alias
+    meta:
+      collection: locations
+      conditions: null
+      display: related-values
+      display_options:
+        template: '{{name}}'
+      field: calendars
+      group: null
+      hidden: false
+      interface: list-o2m
+      note: null
+      options:
+        template: '{{name}}'
+      readonly: false
+      required: false
+      searchable: true
+      sort: 10
+      special:
+        - o2m
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+  - collection: locations
+    field: resources
+    type: alias
+    meta:
+      collection: locations
+      conditions: null
+      display: related-values
+      display_options:
+        template: '{{name}}'
+      field: resources
+      group: null
+      hidden: false
+      interface: list-o2m
+      note: null
+      options:
+        template: '{{name}}'
+      readonly: false
+      required: false
+      searchable: true
+      sort: 11
+      special:
+        - o2m
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+  - collection: resources
+    field: id
+    type: uuid
+    meta:
+      collection: resources
+      conditions: null
+      display: null
+      display_options: null
+      field: id
+      group: null
+      hidden: true
+      interface: input
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 1
+      special:
+        - uuid
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: id
+      table: resources
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: true
+      is_indexed: false
+      is_primary_key: true
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: resources
+    field: date_created
+    type: timestamp
+    meta:
+      collection: resources
+      conditions: null
+      display: datetime
+      display_options:
+        relative: true
+      field: date_created
+      group: null
+      hidden: true
+      interface: datetime
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 2
+      special:
+        - date-created
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: date_created
+      table: resources
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: resources
+    field: date_updated
+    type: timestamp
+    meta:
+      collection: resources
+      conditions: null
+      display: datetime
+      display_options:
+        relative: true
+      field: date_updated
+      group: null
+      hidden: true
+      interface: datetime
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 3
+      special:
+        - date-updated
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: date_updated
+      table: resources
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: resources
+    field: name
+    type: string
+    meta:
+      collection: resources
+      conditions: null
+      display: null
+      display_options: null
+      field: name
+      group: null
+      hidden: false
+      interface: input
+      note: null
+      options: null
+      readonly: false
+      required: true
+      searchable: true
+      sort: 4
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: name
+      table: resources
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: resources
+    field: resource_type
+    type: string
+    meta:
+      collection: resources
+      conditions: null
+      display: null
+      display_options: null
+      field: resource_type
+      group: null
+      hidden: false
+      interface: select-dropdown
+      note: null
+      options:
+        choices:
+          - text: Genérico
+            value: generic
+          - text: Persona
+            value: person
+          - text: Sala
+            value: room
+          - text: Equipo
+            value: equipment
+          - text: Vehículo
+            value: vehicle
+          - text: Espacio
+            value: space
+      readonly: false
+      required: true
+      searchable: true
+      sort: 5
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: resource_type
+      table: resources
+      data_type: character varying
+      default_value: generic
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: resources
+    field: employee_id
+    type: uuid
+    meta:
+      collection: resources
+      conditions: null
+      display: related-values
+      display_options:
+        template: "{{first_name}}\_{{last_name}}"
+      field: employee_id
+      group: null
+      hidden: false
+      interface: select-dropdown-m2o
+      note: null
+      options:
+        template: '{{first_name}} {{last_name}}'
+      readonly: false
+      required: false
+      searchable: true
+      sort: 6
+      special:
+        - m2o
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: employee_id
+      table: resources
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: true
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: employees
+      foreign_key_column: id
+  - collection: resources
+    field: location_id
+    type: uuid
+    meta:
+      collection: resources
+      conditions: null
+      display: related-values
+      display_options:
+        template: '{{name}}'
+      field: location_id
+      group: null
+      hidden: false
+      interface: select-dropdown-m2o
+      note: null
+      options:
+        template: '{{name}}'
+      readonly: false
+      required: false
+      searchable: true
+      sort: 7
+      special:
+        - m2o
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: location_id
+      table: resources
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: true
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: locations
+      foreign_key_column: id
+  - collection: resources
+    field: calendar_id
+    type: uuid
+    meta:
+      collection: resources
+      conditions: null
+      display: related-values
+      display_options:
+        template: '{{name}}'
+      field: calendar_id
+      group: null
+      hidden: false
+      interface: select-dropdown-m2o
+      note: null
+      options:
+        template: '{{name}}'
+      readonly: false
+      required: false
+      searchable: true
+      sort: 8
+      special:
+        - m2o
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: calendar_id
+      table: resources
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: true
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: calendars
+      foreign_key_column: id
+  - collection: resources
+    field: capacity
+    type: integer
+    meta:
+      collection: resources
+      conditions: null
+      display: null
+      display_options: null
+      field: capacity
+      group: null
+      hidden: false
+      interface: input
+      note: null
+      options: null
+      readonly: false
+      required: true
+      searchable: true
+      sort: 10
+      special: null
+      translations: null
+      validation:
+        _and:
+          - capacity:
+              _gte: '1'
+      validation_message: Capacidad tiene que ser mayor o igual a 1.
+      width: full
+    schema:
+      name: capacity
+      table: resources
+      data_type: integer
+      default_value: 1
+      max_length: null
+      numeric_precision: 32
+      numeric_scale: 0
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: resources
+    field: active
+    type: boolean
+    meta:
+      collection: resources
+      conditions: null
+      display: null
+      display_options: null
+      field: active
+      group: null
+      hidden: false
+      interface: boolean
+      note: null
+      options:
+        label: Activo
+      readonly: false
+      required: true
+      searchable: true
+      sort: 11
+      special:
+        - cast-boolean
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: active
+      table: resources
+      data_type: boolean
+      default_value: true
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: resources
+    field: created_at
+    type: dateTime
+    meta:
+      collection: resources
+      conditions: null
+      display: null
+      display_options: null
+      field: created_at
+      group: null
+      hidden: false
+      interface: datetime
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 12
+      special:
+        - date-created
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: created_at
+      table: resources
+      data_type: timestamp without time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: resources
+    field: updated_at
+    type: dateTime
+    meta:
+      collection: resources
+      conditions: null
+      display: null
+      display_options: null
+      field: updated_at
+      group: null
+      hidden: false
+      interface: datetime
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 13
+      special:
+        - date-updated
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: updated_at
+      table: resources
+      data_type: timestamp without time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: service_resources
+    field: id
+    type: uuid
+    meta:
+      collection: service_resources
+      conditions: null
+      display: null
+      display_options: null
+      field: id
+      group: null
+      hidden: true
+      interface: input
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 1
+      special:
+        - uuid
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: id
+      table: service_resources
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: true
+      is_indexed: false
+      is_primary_key: true
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: service_resources
+    field: date_created
+    type: timestamp
+    meta:
+      collection: service_resources
+      conditions: null
+      display: datetime
+      display_options:
+        relative: true
+      field: date_created
+      group: null
+      hidden: true
+      interface: datetime
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 2
+      special:
+        - date-created
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: date_created
+      table: service_resources
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: service_resources
+    field: date_updated
+    type: timestamp
+    meta:
+      collection: service_resources
+      conditions: null
+      display: datetime
+      display_options:
+        relative: true
+      field: date_updated
+      group: null
+      hidden: true
+      interface: datetime
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 3
+      special:
+        - date-updated
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: date_updated
+      table: service_resources
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: service_resources
+    field: service_id
+    type: uuid
+    meta:
+      collection: service_resources
+      conditions: null
+      display: related-values
+      display_options:
+        template: '{{name}}'
+      field: service_id
+      group: null
+      hidden: false
+      interface: select-dropdown-m2o
+      note: null
+      options:
+        sort: null
+        template: '{{name}}'
+      readonly: false
+      required: false
+      searchable: true
+      sort: 4
+      special:
+        - m2o
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: service_id
+      table: service_resources
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: true
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: services
+      foreign_key_column: id
+  - collection: service_resources
+    field: resource_id
+    type: uuid
+    meta:
+      collection: service_resources
+      conditions: null
+      display: related-values
+      display_options:
+        template: '{{name}}'
+      field: resource_id
+      group: null
+      hidden: false
+      interface: select-dropdown-m2o
+      note: null
+      options:
+        template: '{{name}}'
+      readonly: false
+      required: false
+      searchable: true
+      sort: 5
+      special:
+        - m2o
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: resource_id
+      table: service_resources
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: true
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: resources
+      foreign_key_column: id
+  - collection: services
+    field: id
+    type: uuid
+    meta:
+      collection: services
+      conditions: null
+      display: null
+      display_options: null
+      field: id
+      group: null
+      hidden: true
+      interface: input
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 1
+      special:
+        - uuid
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: id
+      table: services
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: true
+      is_indexed: false
+      is_primary_key: true
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: services
+    field: date_created
+    type: timestamp
+    meta:
+      collection: services
+      conditions: null
+      display: datetime
+      display_options:
+        relative: true
+      field: date_created
+      group: null
+      hidden: true
+      interface: datetime
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 2
+      special:
+        - date-created
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: date_created
+      table: services
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: services
+    field: date_updated
+    type: timestamp
+    meta:
+      collection: services
+      conditions: null
+      display: datetime
+      display_options:
+        relative: true
+      field: date_updated
+      group: null
+      hidden: true
+      interface: datetime
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 3
+      special:
+        - date-updated
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: date_updated
+      table: services
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: services
+    field: name
+    type: string
+    meta:
+      collection: services
+      conditions: null
+      display: null
+      display_options: null
+      field: name
+      group: null
+      hidden: false
+      interface: input
+      note: null
+      options: null
+      readonly: false
+      required: true
+      searchable: true
+      sort: 4
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: name
+      table: services
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: services
+    field: description
+    type: text
+    meta:
+      collection: services
+      conditions: null
+      display: null
+      display_options: null
+      field: description
+      group: null
+      hidden: false
+      interface: input-multiline
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 5
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: description
+      table: services
+      data_type: text
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: services
+    field: duration_minutes
+    type: integer
+    meta:
+      collection: services
+      conditions: null
+      display: null
+      display_options: null
+      field: duration_minutes
+      group: null
+      hidden: false
+      interface: input
+      note: null
+      options: null
+      readonly: false
+      required: true
+      searchable: true
+      sort: 6
+      special: null
+      translations: null
+      validation:
+        _and:
+          - duration_minutes:
+              _gt: '0'
+      validation_message: La duración tiene que ser un numero entor mayor que 0.
+      width: full
+    schema:
+      name: duration_minutes
+      table: services
+      data_type: integer
+      default_value: null
+      max_length: null
+      numeric_precision: 32
+      numeric_scale: 0
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: services
+    field: buffer_before_minutes
+    type: integer
+    meta:
+      collection: services
+      conditions: null
+      display: null
+      display_options: null
+      field: buffer_before_minutes
+      group: null
+      hidden: false
+      interface: input
+      note: null
+      options: null
+      readonly: false
+      required: true
+      searchable: true
+      sort: 7
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: buffer_before_minutes
+      table: services
+      data_type: integer
+      default_value: 0
+      max_length: null
+      numeric_precision: 32
+      numeric_scale: 0
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: services
+    field: buffer_after_minutes
+    type: integer
+    meta:
+      collection: services
+      conditions: null
+      display: null
+      display_options: null
+      field: buffer_after_minutes
+      group: null
+      hidden: false
+      interface: input
+      note: null
+      options: null
+      readonly: false
+      required: true
+      searchable: true
+      sort: 8
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: buffer_after_minutes
+      table: services
+      data_type: integer
+      default_value: 0
+      max_length: null
+      numeric_precision: 32
+      numeric_scale: 0
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: services
+    field: booking_mode
+    type: string
+    meta:
+      collection: services
+      conditions: null
+      display: null
+      display_options: null
+      field: booking_mode
+      group: null
+      hidden: false
+      interface: select-dropdown
+      note: null
+      options:
+        choices:
+          - text: Duración fija
+            value: fixed_duration
+      readonly: false
+      required: true
+      searchable: true
+      sort: 10
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: booking_mode
+      table: services
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: services
+    field: active
+    type: boolean
+    meta:
+      collection: services
+      conditions: null
+      display: null
+      display_options: null
+      field: active
+      group: null
+      hidden: false
+      interface: boolean
+      note: null
+      options:
+        label: Activo
+      readonly: false
+      required: true
+      searchable: true
+      sort: 11
+      special:
+        - cast-boolean
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: active
+      table: services
+      data_type: boolean
+      default_value: true
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: services
+    field: created_at
+    type: dateTime
+    meta:
+      collection: services
+      conditions: null
+      display: null
+      display_options: null
+      field: created_at
+      group: null
+      hidden: false
+      interface: datetime
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 12
+      special:
+        - date-created
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: created_at
+      table: services
+      data_type: timestamp without time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: services
+    field: updated_at
+    type: dateTime
+    meta:
+      collection: services
+      conditions: null
+      display: null
+      display_options: null
+      field: updated_at
+      group: null
+      hidden: false
+      interface: datetime
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 13
+      special:
+        - date-updated
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: updated_at
+      table: services
+      data_type: timestamp without time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: tasks
+    field: id
+    type: uuid
+    meta:
+      collection: tasks
+      conditions: null
+      display: null
+      display_options: null
+      field: id
+      group: null
+      hidden: true
+      interface: input
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 1
+      special:
+        - uuid
+      translations:
+        - language: es-ES
+          translation: ID
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: id
+      table: tasks
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: true
+      is_indexed: false
+      is_primary_key: true
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: tasks
+    field: contact_id
+    type: uuid
+    meta:
+      collection: tasks
+      conditions: null
+      display: null
+      display_options: null
+      field: contact_id
+      group: null
+      hidden: false
+      interface: select-dropdown-m2o
+      note: Related contact.
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 2
+      special:
+        - m2o
+      translations:
+        - language: es-ES
+          translation: Contacto
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: contact_id
+      table: tasks
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: true
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: contacts
+      foreign_key_column: id
+  - collection: tasks
+    field: title
+    type: string
+    meta:
+      collection: tasks
+      conditions: null
+      display: null
+      display_options: null
+      field: title
+      group: null
+      hidden: false
+      interface: input
+      note: Short task description.
+      options: null
+      readonly: false
+      required: true
+      searchable: true
+      sort: 4
+      special: null
+      translations:
+        - language: es-ES
+          translation: Título
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: title
+      table: tasks
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: tasks
+    field: description
+    type: text
+    meta:
+      collection: tasks
+      conditions: null
+      display: null
+      display_options: null
+      field: description
+      group: null
+      hidden: false
+      interface: input-multiline
+      note: Detailed task description.
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 5
+      special: null
+      translations:
+        - language: es-ES
+          translation: Descripción
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: description
+      table: tasks
+      data_type: text
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: tasks
+    field: status
+    type: string
+    meta:
+      collection: tasks
+      conditions: null
+      display: null
+      display_options: null
+      field: status
+      group: null
+      hidden: false
+      interface: select-dropdown
+      note: null
+      options:
+        choices:
+          - text: Pendiente
+            value: pending
+          - text: Completada
+            value: completed
+          - text: Cancelada
+            value: cancelled
+      readonly: false
+      required: true
+      searchable: true
+      sort: 6
+      special: null
+      translations:
+        - language: es-ES
+          translation: Estado
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: status
+      table: tasks
+      data_type: character varying
+      default_value: pending
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: tasks
+    field: priority
+    type: string
+    meta:
+      collection: tasks
+      conditions: null
+      display: null
+      display_options: null
+      field: priority
+      group: null
+      hidden: false
+      interface: select-dropdown
+      note: null
+      options:
+        choices:
+          - text: Baja
+            value: low
+          - text: Normal
+            value: normal
+          - text: Alta
+            value: high
+          - text: Urgente
+            value: urgent
+      readonly: false
+      required: true
+      searchable: true
+      sort: 7
+      special: null
+      translations:
+        - language: es-ES
+          translation: Prioridad
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: priority
+      table: tasks
+      data_type: character varying
+      default_value: normal
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: tasks
+    field: due_at
+    type: timestamp
+    meta:
+      collection: tasks
+      conditions: null
+      display: null
+      display_options: null
+      field: due_at
+      group: null
+      hidden: false
+      interface: datetime
+      note: Task due date and time.
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 8
+      special: null
+      translations:
+        - language: es-ES
+          translation: Fecha límite
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: due_at
+      table: tasks
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: tasks
+    field: completed_at
+    type: timestamp
+    meta:
+      collection: tasks
+      conditions: null
+      display: null
+      display_options: null
+      field: completed_at
+      group: null
+      hidden: false
+      interface: datetime
+      note: Timestamp when the task was completed.
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 9
+      special: null
+      translations:
+        - language: es-ES
+          translation: Fecha de finalización
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: completed_at
+      table: tasks
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: tasks
+    field: source
+    type: string
+    meta:
+      collection: tasks
+      conditions: null
+      display: null
+      display_options: null
+      field: source
+      group: null
+      hidden: false
+      interface: select-dropdown
+      note: null
+      options:
+        choices:
+          - text: Manual
+            value: manual
+          - text: IA
+            value: ai
+          - text: Sistema
+            value: system
+      readonly: false
+      required: true
+      searchable: true
+      sort: 10
+      special: null
+      translations:
+        - language: es-ES
+          translation: Origen
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: source
+      table: tasks
+      data_type: character varying
+      default_value: manual
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: tasks
+    field: created_at
+    type: timestamp
+    meta:
+      collection: tasks
+      conditions: null
+      display: null
+      display_options: null
+      field: created_at
+      group: null
+      hidden: false
+      interface: datetime
+      note: Creation timestamp managed by Directus.
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 11
+      special:
+        - date-created
+      translations:
+        - language: es-ES
+          translation: Fecha de creación
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: created_at
+      table: tasks
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: tasks
+    field: updated_at
+    type: timestamp
+    meta:
+      collection: tasks
+      conditions: null
+      display: null
+      display_options: null
+      field: updated_at
+      group: null
+      hidden: false
+      interface: datetime
+      note: Last update timestamp managed by Directus.
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 12
+      special:
+        - date-updated
+      translations:
+        - language: es-ES
+          translation: Última modificación
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: updated_at
+      table: tasks
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: tasks
+    field: assignee_id
+    type: uuid
+    meta:
+      collection: tasks
+      conditions: null
+      display: null
+      display_options: null
+      field: assignee_id
+      group: null
+      hidden: false
+      interface: select-dropdown-m2o
+      note: null
+      options:
+        template: '{{first_name}} {{last_name}}'
+      readonly: false
+      required: false
+      searchable: true
+      sort: 3
+      special:
+        - m2o
+      translations:
+        - language: es-ES
+          translation: Responsable
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: assignee_id
+      table: tasks
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: employees
+      foreign_key_column: id
+  - collection: tasks
+    field: assigned_at
+    type: timestamp
+    meta:
+      collection: tasks
+      conditions: null
+      display: null
+      display_options: null
+      field: assigned_at
+      group: null
+      hidden: false
+      interface: datetime
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 13
+      special: null
+      translations:
+        - language: es-ES
+          translation: Fecha de asignación
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: assigned_at
+      table: tasks
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+systemFields:
+  - collection: directus_activity
+    field: timestamp
+    schema:
+      is_indexed: true
+  - collection: directus_oauth_clients
+    field: date_created
+    schema:
+      is_indexed: true
+  - collection: directus_oauth_codes
+    field: expires_at
+    schema:
+      is_indexed: true
+  - collection: directus_oauth_codes
+    field: used_at
+    schema:
+      is_indexed: true
+  - collection: directus_oauth_consents
+    field: client
+    schema:
+      is_indexed: true
+  - collection: directus_oauth_tokens
+    field: code_hash
+    schema:
+      is_indexed: true
+  - collection: directus_oauth_tokens
+    field: expires_at
+    schema:
+      is_indexed: true
+  - collection: directus_oauth_tokens
+    field: previous_session
+    schema:
+      is_indexed: true
+  - collection: directus_oauth_tokens
+    field: session
+    schema:
+      is_indexed: true
+  - collection: directus_revisions
+    field: activity
+    schema:
+      is_indexed: true
+  - collection: directus_revisions
+    field: parent
+    schema:
+      is_indexed: true
+  - collection: directus_sessions
+    field: oauth_client
+    schema:
+      is_indexed: true
+relations:
+  - collection: appointment_resources
+    field: appointment_id
+    related_collection: appointments
+    meta:
+      junction_field: null
+      many_collection: appointment_resources
+      many_field: appointment_id
+      one_allowed_collections: null
+      one_collection: appointments
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: appointment_resources
+      column: appointment_id
+      foreign_key_table: appointments
+      foreign_key_column: id
+      constraint_name: appointment_resources_appointment_id_foreign
+      on_update: NO ACTION
+      on_delete: SET NULL
+  - collection: appointment_resources
+    field: resource_id
+    related_collection: resources
+    meta:
+      junction_field: null
+      many_collection: appointment_resources
+      many_field: resource_id
+      one_allowed_collections: null
+      one_collection: resources
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: appointment_resources
+      column: resource_id
+      foreign_key_table: resources
+      foreign_key_column: id
+      constraint_name: appointment_resources_resource_id_foreign
+      on_update: NO ACTION
+      on_delete: SET NULL
+  - collection: appointments
+    field: contact_id
+    related_collection: contacts
+    meta:
+      junction_field: null
+      many_collection: appointments
+      many_field: contact_id
+      one_allowed_collections: null
+      one_collection: contacts
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: appointments
+      sort_field: null
+    schema:
+      table: appointments
+      column: contact_id
+      foreign_key_table: contacts
+      foreign_key_column: id
+      constraint_name: appointments_contact_id_foreign
+      on_update: NO ACTION
+      on_delete: SET NULL
+  - collection: appointments
+    field: service_id
+    related_collection: services
+    meta:
+      junction_field: null
+      many_collection: appointments
+      many_field: service_id
+      one_allowed_collections: null
+      one_collection: services
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: appointments
+      column: service_id
+      foreign_key_table: services
+      foreign_key_column: id
+      constraint_name: appointments_service_id_foreign
+      on_update: NO ACTION
+      on_delete: SET NULL
+  - collection: appointments
+    field: calendar_id
+    related_collection: calendars
+    meta:
+      junction_field: null
+      many_collection: appointments
+      many_field: calendar_id
+      one_allowed_collections: null
+      one_collection: calendars
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: appointments
+      column: calendar_id
+      foreign_key_table: calendars
+      foreign_key_column: id
+      constraint_name: appointments_calendar_id_foreign
+      on_update: NO ACTION
+      on_delete: SET NULL
+  - collection: appointments
+    field: location_id
+    related_collection: locations
+    meta:
+      junction_field: null
+      many_collection: appointments
+      many_field: location_id
+      one_allowed_collections: null
+      one_collection: locations
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: appointments
+      column: location_id
+      foreign_key_table: locations
+      foreign_key_column: id
+      constraint_name: appointments_location_id_foreign
+      on_update: NO ACTION
+      on_delete: SET NULL
+  - collection: availability_exceptions
+    field: resource_id
+    related_collection: resources
+    meta:
+      junction_field: null
+      many_collection: availability_exceptions
+      many_field: resource_id
+      one_allowed_collections: null
+      one_collection: resources
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: availability_exceptions
+      column: resource_id
+      foreign_key_table: resources
+      foreign_key_column: id
+      constraint_name: availability_exceptions_resource_id_foreign
+      on_update: NO ACTION
+      on_delete: SET NULL
+  - collection: availability_rules
+    field: resource_id
+    related_collection: resources
+    meta:
+      junction_field: null
+      many_collection: availability_rules
+      many_field: resource_id
+      one_allowed_collections: null
+      one_collection: resources
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: availability_rules
+      column: resource_id
+      foreign_key_table: resources
+      foreign_key_column: id
+      constraint_name: availability_rules_resource_id_foreign
+      on_update: NO ACTION
+      on_delete: SET NULL
+  - collection: calendars
+    field: location_id
+    related_collection: locations
+    meta:
+      junction_field: null
+      many_collection: calendars
+      many_field: location_id
+      one_allowed_collections: null
+      one_collection: locations
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: calendars
+      sort_field: null
+    schema:
+      table: calendars
+      column: location_id
+      foreign_key_table: locations
+      foreign_key_column: id
+      constraint_name: calendars_location_id_foreign
+      on_update: NO ACTION
+      on_delete: SET NULL
+  - collection: contact_phones
+    field: contact_id
+    related_collection: contacts
+    meta:
+      junction_field: null
+      many_collection: contact_phones
+      many_field: contact_id
+      one_allowed_collections: null
+      one_collection: contacts
+      one_collection_field: null
+      one_deselect_action: delete
+      one_field: phones
+      sort_field: null
+    schema:
+      table: contact_phones
+      column: contact_id
+      foreign_key_table: contacts
+      foreign_key_column: id
+      constraint_name: contact_phones_contact_id_foreign
+      on_update: NO ACTION
+      on_delete: CASCADE
+  - collection: employees
+    field: directus_user_id
+    related_collection: directus_users
+    meta:
+      junction_field: null
+      many_collection: employees
+      many_field: directus_user_id
+      one_allowed_collections: null
+      one_collection: directus_users
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: employees
+      column: directus_user_id
+      foreign_key_table: directus_users
+      foreign_key_column: id
+      constraint_name: employees_directus_user_id_foreign
+      on_update: NO ACTION
+      on_delete: SET NULL
+  - collection: resources
+    field: employee_id
+    related_collection: employees
+    meta:
+      junction_field: null
+      many_collection: resources
+      many_field: employee_id
+      one_allowed_collections: null
+      one_collection: employees
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: resources
+      sort_field: null
+    schema:
+      table: resources
+      column: employee_id
+      foreign_key_table: employees
+      foreign_key_column: id
+      constraint_name: resources_employee_id_foreign
+      on_update: NO ACTION
+      on_delete: SET NULL
+  - collection: resources
+    field: location_id
+    related_collection: locations
+    meta:
+      junction_field: null
+      many_collection: resources
+      many_field: location_id
+      one_allowed_collections: null
+      one_collection: locations
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: resources
+      sort_field: null
+    schema:
+      table: resources
+      column: location_id
+      foreign_key_table: locations
+      foreign_key_column: id
+      constraint_name: resources_location_id_foreign
+      on_update: NO ACTION
+      on_delete: SET NULL
+  - collection: resources
+    field: calendar_id
+    related_collection: calendars
+    meta:
+      junction_field: null
+      many_collection: resources
+      many_field: calendar_id
+      one_allowed_collections: null
+      one_collection: calendars
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: resources
+      sort_field: null
+    schema:
+      table: resources
+      column: calendar_id
+      foreign_key_table: calendars
+      foreign_key_column: id
+      constraint_name: resources_calendar_id_foreign
+      on_update: NO ACTION
+      on_delete: SET NULL
+  - collection: service_resources
+    field: service_id
+    related_collection: services
+    meta:
+      junction_field: null
+      many_collection: service_resources
+      many_field: service_id
+      one_allowed_collections: null
+      one_collection: services
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: service_resources
+      column: service_id
+      foreign_key_table: services
+      foreign_key_column: id
+      constraint_name: service_resources_service_id_foreign
+      on_update: NO ACTION
+      on_delete: SET NULL
+  - collection: service_resources
+    field: resource_id
+    related_collection: resources
+    meta:
+      junction_field: null
+      many_collection: service_resources
+      many_field: resource_id
+      one_allowed_collections: null
+      one_collection: resources
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: service_resources
+      column: resource_id
+      foreign_key_table: resources
+      foreign_key_column: id
+      constraint_name: service_resources_resource_id_foreign
+      on_update: NO ACTION
+      on_delete: SET NULL
+  - collection: tasks
+    field: contact_id
+    related_collection: contacts
+    meta:
+      junction_field: null
+      many_collection: tasks
+      many_field: contact_id
+      one_allowed_collections: null
+      one_collection: contacts
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: tasks
+      sort_field: null
+    schema:
+      table: tasks
+      column: contact_id
+      foreign_key_table: contacts
+      foreign_key_column: id
+      constraint_name: tasks_contact_id_foreign
+      on_update: NO ACTION
+      on_delete: SET NULL
+  - collection: tasks
+    field: assignee_id
+    related_collection: employees
+    meta:
+      junction_field: null
+      many_collection: tasks
+      many_field: assignee_id
+      one_allowed_collections: null
+      one_collection: employees
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: tasks
+      column: assignee_id
+      foreign_key_table: employees
+      foreign_key_column: id
+      constraint_name: tasks_assignee_id_foreign
+      on_update: NO ACTION
+      on_delete: SET NULL
