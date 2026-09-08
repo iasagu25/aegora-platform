@@ -1,0 +1,119 @@
+{
+  "name": "APPOINTMENT Availability",
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "workflowInputs",
+        "workflowInputs": {
+          "values": [
+            { "name": "service_id", "type": "string" },
+            { "name": "date", "type": "string" },
+            { "name": "location_id", "type": "string" },
+            { "name": "resource_id", "type": "string" },
+            { "name": "timezone", "type": "string" },
+            { "name": "exclude_appointment_id", "type": "string" }
+          ]
+        }
+      },
+      "id": "8f0e0a10-0000-4000-8000-000000000001",
+      "name": "When Executed by Agent",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const i = $input.first().json ?? {};\nconst svc = (i.service_id ?? '').toString().trim();\nconst date = (i.date ?? '').toString().trim();\n\nif (!svc || !/^\\d{4}-\\d{2}-\\d{2}$/.test(date)) {\n  return [{ json: { _valid: false, _reason: 'service_id y date (YYYY-MM-DD) son obligatorios' } }];\n}\n\nconst q = { service_id: svc, date };\nfor (const k of ['location_id', 'resource_id', 'timezone', 'exclude_appointment_id']) {\n  const v = (i[k] ?? '').toString().trim();\n  if (v) q[k] = v;\n}\n\nreturn [{ json: { _valid: true, _query: q } }];"
+      },
+      "id": "8f0e0a10-0000-4000-8000-000000000002",
+      "name": "Validate & build query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "cond-valid",
+              "leftValue": "={{ $json._valid }}",
+              "rightValue": "",
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8f0e0a10-0000-4000-8000-000000000003",
+      "name": "Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.BOOKING_API_BASE_URL }}/api/availability",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify($json._query) }}",
+        "options": {
+          "response": { "response": { "neverError": true, "fullResponse": true } }
+        }
+      },
+      "id": "8f0e0a10-0000-4000-8000-000000000004",
+      "name": "GET /api/availability",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, -100],
+      "credentials": {
+        "httpHeaderAuth": { "id": "REPLACE_WITH_CREDENTIAL_ID", "name": "Booking API" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json ?? {};\nconst status = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\n\nif (body.ok !== true) {\n  return [{ json: {\n    available: false,\n    error: body.error || ('http_' + status),\n    message: body.detail || 'El Booking API devolvió un error',\n  } }];\n}\n\nconst slots = Array.isArray(body.slots)\n  ? body.slots.map(s => ({ start_at: s.start_at, end_at: s.end_at }))\n  : [];\n\nreturn [{ json: {\n  available: slots.length > 0,\n  count: slots.length,\n  service_id: body.service_id,\n  date: body.date,\n  timezone: body.timezone,\n  duration_minutes: body.duration_minutes,\n  slots,\n} }];"
+      },
+      "id": "8f0e0a10-0000-4000-8000-000000000005",
+      "name": "Shape result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, -100]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: {\n  available: false,\n  error: 'missing_required_fields',\n  message: $input.first().json._reason || 'Parámetros insuficientes',\n} }];"
+      },
+      "id": "8f0e0a10-0000-4000-8000-000000000006",
+      "name": "Error out",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 120]
+    }
+  ],
+  "connections": {
+    "When Executed by Agent": {
+      "main": [[{ "node": "Validate & build query", "type": "main", "index": 0 }]]
+    },
+    "Validate & build query": {
+      "main": [[{ "node": "Valid?", "type": "main", "index": 0 }]]
+    },
+    "Valid?": {
+      "main": [
+        [{ "node": "GET /api/availability", "type": "main", "index": 0 }],
+        [{ "node": "Error out", "type": "main", "index": 0 }]
+      ]
+    },
+    "GET /api/availability": {
+      "main": [[{ "node": "Shape result", "type": "main", "index": 0 }]]
+    }
+  }
+}

@@ -20,6 +20,10 @@ N8N_PROXY_HOPS=1
 GENERIC_TIMEZONE=Europe/Madrid
 TZ=Europe/Madrid
 
+# Booking API interno del tenant (lo consume el workflow APPOINTMENT Availability).
+# El token va en una credencial n8n "Booking API" (Header Auth), no aquí.
+BOOKING_API_BASE_URL=http://${BOOKING_CONTAINER}:3000
+
 NODE_ENV=production
 
 N8N_LOG_LEVEL=info
