@@ -131,8 +131,8 @@ documentado sigue siendo cierto.
     sin `title`/`end_at`/`status`); `11 · Reschedule` → `POST /api/reschedule`;
     `05 · Update Status` rama `cancelled` → `POST /api/cancel` (resto de
     estados sigue en Directus). `22 · TOOL · Appointment Create` actualizado al
-    nuevo contrato. Probado end-to-end (reschedule+cancel; create pendiente de
-    prueba en VPS).
+    nuevo contrato. **Probado end-to-end en `demo`**: create + idempotencia +
+    slot_conflict, reschedule, cancel.
   - **No** enganchado al agente principal todavía (handover §12.4). Al
     engancharlo hay que actualizar el schema de la herramienta *Appointment
     Create* en el agente (expone `service_id`, quita `title`/`end_at`).
