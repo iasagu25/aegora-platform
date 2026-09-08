@@ -120,12 +120,19 @@ documentado sigue siendo cierto.
     `publish-tenant.sh`). Los tenants ya creados (`demo`, `aegora-internal`)
     conservan su `booking_<tenant>` vacío + refs en `config/tenant.env` y
     `config/backup.manifest.json` hasta limpieza manual.
-  - P4: workflow n8n `n8n/workflows/APPOINTMENT_Availability.json` (versionado;
-    área `n8n/` nueva). Sub-workflow que llama `GET /api/availability` y
-    devuelve slots compactos. URL base en un nodo `Config` (n8n 2.31 bloquea
-    `$env` en nodos por defecto) + credencial n8n Header Auth `Booking API` con
-    el token de `secrets/booking.env`. Import manual. **No** enganchado al
-    agente todavía (handover §12.4: solo tras las mutaciones con revalidación).
+  - n8n: 26 workflows de dominio de `demo` versionados en `n8n/workflows/`
+    (`NN-CATEGORIA-Nombre.json`, export normalizado). Credenciales por tenant
+    (`Directus · demo`, `Booking API`) NO en Git. n8n 2.31 bloquea `$env` en
+    nodos → la URL base va en un nodo `Config`.
+  - P4: `APPOINTMENT_Availability.json` — sub-workflow que llama
+    `GET /api/availability` y devuelve slots compactos. Probado en `demo`.
+  - P5 (parcial): `11 · Reschedule` → `POST /api/reschedule`; `05 · Update
+    Status` rama `cancelled` → `POST /api/cancel` (resto de estados sigue en
+    Directus). Probado end-to-end. **Pendiente**: `03 · Create` → `/api/book`
+    (necesita `service_id` + paso de disponibilidad ⇒ rehacer contrato de
+    `22 · TOOL`).
+  - **No** enganchado al agente principal todavía (handover §12.4: solo tras
+    tener disponibilidad + las 3 mutaciones con revalidación).
 - Pendiente:
   - Aplicar `base.yaml` (2652c43) + `booking-indexes.sql` en `aegora-internal`.
   - `demo`/`aegora-internal`: crear credencial `Booking API` en n8n, importar el
