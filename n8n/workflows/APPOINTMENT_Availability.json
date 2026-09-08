@@ -14,7 +14,8 @@
             { "name": "location_id", "type": "string" },
             { "name": "resource_id", "type": "string" },
             { "name": "timezone", "type": "string" },
-            { "name": "exclude_appointment_id", "type": "string" }
+            { "name": "exclude_appointment_id", "type": "string" },
+            { "name": "booking_base_url", "type": "string" }
           ]
         }
       },
@@ -26,13 +27,36 @@
     },
     {
       "parameters": {
-        "jsCode": "const i = $input.first().json ?? {};\nconst svc = (i.service_id ?? '').toString().trim();\nconst date = (i.date ?? '').toString().trim();\n\nif (!svc || !/^\\d{4}-\\d{2}-\\d{2}$/.test(date)) {\n  return [{ json: { _valid: false, _reason: 'service_id y date (YYYY-MM-DD) son obligatorios' } }];\n}\n\nconst q = { service_id: svc, date };\nfor (const k of ['location_id', 'resource_id', 'timezone', 'exclude_appointment_id']) {\n  const v = (i[k] ?? '').toString().trim();\n  if (v) q[k] = v;\n}\n\nreturn [{ json: { _valid: true, _query: q } }];"
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg-base-url",
+              "name": "booking_base_url",
+              "type": "string",
+              "value": "={{ ($json.booking_base_url && $json.booking_base_url.toString().trim()) || 'http://demo-booking:3000' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8f0e0a10-0000-4000-8000-000000000007",
+      "name": "Config (editar por tenant)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [220, 0],
+      "notes": "Cambia el fallback 'http://demo-booking:3000' por http://<tenant>-booking:3000. El agente puede sobreescribirlo pasando booking_base_url."
+    },
+    {
+      "parameters": {
+        "jsCode": "const i = $input.first().json ?? {};\nconst base = (i.booking_base_url ?? '').toString().trim().replace(/\\/$/, '');\nconst svc = (i.service_id ?? '').toString().trim();\nconst date = (i.date ?? '').toString().trim();\n\nif (!base) {\n  return [{ json: { _valid: false, _reason: 'booking_base_url no configurado (nodo Config)' } }];\n}\nif (!svc || !/^\\d{4}-\\d{2}-\\d{2}$/.test(date)) {\n  return [{ json: { _valid: false, _reason: 'service_id y date (YYYY-MM-DD) son obligatorios' } }];\n}\n\nconst q = { service_id: svc, date };\nfor (const k of ['location_id', 'resource_id', 'timezone', 'exclude_appointment_id']) {\n  const v = (i[k] ?? '').toString().trim();\n  if (v) q[k] = v;\n}\n\nreturn [{ json: { _valid: true, _url: base + '/api/availability', _query: q } }];"
       },
       "id": "8f0e0a10-0000-4000-8000-000000000002",
       "name": "Validate & build query",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [220, 0]
+      "position": [440, 0]
     },
     {
       "parameters": {
@@ -54,12 +78,12 @@
       "name": "Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [440, 0]
+      "position": [660, 0]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.BOOKING_API_BASE_URL }}/api/availability",
+        "url": "={{ $json._url }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendQuery": true,
@@ -73,7 +97,7 @@
       "name": "GET /api/availability",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [680, -100],
+      "position": [900, -100],
       "credentials": {
         "httpHeaderAuth": { "id": "REPLACE_WITH_CREDENTIAL_ID", "name": "Booking API" }
       }
@@ -86,7 +110,7 @@
       "name": "Shape result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, -100]
+      "position": [1120, -100]
     },
     {
       "parameters": {
@@ -96,11 +120,14 @@
       "name": "Error out",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 120]
+      "position": [900, 120]
     }
   ],
   "connections": {
     "When Executed by Agent": {
+      "main": [[{ "node": "Config (editar por tenant)", "type": "main", "index": 0 }]]
+    },
+    "Config (editar por tenant)": {
       "main": [[{ "node": "Validate & build query", "type": "main", "index": 0 }]]
     },
     "Validate & build query": {

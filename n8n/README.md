@@ -42,9 +42,11 @@ o, en error / parámetros insuficientes:
 
 ### Requisitos en el tenant
 
-1. **Env de n8n**: `BOOKING_API_BASE_URL` (p.ej. `http://demo-booking:3000`).
-   Ya lo añade `templates/tenant-stack/n8n/.env.tpl` (`http://${BOOKING_CONTAINER}:3000`).
-   Para tenants ya creados, añadirlo a mano a `config/compose/n8n/.env` y reiniciar n8n.
+1. **URL base**: en el nodo **Config (editar por tenant)** cambia el fallback
+   `http://demo-booking:3000` por `http://<tenant>-booking:3000`.
+   (n8n 2.31 bloquea `$env` en los nodos por defecto —
+   `N8N_BLOCK_ENV_ACCESS_IN_NODE=true`— por eso la URL va en un nodo, no en env.
+   El agente puede sobreescribirla pasando la entrada `booking_base_url`.)
 2. **Credencial n8n** tipo *Header Auth*, nombre `Booking API`:
    - Name: `Authorization`
    - Value: `Bearer <BOOKING_API_TOKEN>` — el token está en
