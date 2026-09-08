@@ -120,12 +120,22 @@ documentado sigue siendo cierto.
     `publish-tenant.sh`). Los tenants ya creados (`demo`, `aegora-internal`)
     conservan su `booking_<tenant>` vacío + refs en `config/tenant.env` y
     `config/backup.manifest.json` hasta limpieza manual.
-- Pendiente P3:
+  - P4: workflow n8n `n8n/workflows/APPOINTMENT_Availability.json` (versionado;
+    área `n8n/` nueva). Sub-workflow que llama `GET /api/availability` y
+    devuelve slots compactos. Requiere en el tenant: env `BOOKING_API_BASE_URL`
+    (ya en `templates/tenant-stack/n8n/.env.tpl`) + credencial n8n Header Auth
+    `Booking API` con el token de `secrets/booking.env`. Import manual. **No**
+    enganchado al agente principal todavía (handover §12.4: solo tras las
+    mutaciones con revalidación).
+- Pendiente:
   - Aplicar `base.yaml` (2652c43) + `booking-indexes.sql` en `aegora-internal`.
+  - `demo`/`aegora-internal`: añadir `BOOKING_API_BASE_URL` a `config/compose/n8n/.env`
+    + reiniciar n8n; crear credencial `Booking API`; importar el workflow.
   - Limpieza opcional: `DROP DATABASE booking_demo` / `booking_aegora-internal`
     (+ roles) y quitar sus refs de `config/tenant.env` + `config/backup.manifest.json`.
   - Migrar build A → imagen en GHCR (CI en `aegora-booking`).
-  - Herramienta n8n *Appointment Availability* que consume el Booking API (P4).
+  - Booking API dueño de create/reschedule/cancel desde n8n (handover §12.3);
+    luego enganchar el toolset al agente.
 
 ## Estilo de trabajo esperado
 - PLAN antes de APPLY siempre. No inventar flags de script sin confirmar
