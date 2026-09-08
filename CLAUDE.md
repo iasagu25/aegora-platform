@@ -122,15 +122,14 @@ documentado sigue siendo cierto.
     `config/backup.manifest.json` hasta limpieza manual.
   - P4: workflow n8n `n8n/workflows/APPOINTMENT_Availability.json` (versionado;
     área `n8n/` nueva). Sub-workflow que llama `GET /api/availability` y
-    devuelve slots compactos. Requiere en el tenant: env `BOOKING_API_BASE_URL`
-    (ya en `templates/tenant-stack/n8n/.env.tpl`) + credencial n8n Header Auth
-    `Booking API` con el token de `secrets/booking.env`. Import manual. **No**
-    enganchado al agente principal todavía (handover §12.4: solo tras las
-    mutaciones con revalidación).
+    devuelve slots compactos. URL base en un nodo `Config` (n8n 2.31 bloquea
+    `$env` en nodos por defecto) + credencial n8n Header Auth `Booking API` con
+    el token de `secrets/booking.env`. Import manual. **No** enganchado al
+    agente todavía (handover §12.4: solo tras las mutaciones con revalidación).
 - Pendiente:
   - Aplicar `base.yaml` (2652c43) + `booking-indexes.sql` en `aegora-internal`.
-  - `demo`/`aegora-internal`: añadir `BOOKING_API_BASE_URL` a `config/compose/n8n/.env`
-    + reiniciar n8n; crear credencial `Booking API`; importar el workflow.
+  - `demo`/`aegora-internal`: crear credencial `Booking API` en n8n, importar el
+    workflow, ajustar el nodo `Config` a `http://<tenant>-booking:3000`.
   - Limpieza opcional: `DROP DATABASE booking_demo` / `booking_aegora-internal`
     (+ roles) y quitar sus refs de `config/tenant.env` + `config/backup.manifest.json`.
   - Migrar build A → imagen en GHCR (CI en `aegora-booking`).
