@@ -1,0 +1,509 @@
+{
+  "id": "drf9hzcBw64s46H6",
+  "name": "14 · CONTACT · Phone Upsert",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "contact_id"
+            },
+            {
+              "name": "phone_number"
+            },
+            {
+              "name": "label"
+            },
+            {
+              "name": "is_primary",
+              "type": "boolean"
+            },
+            {
+              "name": "can_whatsapp",
+              "type": "boolean"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -16,
+        -400
+      ],
+      "id": "b0facea7-c26d-408f-893c-3cafef8e4a71",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json;\n\nconst clean = (value) => {\n  if (value === undefined || value === null) {\n    return null;\n  }\n\n  const result = String(value).trim();\n\n  return result === ''\n    ? null\n    : result;\n};\n\nconst contactId = clean(input.contact_id);\nconst phoneNumber = clean(input.phone_number);\n\nif (!contactId) {\n  throw new Error('contact_id es obligatorio');\n}\n\nif (!phoneNumber) {\n  throw new Error('phone_number es obligatorio');\n}\n\nconst uuidPattern =\n  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\n\nif (!uuidPattern.test(contactId)) {\n  throw new Error(\n    `contact_id no es un UUID válido: ${contactId}`\n  );\n}\n\n/*\n * Validación mínima de teléfono.\n *\n * La normalización canónica a E.164 ya NO se realiza aquí.\n * Esa responsabilidad pertenece al hook server-side de Directus.\n *\n * Aquí solo evitamos entradas evidentemente inválidas antes de\n * hacer llamadas adicionales al backend.\n */\nconst phoneCandidate =\n  phoneNumber.replace(/[^\\d+]/g, '');\n\nif (!/[0-9]/.test(phoneCandidate)) {\n  throw new Error(\n    `phone_number no contiene ningún número válido: ${phoneNumber}`\n  );\n}\n\nconst label =\n  clean(input.label) ?? 'mobile';\n\nconst isPrimary =\n  input.is_primary === true;\n\nconst canWhatsapp =\n  input.can_whatsapp === true;\n\nreturn [\n  {\n    json: {\n      contact_id: contactId,\n\n      phone: {\n        phone_number: phoneNumber,\n        label,\n        is_primary: isPrimary,\n        can_whatsapp: canWhatsapp\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "6cc76258-d28b-4066-b479-c7022121dde9",
+      "name": "Code · Validate + Normalize"
+    },
+    {
+      "parameters": {
+        "url": "http://demo-directus:8055/items/contact_phones",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "id,contact_id,phone_number,phone_normalized,label,is_primary,can_whatsapp"
+            },
+            {
+              "name": "filter",
+              "value": "={{ JSON.stringify({   _and: [     {       contact_id: {         _eq: $('Code · Validate + Normalize').item.json.contact_id       }     },     {       phone_normalized: {         _eq: $('Code · Validate + Normalize').item.json.phone.phone_normalized       }     }   ] }) }}"
+            },
+            {
+              "name": "limit",
+              "value": "2"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "24e48ce5-c171-41f2-8161-e2ea22e3b804",
+      "name": "HTTP · Find Existing Phone",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $json.data ?? [];\n\nif (!Array.isArray(rows)) {\n  throw new Error(\n    'Respuesta inesperada de Directus'\n  );\n}\n\nif (rows.length > 1) {\n  throw new Error(\n    'Hay más de un teléfono con el mismo phone_normalized para este contacto'\n  );\n}\n\nconst input =\n  $('Code · Validate + Normalize').item.json;\n\nreturn [\n  {\n    json: {\n      contact_id: input.contact_id,\n      phone: input.phone,\n\n      exists: rows.length === 1,\n\n      existing_phone_id:\n        rows.length === 1\n          ? rows[0].id\n          : null\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ],
+      "id": "4d203fdc-41d2-4726-bdde-84cad5335ff8",
+      "name": "Code · Classify Existing"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ 'http://demo-directus:8055/items/contact_phones/' + $('Code · Classify Existing').item.json.existing_phone_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    phone_number: $('Code · Validate + Normalize').item.json.phone.phone_number,\n    phone_normalized: $('Code · Validate + Normalize').item.json.phone.phone_normalized,\n    label: $('Code · Validate + Normalize').item.json.phone.label,\n    is_primary: $('Code · Validate + Normalize').item.json.phone.is_primary,\n    can_whatsapp: $('Code · Validate + Normalize').item.json.phone.can_whatsapp\n  }\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        816,
+        -16
+      ],
+      "id": "31737e32-dfc4-44ec-a290-7417f88a1fde",
+      "name": "HTTP · Update Phone",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://demo-directus:8055/items/contact_phones",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    contact_id: $('Code · Validate + Normalize').item.json.contact_id,\n    phone_number: $('Code · Validate + Normalize').item.json.phone.phone_number,\n    phone_normalized: $('Code · Validate + Normalize').item.json.phone.phone_normalized,\n    label: $('Code · Validate + Normalize').item.json.phone.label,\n    is_primary: $('Code · Validate + Normalize').item.json.phone.is_primary,\n    can_whatsapp: $('Code · Validate + Normalize').item.json.phone.can_whatsapp\n  }\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        816,
+        160
+      ],
+      "id": "808e7059-f2de-4b25-aa4c-b5d6cac07903",
+      "name": "HTTP · Create Phone",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://demo-directus:8055/items/contact_phones",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "id"
+            },
+            {
+              "name": "filter",
+              "value": "={{\n  JSON.stringify({\n    _and: [\n      {\n        contact_id: {\n          _eq: $('Code · Validate + Normalize').item.json.contact_id\n        }\n      },\n      {\n        is_primary: {\n          _eq: true\n        }\n      },\n      {\n        phone_normalized: {\n          _neq: $('Code · Validate + Normalize').item.json.phone.phone_normalized\n        }\n      }\n    ]\n  })\n}}"
+            },
+            {
+              "name": "limit",
+              "value": "-1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1280,
+        -192
+      ],
+      "id": "6b1b50d6-a5b0-4ccf-ae04-9853ea7594c8",
+      "name": "HTTP · Find Other Primaries",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "de67a658-51b2-4efa-b20c-adc67929a343",
+              "leftValue": "={{ $('Code · Validate + Normalize').item.json.phone.is_primary }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1024,
+        -16
+      ],
+      "id": "298d4064-4d06-49d9-9271-f82d7c519ade",
+      "name": "IF · Set Primary?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "2302334a-afd5-4fef-ad8d-484c3a284c6b",
+              "leftValue": "={{ $json.exists === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        592,
+        0
+      ],
+      "id": "6bb11f26-b2db-47cf-8d9b-20fa1d7dffac",
+      "name": "IF · Existing Phone?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $json.data ?? [];\n\nif (!Array.isArray(rows)) {\n  throw new Error(\n    'Respuesta inesperada de Directus'\n  );\n}\n\nconst keys = rows\n  .map(row => row?.id)\n  .filter(Boolean);\n\nreturn [\n  {\n    json: {\n      has_other_primaries:\n        keys.length > 0,\n\n      keys\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        -192
+      ],
+      "id": "4f7970e7-bec8-48d0-beb5-fd3e6333c2f3",
+      "name": "Code · Prepare Bulk Clear"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "e8b9e95a-450f-40ff-b622-7e81126c06f4",
+              "leftValue": "={{ $json.has_other_primaries }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1680,
+        -192
+      ],
+      "id": "b3e5a992-e7c5-44dc-977c-5543c9e79fd3",
+      "name": "IF · Has Other Primaries?"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://demo-directus:8055/items/contact_phones",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    keys: $('Code · Prepare Bulk Clear').item.json.keys,\n    data: {\n      is_primary: false\n    }\n  }\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1904,
+        -208
+      ],
+      "id": "d85fd4bc-9f79-4e92-ab35-af9a75910255",
+      "name": "HTTP · Bulk Clear Primaries",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input =\n  $('Code · Validate + Normalize').item.json;\n\nconst classification =\n  $('Code · Classify Existing').item.json;\n\nreturn [\n  {\n    json: {\n      status:\n        classification.exists\n          ? 'updated'\n          : 'created',\n\n      contact_id:\n        input.contact_id,\n\n      phone: {\n        phone_number:\n          input.phone.phone_number,\n\n        phone_normalized:\n          input.phone.phone_normalized,\n\n        label:\n          input.phone.label,\n\n        is_primary:\n          input.phone.is_primary,\n\n        can_whatsapp:\n          input.phone.can_whatsapp\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2144,
+        0
+      ],
+      "id": "71320dd8-61de-4711-a2d8-964341fcd87e",
+      "name": "Return Result"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code · Validate + Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Validate + Normalize": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Find Existing Phone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Find Existing Phone": {
+      "main": [
+        [
+          {
+            "node": "Code · Classify Existing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Classify Existing": {
+      "main": [
+        [
+          {
+            "node": "IF · Existing Phone?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Update Phone": {
+      "main": [
+        [
+          {
+            "node": "IF · Set Primary?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Create Phone": {
+      "main": [
+        [
+          {
+            "node": "IF · Set Primary?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Find Other Primaries": {
+      "main": [
+        [
+          {
+            "node": "Code · Prepare Bulk Clear",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF · Set Primary?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Find Other Primaries",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF · Existing Phone?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Update Phone",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP · Create Phone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Prepare Bulk Clear": {
+      "main": [
+        [
+          {
+            "node": "IF · Has Other Primaries?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF · Has Other Primaries?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Bulk Clear Primaries",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Bulk Clear Primaries": {
+      "main": [
+        [
+          {
+            "node": "Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}

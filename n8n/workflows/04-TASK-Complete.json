@@ -1,0 +1,117 @@
+{
+  "id": "yxU89EJ9fINiuDZF",
+  "name": "04 · TASK · Complete",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "task_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "5eb89a86-9a1c-429f-b105-4276bbb01f99",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json;\n\nconst clean = (value) => {\n  if (value === undefined || value === null) {\n    return null;\n  }\n\n  const result = String(value).trim();\n\n  return result === ''\n    ? null\n    : result;\n};\n\nconst taskId = clean(input.task_id);\n\nif (!taskId) {\n  throw new Error('task_id es obligatorio');\n}\n\nconst uuidPattern =\n  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\n\nif (!uuidPattern.test(taskId)) {\n  throw new Error(\n    `task_id no es un UUID válido: ${taskId}`\n  );\n}\n\nreturn [\n  {\n    json: {\n      task_id: taskId,\n\n      update: {\n        status: 'completed',\n        completed_at: new Date().toISOString()\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "528e99b5-0987-4201-9ede-d08317fdae32",
+      "name": "Code · Validate Input"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://demo-directus:8055/items/tasks/{{ $json.task_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.update }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "1fbc6c7b-4380-4d3b-b4cc-ded5ccd0f88f",
+      "name": "HTTP · Complete Task",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const task = $json.data;\n\nif (!task?.id) {\n  throw new Error(\n    'Directus no devolvió task.id'\n  );\n}\n\nif (task.status !== 'completed') {\n  throw new Error(\n    `Estado inesperado tras completar tarea: ${task.status}`\n  );\n}\n\nif (!task.completed_at) {\n  throw new Error(\n    'Directus no devolvió completed_at'\n  );\n}\n\nreturn [\n  {\n    json: {\n      status: 'completed',\n      task\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "570a843d-b805-4500-97b2-1139a6ccf2cc",
+      "name": "Code · Return Result"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code · Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Validate Input": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Complete Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Complete Task": {
+      "main": [
+        [
+          {
+            "node": "Code · Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}

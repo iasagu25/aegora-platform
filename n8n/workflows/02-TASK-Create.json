@@ -1,0 +1,132 @@
+{
+  "id": "F7NrOvNuZ4m9A4ep",
+  "name": "02 · TASK · Create",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "contact_id"
+            },
+            {
+              "name": "title"
+            },
+            {
+              "name": "description"
+            },
+            {
+              "name": "priority"
+            },
+            {
+              "name": "due_at"
+            },
+            {
+              "name": "source"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -608,
+        -48
+      ],
+      "id": "e89c9a77-7009-44bc-801d-a43c892140cb",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json;\n\nconst clean = (value) => {\n  if (value === undefined || value === null) {\n    return null;\n  }\n\n  const result = String(value).trim();\n\n  return result === ''\n    ? null\n    : result;\n};\n\nconst title = clean(input.title);\n\nif (!title) {\n  throw new Error('title es obligatorio');\n}\n\nconst allowedPriorities = [\n  'low',\n  'normal',\n  'high',\n  'urgent'\n];\n\nconst priority =\n  clean(input.priority) ?? 'normal';\n\nif (!allowedPriorities.includes(priority)) {\n  throw new Error(\n    `priority inválida: ${priority}`\n  );\n}\n\nconst allowedSources = [\n  'manual',\n  'ai',\n  'system'\n];\n\nconst source =\n  clean(input.source) ?? 'ai';\n\nif (!allowedSources.includes(source)) {\n  throw new Error(\n    `source inválido: ${source}`\n  );\n}\n\nlet dueAt = clean(input.due_at);\n\nif (dueAt) {\n  const parsed = new Date(dueAt);\n\n  if (Number.isNaN(parsed.getTime())) {\n    throw new Error(\n      `due_at no es una fecha válida: ${dueAt}`\n    );\n  }\n\n  dueAt = parsed.toISOString();\n}\n\nreturn [\n  {\n    json: {\n      task: {\n        contact_id: clean(input.contact_id),\n        title,\n        description: clean(input.description),\n\n        status: 'pending',\n        priority,\n        due_at: dueAt,\n        completed_at: null,\n\n        source\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        -48
+      ],
+      "id": "2ab1b7b8-ab0c-45b4-a7cb-bc2a433c9fff",
+      "name": "Code · Validate Input"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://demo-directus:8055/items/tasks",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.task }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -192,
+        -48
+      ],
+      "id": "a7ed1804-c99b-40f8-a09d-4c6a45657d82",
+      "name": "HTTP · Create Task",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const task = $json.data;\n\nif (!task?.id) {\n  throw new Error(\n    'Directus no devolvió task.id'\n  );\n}\n\nreturn [{\n  json: {\n    status: 'created',\n    task\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16,
+        -48
+      ],
+      "id": "d392e38c-dd4a-4350-b2aa-1db3968a65ab",
+      "name": "Code · Return Result"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code · Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Validate Input": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Create Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Create Task": {
+      "main": [
+        [
+          {
+            "node": "Code · Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}

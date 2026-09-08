@@ -1,0 +1,122 @@
+{
+  "id": "edLe0OSc81olLdry",
+  "name": "10 · APPOINTMENT · Get",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "appointment_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "f0090694-7d32-45b6-a27f-7090d31b9c23",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const appointment = $json.data;\n\nif (!appointment?.id) {\n  throw new Error(\n    'Directus no devolvió una cita válida'\n  );\n}\n\nfunction contactLabel(contact) {\n  if (!contact) {\n    return 'Sin contacto';\n  }\n\n  const name = [\n    contact.first_name,\n    contact.last_name\n  ]\n    .filter(Boolean)\n    .join(' ')\n    .trim();\n\n  if (contact.company && name) {\n    return `${contact.company} · ${name}`;\n  }\n\n  return (\n    contact.company ||\n    name ||\n    'Sin contacto'\n  );\n}\n\nconst contact = appointment.contact_id;\n\nreturn [\n  {\n    json: {\n      status: 'resolved',\n\n      appointment: {\n        id:\n          appointment.id,\n\n        title:\n          appointment.title ?? null,\n\n        start_at:\n          appointment.start_at ?? null,\n\n        end_at:\n          appointment.end_at ?? null,\n\n        status:\n          appointment.status ?? null,\n\n        notes:\n          appointment.notes ?? null,\n\n        source:\n          appointment.source ?? null,\n\n        external_provider:\n          appointment.external_provider ?? null,\n\n        external_event_id:\n          appointment.external_event_id ?? null,\n\n        created_at:\n          appointment.created_at ?? null,\n\n        updated_at:\n          appointment.updated_at ?? null\n      },\n\n      contact: contact\n        ? {\n            id:\n              contact.id,\n\n            first_name:\n              contact.first_name ?? null,\n\n            last_name:\n              contact.last_name ?? null,\n\n            company:\n              contact.company ?? null,\n\n            email:\n              contact.email ?? null,\n\n            status:\n              contact.status ?? null,\n\n            label:\n              contactLabel(contact)\n          }\n        : null\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "e1a8f2e1-2e93-4750-9866-ff663de34a24",
+      "name": "Code · Normalize Result"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json;\n\nconst clean = (value) => {\n  if (value === undefined || value === null) {\n    return null;\n  }\n\n  const result = String(value).trim();\n\n  return result === ''\n    ? null\n    : result;\n};\n\nconst appointmentId = clean(\n  input.appointment_id\n);\n\nif (!appointmentId) {\n  throw new Error(\n    'appointment_id es obligatorio'\n  );\n}\n\nconst uuidPattern =\n  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\n\nif (!uuidPattern.test(appointmentId)) {\n  throw new Error(\n    `appointment_id no es un UUID válido: ${appointmentId}`\n  );\n}\n\nreturn [\n  {\n    json: {\n      appointment_id: appointmentId\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "a4c744fd-451b-4413-9553-99a858b9dc33",
+      "name": "Code · Validate Input"
+    },
+    {
+      "parameters": {
+        "url": "=http://demo-directus:8055/items/appointments/{{ $json.appointment_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "id,title,start_at,end_at,status,notes,source,external_provider,external_event_id,created_at,updated_at,contact_id.id,contact_id.first_name,contact_id.last_name,contact_id.company,contact_id.email,contact_id.status"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "e96dd99f-a6fb-4459-a5d7-da056bc25caa",
+      "name": "HTTP · Get Appointment",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code · Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Validate Input": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Get Appointment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Get Appointment": {
+      "main": [
+        [
+          {
+            "node": "Code · Normalize Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}

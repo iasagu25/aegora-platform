@@ -1,0 +1,120 @@
+{
+  "id": "YM2s2aPgjbOKBP8q",
+  "name": "05 · APPOINTMENT · Update Status",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "appointment_id"
+            },
+            {
+              "name": "status"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "cc6ecd99-4174-4297-b857-2431a83103e0",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json;\n\nconst clean = (value) => {\n  if (value === undefined || value === null) {\n    return null;\n  }\n\n  const result = String(value).trim();\n\n  return result === ''\n    ? null\n    : result;\n};\n\nconst appointmentId = clean(input.appointment_id);\nconst status = clean(input.status);\n\nif (!appointmentId) {\n  throw new Error('appointment_id es obligatorio');\n}\n\nconst uuidPattern =\n  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\n\nif (!uuidPattern.test(appointmentId)) {\n  throw new Error(\n    `appointment_id no es un UUID válido: ${appointmentId}`\n  );\n}\n\nconst allowedStatuses = [\n  'scheduled',\n  'confirmed',\n  'cancelled',\n  'completed',\n  'no_show'\n];\n\nif (!status) {\n  throw new Error('status es obligatorio');\n}\n\nif (!allowedStatuses.includes(status)) {\n  throw new Error(\n    `status inválido: ${status}`\n  );\n}\n\nreturn [\n  {\n    json: {\n      appointment_id: appointmentId,\n\n      update: {\n        status\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "4016f561-734c-48b3-8005-93d1dc62c0c6",
+      "name": "Code · Validate Input"
+    },
+    {
+      "parameters": {
+        "jsCode": "const appointment = $json.data;\n\nif (!appointment?.id) {\n  throw new Error(\n    'Directus no devolvió appointment.id'\n  );\n}\n\nreturn [\n  {\n    json: {\n      status: 'updated',\n      appointment\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "21cdb419-45d6-418c-9a00-72511c398036",
+      "name": "Code · Return Result"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://demo-directus:8055/items/appointments/{{ $json.appointment_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.update }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "fc978731-0983-4fa5-aea6-6f675c99bc99",
+      "name": "HTTP · Update Appointment Status",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code · Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Validate Input": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Update Appointment Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Update Appointment Status": {
+      "main": [
+        [
+          {
+            "node": "Code · Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}

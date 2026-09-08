@@ -1,0 +1,123 @@
+{
+  "id": "yNU7a4Tc327iBxl4",
+  "name": "11 · APPOINTMENT · Reschedule",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "appointment_id"
+            },
+            {
+              "name": "start_at"
+            },
+            {
+              "name": "end_at"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "a3fdd7e9-9bde-49ad-b423-40561333d910",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const appointment = $json.data;\n\nif (!appointment?.id) {\n  throw new Error(\n    'Directus no devolvió appointment.id'\n  );\n}\n\nif (\n  !appointment.start_at ||\n  !appointment.end_at\n) {\n  throw new Error(\n    'Directus no devolvió las nuevas fechas'\n  );\n}\n\nreturn [\n  {\n    json: {\n      status: 'rescheduled',\n      appointment\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "2506eea7-783f-45e9-a1f8-18318bcff0c8",
+      "name": "Code · Normalize Result"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json;\n\nconst clean = (value) => {\n  if (value === undefined || value === null) {\n    return null;\n  }\n\n  const result = String(value).trim();\n\n  return result === ''\n    ? null\n    : result;\n};\n\nconst appointmentId = clean(\n  input.appointment_id\n);\n\nconst startAtRaw = clean(\n  input.start_at\n);\n\nconst endAtRaw = clean(\n  input.end_at\n);\n\nif (!appointmentId) {\n  throw new Error(\n    'appointment_id es obligatorio'\n  );\n}\n\nconst uuidPattern =\n  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\n\nif (!uuidPattern.test(appointmentId)) {\n  throw new Error(\n    `appointment_id no es un UUID válido: ${appointmentId}`\n  );\n}\n\nif (!startAtRaw) {\n  throw new Error(\n    'start_at es obligatorio'\n  );\n}\n\nif (!endAtRaw) {\n  throw new Error(\n    'end_at es obligatorio'\n  );\n}\n\nconst startAt = new Date(startAtRaw);\nconst endAt = new Date(endAtRaw);\n\nif (Number.isNaN(startAt.getTime())) {\n  throw new Error(\n    `start_at no es una fecha válida: ${startAtRaw}`\n  );\n}\n\nif (Number.isNaN(endAt.getTime())) {\n  throw new Error(\n    `end_at no es una fecha válida: ${endAtRaw}`\n  );\n}\n\nif (endAt.getTime() <= startAt.getTime()) {\n  throw new Error(\n    'end_at debe ser posterior a start_at'\n  );\n}\n\nreturn [\n  {\n    json: {\n      appointment_id: appointmentId,\n\n      update: {\n        start_at: startAt.toISOString(),\n        end_at: endAt.toISOString()\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "e6ddf030-c19f-4f6f-b430-67cb452acd86",
+      "name": "Code · Validate Input"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://demo-directus:8055/items/appointments/{{ $json.appointment_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.update }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "b7d7b40f-9c36-423e-8894-dadecd9cc9fa",
+      "name": "HTTP · Reschedule Appointment",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code · Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Validate Input": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Reschedule Appointment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Reschedule Appointment": {
+      "main": [
+        [
+          {
+            "node": "Code · Normalize Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}

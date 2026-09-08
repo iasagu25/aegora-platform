@@ -1,0 +1,320 @@
+{
+  "id": "U92CFX4zuDzThgyg",
+  "name": "16 · CORE · Contact Context",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "contact_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "1e324919-25d6-4f90-8197-0d4930408153",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json;\n\nconst clean = (value) => {\n  if (value === undefined || value === null) {\n    return null;\n  }\n\n  const result = String(value).trim();\n\n  return result === ''\n    ? null\n    : result;\n};\n\nconst contactId = clean(input.contact_id);\n\nif (!contactId) {\n  throw new Error(\n    'contact_id es obligatorio'\n  );\n}\n\nconst uuidPattern =\n  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\n\nif (!uuidPattern.test(contactId)) {\n  throw new Error(\n    `contact_id no es un UUID válido: ${contactId}`\n  );\n}\n\nreturn [\n  {\n    json: {\n      contact_id: contactId\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "0335621f-3f9e-4ab2-9c83-d7bece27fee9",
+      "name": "Code · Validate Input"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "Ba2Ci0yOTbyJm4Qh",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/Ba2Ci0yOTbyJm4Qh",
+          "cachedResultName": "06 · CONTACT · Get"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "={{ $json.contact_id }}"
+          },
+          "matchingColumns": [
+            "contact_id"
+          ],
+          "schema": [
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        416,
+        0
+      ],
+      "id": "d0636f46-b61b-4bf4-8b7c-47a3d3cc199a",
+      "name": "Execute Workflow · CONTACT Get"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "wumcl2fYEl84F5LM",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/wumcl2fYEl84F5LM",
+          "cachedResultName": "08 · TASK · List Pending"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "={{ $('Code · Validate Input').item.json.contact_id }}",
+            "limit": 50
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "limit",
+              "displayName": "limit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        864,
+        -96
+      ],
+      "id": "4b5d0784-41f3-4703-b906-84d6b3b900e4",
+      "name": "Execute Workflow · TASK List Pending"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "S7pwfyZoTtYJ6cgB",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/S7pwfyZoTtYJ6cgB",
+          "cachedResultName": "09 · APPOINTMENT · List Upcoming"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "={{ $('Code · Validate Input').item.json.contact_id }}",
+            "limit": 50
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "limit",
+              "displayName": "limit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1088,
+        -96
+      ],
+      "id": "609c48d4-70d5-455f-ad51-fa1c92b230c5",
+      "name": "Execute Workflow · APPOINTMENT List Upcoming"
+    },
+    {
+      "parameters": {
+        "jsCode": "const contactResult =\n  $('Execute Workflow · CONTACT Get')\n    .first()\n    .json;\n\nconst taskResult =\n  $('Execute Workflow · TASK List Pending')\n    .first()\n    .json;\n\nconst appointmentResult =\n  $('Execute Workflow · APPOINTMENT List Upcoming')\n    .first()\n    .json;\n\nif (\n  contactResult.status !== 'resolved' ||\n  !contactResult.contact?.id\n) {\n  throw new Error(\n    'No se pudo resolver el contacto'\n  );\n}\n\nconst tasks =\n  Array.isArray(taskResult.tasks)\n    ? taskResult.tasks\n    : [];\n\nconst appointments =\n  Array.isArray(\n    appointmentResult.appointments\n  )\n    ? appointmentResult.appointments\n    : [];\n\nconst taskSummary =\n  taskResult.summary ?? {\n    total: tasks.length,\n    overdue: 0,\n    today: 0,\n    upcoming: 0,\n    no_due_date: 0\n  };\n\nconst appointmentSummary =\n  appointmentResult.summary ?? {\n    total: appointments.length,\n    today: 0,\n    tomorrow: 0,\n    upcoming: 0,\n    confirmed: 0,\n    scheduled: 0\n  };\n\n/*\n * 08 · TASK · List Pending ya devuelve las tareas\n * ordenadas por relevancia temporal.\n */\nconst attentionTask =\n  tasks[0] ?? null;\n\n/*\n * 09 · APPOINTMENT · List Upcoming devuelve\n * las citas ordenadas por start_at ascendente.\n */\nconst nextAppointment =\n  appointments[0] ?? null;\n\nconst signals = {\n  has_pending_tasks:\n    taskSummary.total > 0,\n\n  has_overdue_tasks:\n    taskSummary.overdue > 0,\n\n  has_tasks_today:\n    taskSummary.today > 0,\n\n  has_upcoming_appointments:\n    appointmentSummary.total > 0,\n\n  has_appointment_today:\n    appointmentSummary.today > 0\n};\n\nreturn [\n  {\n    json: {\n      status: 'resolved',\n\n      contact: {\n        ...contactResult.contact,\n\n        primary_phone:\n          contactResult.primary_phone ?? null,\n\n        phones:\n          Array.isArray(contactResult.phones)\n            ? contactResult.phones\n            : []\n      },\n\n      tasks: {\n        summary: taskSummary,\n        attention_task: attentionTask,\n        items: tasks\n      },\n\n      appointments: {\n        summary: appointmentSummary,\n        next_appointment: nextAppointment,\n        items: appointments\n      },\n\n      signals,\n\n      generated_at:\n        new Date().toISOString()\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        -96
+      ],
+      "id": "90397b91-5a10-450d-9d4a-305ac9611bdd",
+      "name": "Code · Build Context"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "58023225-e3a0-4762-8cea-a0377ae67212",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "resolved",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        624,
+        0
+      ],
+      "id": "0c879f90-3bc6-41e9-ab54-2ff68f995442",
+      "name": "IF · Contact Resolved?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json ?? {};\n\nreturn [\n  {\n    json: {\n      status: 'not_found',\n      contact: null,\n      primary_phone: null,\n      phones: [],\n      tasks: {\n        summary: {\n          total: 0,\n          overdue: 0,\n          today: 0,\n          upcoming: 0,\n          no_due_date: 0\n        },\n        attention_task: null,\n        items: []\n      },\n      appointments: {\n        summary: {\n          total: 0,\n          today: 0,\n          tomorrow: 0,\n          upcoming: 0,\n          confirmed: 0,\n          scheduled: 0\n        },\n        next_appointment: null,\n        items: []\n      },\n      signals: {\n        has_pending_tasks: false,\n        has_overdue_tasks: false,\n        has_tasks_today: false,\n        has_upcoming_appointments: false,\n        has_appointment_today: false\n      },\n      generated_at: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        240
+      ],
+      "id": "f3be265c-0411-4870-99bc-a8b2401a6806",
+      "name": "Code · Return Not Found"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code · Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow · CONTACT Get",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow · CONTACT Get": {
+      "main": [
+        [
+          {
+            "node": "IF · Contact Resolved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow · TASK List Pending": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow · APPOINTMENT List Upcoming",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow · APPOINTMENT List Upcoming": {
+      "main": [
+        [
+          {
+            "node": "Code · Build Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF · Contact Resolved?": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow · TASK List Pending",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Return Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}

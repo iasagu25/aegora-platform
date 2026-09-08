@@ -1,0 +1,138 @@
+{
+  "id": "wumcl2fYEl84F5LM",
+  "name": "08 · TASK · List Pending",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "contact_id"
+            },
+            {
+              "name": "limit",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "4023b3ca-9f32-44b5-932e-1f8899bfc246",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $json.data ?? [];\n\nif (!Array.isArray(rows)) {\n  throw new Error(\n    'Respuesta inesperada de Directus'\n  );\n}\n\nconst now = new Date();\n\nfunction contactLabel(contact) {\n  if (!contact) {\n    return 'Sin contacto';\n  }\n\n  const name = [\n    contact.first_name,\n    contact.last_name\n  ]\n    .filter(Boolean)\n    .join(' ')\n    .trim();\n\n  if (contact.company && name) {\n    return `${contact.company} · ${name}`;\n  }\n\n  return (\n    contact.company ||\n    name ||\n    'Sin contacto'\n  );\n}\n\nfunction dueState(task) {\n  if (!task.due_at) {\n    return {\n      state: 'no_due_date',\n      label: 'Sin fecha',\n      sort_rank: 3,\n      sort_time: Number.MAX_SAFE_INTEGER\n    };\n  }\n\n  const due = new Date(task.due_at);\n\n  if (Number.isNaN(due.getTime())) {\n    return {\n      state: 'invalid_due_date',\n      label: 'Fecha inválida',\n      sort_rank: 4,\n      sort_time: Number.MAX_SAFE_INTEGER\n    };\n  }\n\n  if (due.getTime() < now.getTime()) {\n    return {\n      state: 'overdue',\n      label: 'Retrasada',\n      sort_rank: 0,\n      sort_time: due.getTime()\n    };\n  }\n\n  const sameDay =\n    due.getFullYear() === now.getFullYear() &&\n    due.getMonth() === now.getMonth() &&\n    due.getDate() === now.getDate();\n\n  if (sameDay) {\n    return {\n      state: 'today',\n      label: 'Hoy',\n      sort_rank: 1,\n      sort_time: due.getTime()\n    };\n  }\n\n  return {\n    state: 'upcoming',\n    label: 'Próxima',\n    sort_rank: 2,\n    sort_time: due.getTime()\n  };\n}\n\nconst tasks = rows.map(task => {\n  const due = dueState(task);\n\n  return {\n    id: task.id,\n\n    title: task.title ?? null,\n    description: task.description ?? null,\n\n    status: task.status ?? null,\n    priority: task.priority ?? null,\n\n    due_at: task.due_at ?? null,\n    due_state: due.state,\n    due_label: due.label,\n\n    source: task.source ?? null,\n\n    created_at: task.created_at ?? null,\n    updated_at: task.updated_at ?? null,\n\n    contact: task.contact_id\n      ? {\n          id: task.contact_id.id,\n          first_name:\n            task.contact_id.first_name ?? null,\n          last_name:\n            task.contact_id.last_name ?? null,\n          company:\n            task.contact_id.company ?? null,\n          email:\n            task.contact_id.email ?? null,\n          label:\n            contactLabel(task.contact_id)\n        }\n      : null,\n\n    _sort_rank: due.sort_rank,\n    _sort_time: due.sort_time\n  };\n});\n\nconst priorityRank = {\n  urgent: 0,\n  high: 1,\n  normal: 2,\n  low: 3\n};\n\ntasks.sort((a, b) => {\n  if (a._sort_rank !== b._sort_rank) {\n    return a._sort_rank - b._sort_rank;\n  }\n\n  if (a._sort_time !== b._sort_time) {\n    return a._sort_time - b._sort_time;\n  }\n\n  return (\n    (priorityRank[a.priority] ?? 99) -\n    (priorityRank[b.priority] ?? 99)\n  );\n});\n\nconst normalizedTasks = tasks.map(task => {\n  const {\n    _sort_rank,\n    _sort_time,\n    ...cleanTask\n  } = task;\n\n  return cleanTask;\n});\n\nconst summary = {\n  total: normalizedTasks.length,\n\n  overdue:\n    normalizedTasks.filter(\n      task => task.due_state === 'overdue'\n    ).length,\n\n  today:\n    normalizedTasks.filter(\n      task => task.due_state === 'today'\n    ).length,\n\n  upcoming:\n    normalizedTasks.filter(\n      task => task.due_state === 'upcoming'\n    ).length,\n\n  no_due_date:\n    normalizedTasks.filter(\n      task => task.due_state === 'no_due_date'\n    ).length\n};\n\nreturn [\n  {\n    json: {\n      status:\n        normalizedTasks.length === 0\n          ? 'empty'\n          : 'ok',\n\n      summary,\n\n      tasks: normalizedTasks\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "f67d6976-a933-4885-8b3e-b8638f4bb5e2",
+      "name": "Code · Normalize Result"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json;\n\nconst clean = (value) => {\n  if (value === undefined || value === null) {\n    return null;\n  }\n\n  const result = String(value).trim();\n\n  return result === ''\n    ? null\n    : result;\n};\n\nconst contactId = clean(input.contact_id);\n\nif (contactId) {\n  const uuidPattern =\n    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\n\n  if (!uuidPattern.test(contactId)) {\n    throw new Error(\n      `contact_id no es un UUID válido: ${contactId}`\n    );\n  }\n}\n\nlet limit = Number(input.limit ?? 50);\n\nif (\n  !Number.isInteger(limit) ||\n  limit < 1\n) {\n  throw new Error(\n    `limit inválido: ${input.limit}`\n  );\n}\n\nlimit = Math.min(limit, 100);\n\nconst filter = {\n  status: {\n    _eq: 'pending'\n  }\n};\n\nif (contactId) {\n  filter.contact_id = {\n    _eq: contactId\n  };\n}\n\nreturn [\n  {\n    json: {\n      contact_id: contactId,\n      limit,\n      filter\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "4273c1d0-2bb6-4de6-a32c-a1034a138ec0",
+      "name": "Code · Prepare Query"
+    },
+    {
+      "parameters": {
+        "url": "=http://demo-directus:8055/items/tasks",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "id,title,description,status,priority,due_at,completed_at,source,created_at,updated_at,contact_id.id,contact_id.first_name,contact_id.last_name,contact_id.company,contact_id.email"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $('Code · Prepare Query').item.json.limit }}"
+            },
+            {
+              "name": "filter",
+              "value": "={{ JSON.stringify($('Code · Prepare Query').item.json.filter) }}"
+            },
+            {
+              "name": "sort",
+              "value": "due_at,-created_at"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "ebabccb0-130c-4740-9eee-af0f50042817",
+      "name": "HTTP · List Pending Tasks",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code · Prepare Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Prepare Query": {
+      "main": [
+        [
+          {
+            "node": "HTTP · List Pending Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · List Pending Tasks": {
+      "main": [
+        [
+          {
+            "node": "Code · Normalize Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}

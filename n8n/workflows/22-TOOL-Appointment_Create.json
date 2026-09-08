@@ -1,0 +1,540 @@
+{
+  "id": "TN8UZBnpGC9HKjqq",
+  "name": "22 · TOOL · Appointment Create",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "contact_id"
+            },
+            {
+              "name": "phone"
+            },
+            {
+              "name": "email"
+            },
+            {
+              "name": "query"
+            },
+            {
+              "name": "title"
+            },
+            {
+              "name": "start_at"
+            },
+            {
+              "name": "end_at"
+            },
+            {
+              "name": "notes"
+            },
+            {
+              "name": "source"
+            },
+            {
+              "name": "external_provider"
+            },
+            {
+              "name": "external_event_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -96,
+        16
+      ],
+      "id": "960e6dde-28e4-41ea-9947-07edad1d8cc4",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "hNxGTXIyjXkP7iwR",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/hNxGTXIyjXkP7iwR",
+          "cachedResultName": "17 · CORE · Resolve + Context"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "={{ $json.contact_id }}",
+            "phone": "={{ $json.phone }}",
+            "email": "={{ $json.email }}",
+            "query": "={{ $json.query }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "query",
+              "displayName": "query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        624,
+        0
+      ],
+      "id": "1cf49025-2551-4490-9875-a784e981ad63",
+      "name": "Call '17 · CORE · Resolve + Context'"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json ?? {};\n\nif (\n  input.status !== 'created' ||\n  !input.appointment?.id\n) {\n  return [{\n    json: {\n      ok: false,\n      status: 'error',\n      message: 'La cita no pudo crearse correctamente.',\n      data: {\n        result: input,\n      },\n    },\n  }];\n}\n\nreturn [{\n  json: {\n    ok: true,\n    status: 'created',\n    message: 'Cita creada correctamente.',\n    data: {\n      appointment: input.appointment,\n    },\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1376,
+        -32
+      ],
+      "id": "8ceccc4a-baf6-42e9-82e0-c8fffc22864e",
+      "name": "Code · Tool Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json ?? {};\n\nconst clean = (value) => {\n  if (value === undefined || value === null) {\n    return null;\n  }\n\n  const text = String(value).trim();\n  return text === '' ? null : text;\n};\n\n// --------------------------------------------------\n// Contact resolution\n// --------------------------------------------------\n\nconst contactId = clean(input.contact_id);\nconst phone = clean(input.phone);\nconst email = clean(input.email)?.toLowerCase() ?? null;\nconst query = clean(input.query);\n\n// --------------------------------------------------\n// Appointment\n// --------------------------------------------------\n\nconst title = clean(input.title);\nconst startAt = clean(input.start_at);\nconst endAt = clean(input.end_at);\nconst status = clean(input.status) ?? 'scheduled';\n\nconst notes = clean(input.notes);\nconst source = clean(input.source) ?? 'ai';\nconst externalProvider = clean(input.external_provider);\nconst externalEventId = clean(input.external_event_id);\n\nconst allowedStatuses = [\n  'scheduled',\n  'confirmed',\n  'cancelled',\n  'completed',\n  'no_show',\n];\n\n// --------------------------------------------------\n// Validation\n// --------------------------------------------------\n\nconst errors = [];\n\n// Contact identifier\nif (!contactId && !phone && !email && !query) {\n  errors.push(\n    'Es obligatorio indicar contact_id, phone, email o query para identificar al contacto.'\n  );\n}\n\n// Title\nif (!title) {\n  errors.push('El título de la cita es obligatorio.');\n}\n\n// Start\nif (!startAt) {\n  errors.push('La fecha/hora de inicio es obligatoria.');\n} else if (Number.isNaN(Date.parse(startAt))) {\n  errors.push('La fecha/hora de inicio no es válida.');\n}\n\n// End\nif (!endAt) {\n  errors.push('La fecha/hora de fin es obligatoria.');\n} else if (Number.isNaN(Date.parse(endAt))) {\n  errors.push('La fecha/hora de fin no es válida.');\n}\n\n// Chronological consistency\nif (\n  startAt &&\n  endAt &&\n  !Number.isNaN(Date.parse(startAt)) &&\n  !Number.isNaN(Date.parse(endAt)) &&\n  Date.parse(endAt) <= Date.parse(startAt)\n) {\n  errors.push(\n    'La fecha/hora de fin debe ser posterior al inicio.'\n  );\n}\n\n// Status\nif (!allowedStatuses.includes(status)) {\n  errors.push(\n    `El estado de la cita no es válido. Valores permitidos: ${allowedStatuses.join(', ')}.`\n  );\n}\n\n// --------------------------------------------------\n// Output\n// --------------------------------------------------\n\nreturn [{\n  json: {\n    valid: errors.length === 0,\n    validation_errors: errors,\n\n    contact_id: contactId,\n    phone,\n    email,\n    query,\n\n    title,\n    start_at: startAt,\n    end_at: endAt,\n    status,\n    notes,\n    source,\n    external_provider: externalProvider,\n    external_event_id: externalEventId,\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        16
+      ],
+      "id": "8ee1cc2a-71a5-487d-98c1-67d6ba7c0106",
+      "name": "Code · Normalize Input"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "single",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "a69c340f-3dff-48b8-bd28-7d2370a9a093"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "single"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "0d69a686-0d37-48f6-8167-a6ff97a0317d",
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "multiple",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "multiple"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "37c040fc-0de6-4ada-8c21-0df047a4e645",
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "not_found",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "not_found"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        832,
+        -16
+      ],
+      "id": "c10e3adb-88f2-4feb-864a-a7b3b9b015ac",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json ?? {};\n\nreturn [{\n  json: {\n    ok: false,\n    status: 'multiple',\n    message: 'Hay varios contactos que coinciden. Es necesario desambiguar antes de crear la cita.',\n    data: {\n      query: input.query ?? null,\n      count: input.count ?? 0,\n      candidates: input.candidates ?? [],\n    },\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1376,
+        144
+      ],
+      "id": "f344f467-e23a-42e5-a3ae-0f2f991125d8",
+      "name": "Code · Tool Response1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json ?? {};\n\nreturn [{\n  json: {\n    ok: false,\n    status: 'not_found',\n    message: 'No se ha encontrado ningún contacto para asociar la cita.',\n    data: {\n      query: input.query ?? null,\n    },\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1376,
+        320
+      ],
+      "id": "c26488c0-0b58-42d1-8156-52f163dbd19e",
+      "name": "Code · Tool Response2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "2f9b216f-61c0-420e-bed2-9bd62ab391a1",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        320,
+        16
+      ],
+      "id": "b1867d5f-258f-4bb7-85f4-1780ceab6f29",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "pE28oSI8VVsSUOsO",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/pE28oSI8VVsSUOsO",
+          "cachedResultName": "03 · APPOINTMENT · Create"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "={{ $json.contact_id }}",
+            "title": "={{ $('Code · Normalize Input').item.json.title }}",
+            "source": "={{ $('Code · Normalize Input').item.json.source }}",
+            "start_at": "={{ $('Code · Normalize Input').item.json.start_at }}",
+            "end_at": "={{ $('Code · Normalize Input').item.json.end_at }}",
+            "notes": "={{ $('Code · Normalize Input').item.json.notes }}",
+            "external_provider": "={{ $('Code · Normalize Input').item.json.external_provider }}",
+            "external_event_id": "={{ $('Code · Normalize Input').item.json.external_event_id }}",
+            "status": "={{ $('Code · Normalize Input').item.json.status }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "start_at",
+              "displayName": "start_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "end_at",
+              "displayName": "end_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "external_provider",
+              "displayName": "external_provider",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "external_event_id",
+              "displayName": "external_event_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1120,
+        -32
+      ],
+      "id": "652ece91-6dfa-4ea0-933d-533eb8d39c11",
+      "name": "Call '03 · APPOINTMENT · Create'"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json ?? {};\n\nreturn [{\n  json: {\n    ok: false,\n    status: 'validation_error',\n    message: 'Los datos de la cita no son válidos.',\n    data: {\n      errors: input.validation_errors ?? [],\n    },\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1376,
+        496
+      ],
+      "id": "87a7f09b-0446-4b65-bae7-9e332c06e0ea",
+      "name": "Code · Return Validation Error"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code · Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call '17 · CORE · Resolve + Context'": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Call '03 · APPOINTMENT · Create'",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Tool Response1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Tool Response2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Call '17 · CORE · Resolve + Context'",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Return Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call '03 · APPOINTMENT · Create'": {
+      "main": [
+        [
+          {
+            "node": "Code · Tool Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}

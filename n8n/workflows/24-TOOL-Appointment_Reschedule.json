@@ -1,0 +1,553 @@
+{
+  "id": "2ehpGE2LwB7jhGAv",
+  "name": "24 · TOOL · Appointment Reschedule",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "contact_id"
+            },
+            {
+              "name": "phone"
+            },
+            {
+              "name": "email"
+            },
+            {
+              "name": "query"
+            },
+            {
+              "name": "appointment_id"
+            },
+            {
+              "name": "start_at"
+            },
+            {
+              "name": "end_at"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -96,
+        16
+      ],
+      "id": "8bbea2c6-1415-4f88-b165-42d89dea2e54",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "hNxGTXIyjXkP7iwR",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/hNxGTXIyjXkP7iwR",
+          "cachedResultName": "17 · CORE · Resolve + Context"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "={{ $json.contact_id }}",
+            "phone": "={{ $json.phone }}",
+            "email": "={{ $json.email }}",
+            "query": "={{ $json.query }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "query",
+              "displayName": "query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        624,
+        0
+      ],
+      "id": "9f6177c2-2d70-4578-9258-1042d3811013",
+      "name": "Call '17 · CORE · Resolve + Context'"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json ?? {};\n\nif (\n  input.status !== 'rescheduled' ||\n  !input.appointment?.id\n) {\n  return [{\n    json: {\n      ok: false,\n      status: 'error',\n      message:\n        'La cita no pudo reprogramarse correctamente.',\n      data: {\n        result: input,\n      },\n    },\n  }];\n}\n\nreturn [{\n  json: {\n    ok: true,\n    status: 'rescheduled',\n    message:\n      'Cita reprogramada correctamente.',\n    data: {\n      appointment: input.appointment,\n    },\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1984,
+        -240
+      ],
+      "id": "28a40e33-463b-45bd-9924-3a1b74a605c4",
+      "name": "Code · Tool Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json ?? {};\n\nconst clean = (value) => {\n  if (value === undefined || value === null) {\n    return null;\n  }\n\n  const text = String(value).trim();\n  return text === '' ? null : text;\n};\n\n// --------------------------------------------------\n// Contact resolution\n// --------------------------------------------------\n\nconst contactId = clean(input.contact_id);\nconst phone = clean(input.phone);\nconst email = clean(input.email)?.toLowerCase() ?? null;\nconst query = clean(input.query);\n\n// --------------------------------------------------\n// Appointment\n// --------------------------------------------------\n\nconst appointmentId = clean(input.appointment_id);\nconst startAt = clean(input.start_at);\nconst endAt = clean(input.end_at);\n\n// --------------------------------------------------\n// Validation\n// --------------------------------------------------\n\nconst errors = [];\n\nif (!contactId && !phone && !email && !query) {\n  errors.push(\n    'Es obligatorio indicar contact_id, phone, email o query para identificar al contacto.'\n  );\n}\n\nif (!appointmentId) {\n  errors.push(\n    'appointment_id es obligatorio.'\n  );\n}\n\nconst uuidPattern =\n  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\n\nif (\n  appointmentId &&\n  !uuidPattern.test(appointmentId)\n) {\n  errors.push(\n    'appointment_id no es un UUID válido.'\n  );\n}\n\nif (!startAt) {\n  errors.push(\n    'La nueva fecha/hora de inicio es obligatoria.'\n  );\n} else if (\n  Number.isNaN(Date.parse(startAt))\n) {\n  errors.push(\n    'La nueva fecha/hora de inicio no es válida.'\n  );\n}\n\nif (!endAt) {\n  errors.push(\n    'La nueva fecha/hora de fin es obligatoria.'\n  );\n} else if (\n  Number.isNaN(Date.parse(endAt))\n) {\n  errors.push(\n    'La nueva fecha/hora de fin no es válida.'\n  );\n}\n\nif (\n  startAt &&\n  endAt &&\n  !Number.isNaN(Date.parse(startAt)) &&\n  !Number.isNaN(Date.parse(endAt)) &&\n  Date.parse(endAt) <= Date.parse(startAt)\n) {\n  errors.push(\n    'La nueva fecha/hora de fin debe ser posterior al inicio.'\n  );\n}\n\nreturn [{\n  json: {\n    valid: errors.length === 0,\n    validation_errors: errors,\n\n    contact_id: contactId,\n    phone,\n    email,\n    query,\n\n    appointment_id: appointmentId,\n    start_at: startAt,\n    end_at: endAt,\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        16
+      ],
+      "id": "252a1b2f-bce2-455e-8fcf-41011a1042be",
+      "name": "Code · Normalize Input"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "single",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "a69c340f-3dff-48b8-bd28-7d2370a9a093"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "single"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "0d69a686-0d37-48f6-8167-a6ff97a0317d",
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "multiple",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "multiple"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "37c040fc-0de6-4ada-8c21-0df047a4e645",
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "not_found",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "not_found"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        832,
+        -16
+      ],
+      "id": "0a91d51d-76c5-4d9a-85ba-d0aa55b0cb12",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "2f9b216f-61c0-420e-bed2-9bd62ab391a1",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        320,
+        16
+      ],
+      "id": "1e354864-4369-4d2b-b2fc-d6d81aaf5fde",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json ?? {};\n\nreturn [{\n  json: {\n    ok: false,\n    status: 'validation_error',\n    message:\n      'Los datos para reprogramar la cita no son válidos.',\n    data: {\n      errors:\n        input.validation_errors ?? [],\n    },\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        576
+      ],
+      "id": "35a69132-b3d1-43e7-95fe-8426d1db6c8a",
+      "name": "Code · Return Validation Error"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5725404e-4bf9-42f7-b2ba-e1d2aae56e79",
+              "leftValue": "={{ $json.appointment_valid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1296,
+        -224
+      ],
+      "id": "a9d82a9f-5311-4216-8bbf-da57091b92e4",
+      "name": "IF · Appointment Valid?"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "yNU7a4Tc327iBxl4",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/yNU7a4Tc327iBxl4",
+          "cachedResultName": "11 · APPOINTMENT · Reschedule"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "appointment_id": "={{ $('Code · Normalize Input').item.json.appointment_id }}",
+            "start_at": "={{ $('Code · Normalize Input').item.json.start_at }}",
+            "end_at": "={{ $('Code · Normalize Input').item.json.end_at }}"
+          },
+          "matchingColumns": [
+            "appointment_id"
+          ],
+          "schema": [
+            {
+              "id": "appointment_id",
+              "displayName": "appointment_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "start_at",
+              "displayName": "start_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "end_at",
+              "displayName": "end_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1664,
+        -240
+      ],
+      "id": "0ec50fac-299a-4196-82fb-7de7103e22c1",
+      "name": "Call '11 · APPOINTMENT · Reschedule'"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    ok: false,\n    status: 'not_reschedulable',\n    message:\n      'No se ha encontrado una cita activa del contacto que pueda reprogramarse con ese identificador.',\n    data: {\n      appointment_id:\n        $('Code · Normalize Input')\n          .item\n          .json\n          .appointment_id,\n    },\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1984,
+        -32
+      ],
+      "id": "e6af0fa9-4800-43bb-b982-26cea0b1c16d",
+      "name": "→ Code · Appointment Not Reschedulable"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json ?? {};\n\nreturn [{\n  json: {\n    ok: false,\n    status: 'multiple',\n    message:\n      'Hay varios contactos que coinciden. Es necesario desambiguar antes de reprogramar la cita.',\n    data: {\n      query: input.query ?? null,\n      count: input.count ?? 0,\n      candidates: input.candidates ?? [],\n    },\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        176
+      ],
+      "id": "a4ecfb2f-174d-47f9-8824-c9cad250ef5c",
+      "name": "Code · Tool Response · Multiple"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json ?? {};\n\nreturn [{\n  json: {\n    ok: false,\n    status: 'not_found',\n    message:\n      'No se ha encontrado ningún contacto para reprogramar la cita.',\n    data: {\n      query: input.query ?? null,\n    },\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        368
+      ],
+      "id": "5e3930fc-df3a-4ebf-bc04-b055a814abe8",
+      "name": "Code · Tool Response · Not found"
+    },
+    {
+      "parameters": {
+        "jsCode": "const resolved = $json ?? {};\n\nconst requestedAppointmentId =\n  $('Code · Normalize Input')\n    .item\n    .json\n    .appointment_id;\n\nconst appointments =\n  Array.isArray(\n    resolved.context?.appointments?.items\n  )\n    ? resolved.context.appointments.items\n    : [];\n\nconst appointment =\n  appointments.find(\n    item =>\n      item?.id === requestedAppointmentId\n  ) ?? null;\n\nif (!appointment) {\n  return [{\n    json: {\n      appointment_valid: false,\n      appointment_error:\n        'not_found_or_not_reschedulable',\n      appointment: null,\n    },\n  }];\n}\n\nreturn [{\n  json: {\n    appointment_valid: true,\n    appointment_error: null,\n    appointment,\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        -224
+      ],
+      "id": "cc540d49-aebc-4793-b466-9d4e740f8c38",
+      "name": "Code · Validate Appointment"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code · Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call '17 · CORE · Resolve + Context'": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Code · Validate Appointment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Tool Response · Multiple",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Tool Response · Not found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Call '17 · CORE · Resolve + Context'",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Return Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF · Appointment Valid?": {
+      "main": [
+        [
+          {
+            "node": "Call '11 · APPOINTMENT · Reschedule'",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "→ Code · Appointment Not Reschedulable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call '11 · APPOINTMENT · Reschedule'": {
+      "main": [
+        [
+          {
+            "node": "Code · Tool Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Validate Appointment": {
+      "main": [
+        [
+          {
+            "node": "IF · Appointment Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}

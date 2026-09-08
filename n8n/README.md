@@ -1,84 +1,96 @@
 # n8n — workflows versionados
 
-Área nueva. Los workflows de dominio históricos viven en la BD `n8n_<tenant>`
-y no están todos aquí; este directorio versiona los que la plataforma
-mantiene de forma reproducible. Importación manual por ahora.
+Snapshot de los workflows de dominio del tenant `demo` (exportados con
+`n8n export:workflow --all --separate`, normalizados: sin `pinData`,
+timestamps ni `versionId`). Se conservan `id`, `name`, `nodes`,
+`connections`, `settings`.
 
-## `workflows/APPOINTMENT_Availability.json`
+> Importación **manual** por ahora. No hay automatización en el provisioning.
 
-Herramienta del agente (handover §12.4). Consulta `GET /api/availability`
-del Booking API y devuelve una salida compacta para que el agente proponga
-huecos. **No decide** disponibilidad: solo lee. Las mutaciones
-(`book`/`reschedule`/`cancel`) tienen su propia revalidación autoritativa
-en el Booking API.
+## Convención
 
-### Contrato
+`NN-CATEGORIA-Nombre.json`, con `NN` = número del workflow (handover §9).
+`CORE`/`CONTACT`/`TASK`/`APPOINTMENT` = lógica de dominio; `TOOL` = wrappers
+que el agente principal invoca (validan y llaman a la lógica).
 
-Sub-workflow con trigger *Executed by Another Workflow* (para engancharlo
-al agente principal como *Tool Workflow*). Entradas:
+| # | | # | |
+|---|---|---|---|
+| 00 | CORE · Resolve Contact by Phone | 13 | TASK · Update |
+| 01 | CONTACT · Upsert | 14 | CONTACT · Phone Upsert |
+| 02 | TASK · Create | 15 | TASK · Cancel |
+| 03 | APPOINTMENT · Create | 16 | CORE · Contact Context |
+| 04 | TASK · Complete | 17 | CORE · Resolve + Context |
+| 05 | APPOINTMENT · Update Status | 18 | TOOL · Contact Context |
+| 06 | CONTACT · Get | 19 | TOOL · Task Create |
+| 07 | CONTACT · Search | 20 | TOOL · Task List |
+| 08 | TASK · List Pending | 21 | TOOL · Task Complete |
+| 09 | APPOINTMENT · List Upcoming | 22 | TOOL · Appointment Create |
+| 10 | APPOINTMENT · Get | 23 | TOOL · Appointment List |
+| 11 | APPOINTMENT · Reschedule | 24 | TOOL · Appointment Reschedule |
+| 12 | TASK · Get | 25 | TOOL · Appointment Cancel |
 
-| campo | req | |
+`APPOINTMENT_Availability.json` — herramienta P4 (mantenida a mano, no
+exportada). Ver sección al final.
+
+Descartados en el export: `My workflow` (scratch), un `05` con 0 nodos y un
+`23 TOOL` stub de 2 nodos (los reales son los que están aquí).
+
+## Credenciales (n8n, por tenant — NO en Git)
+
+| tipo | nombre | uso |
 |---|---|---|
-| `service_id` | ✔ | uuid del servicio |
-| `date` | ✔ | `YYYY-MM-DD` en la timezone de salida |
-| `location_id` | | filtra recursos por sede |
-| `resource_id` | | fija un recurso del pool |
-| `timezone` | | IANA; por defecto la resuelve el Booking API |
-| `exclude_appointment_id` | | excluye el bloque de esa cita (reschedule) |
+| Header Auth | `Directus · demo` | `Authorization: Bearer <token Directus>` |
+| Header Auth | `Booking API` | `Authorization: Bearer <BOOKING_API_TOKEN>` (`secrets/booking.env`) |
 
-Salida:
+Al importar en otro tenant, n8n intenta re-mapear por **nombre**; crea las
+credenciales con el mismo nombre y re-selecciónalas en los nodos HTTP.
 
-```json
-{ "available": true, "count": 6, "service_id": "…", "date": "2026-09-09",
-  "timezone": "Europe/Madrid", "duration_minutes": 30,
-  "slots": [ { "start_at": "…+02:00", "end_at": "…+02:00" }, … ] }
-```
+## Deuda conocida
 
-o, en error / parámetros insuficientes:
+- **Host de Directus hardcodeado** (`http://demo-directus:8055/...`) en casi
+  todos los workflows. Para multi-tenant hay que parametrizarlo (patrón nodo
+  `Config` como en `APPOINTMENT_Availability.json`). Pendiente.
+- `03 / 05 / 11` y sus wrappers `22 / 24 / 25` escriben directo en Directus
+  (`/items/appointments`). El plan (handover §12.3) es que llamen al
+  **Booking API** (`/api/book|reschedule|cancel`) para tener revalidación
+  autoritativa y control de concurrencia. **En curso.**
 
-```json
-{ "available": false, "error": "missing_required_fields", "message": "…" }
-```
-
-### Requisitos en el tenant
-
-1. **URL base**: en el nodo **Config (editar por tenant)** cambia el fallback
-   `http://demo-booking:3000` por `http://<tenant>-booking:3000`.
-   (n8n 2.31 bloquea `$env` en los nodos por defecto —
-   `N8N_BLOCK_ENV_ACCESS_IN_NODE=true`— por eso la URL va en un nodo, no en env.
-   El agente puede sobreescribirla pasando la entrada `booking_base_url`.)
-2. **Credencial n8n** tipo *Header Auth*, nombre `Booking API`:
-   - Name: `Authorization`
-   - Value: `Bearer <BOOKING_API_TOKEN>` — el token está en
-     `/opt/aegora/tenants/<tenant>/secrets/booking.env`.
-3. `<tenant>-n8n` debe alcanzar `<tenant>-booking:3000` por la red
-   `tenant_<tenant>_backend` (ambos están en ella).
-
-### Importar
-
-En la UI de n8n del tenant: *Workflows → Import from File →*
-`APPOINTMENT_Availability.json`. Tras importar, abrir el nodo
-`GET /api/availability` y **re-seleccionar** la credencial `Booking API`
-(el `id` del JSON es un placeholder).
-
-O por CLI dentro del contenedor:
+## Importar / exportar
 
 ```bash
-docker cp n8n/workflows/APPOINTMENT_Availability.json <tenant>-n8n:/tmp/wf.json
+# exportar el estado actual de un tenant
+docker exec <tenant>-n8n sh -c 'rm -rf /tmp/x && mkdir /tmp/x && n8n export:workflow --all --separate --pretty --output=/tmp/x'
+docker cp <tenant>-n8n:/tmp/x ./export
+
+# importar uno
+docker cp n8n/workflows/03-APPOINTMENT-Create.json <tenant>-n8n:/tmp/wf.json
 docker exec <tenant>-n8n n8n import:workflow --input=/tmp/wf.json
 ```
 
-(La credencial hay que asignarla igualmente desde la UI.)
+---
 
-### Probar
+## `APPOINTMENT_Availability.json` (P4)
 
-En n8n, *Execute Workflow* con input de prueba:
-`{ "service_id": "<uuid>", "date": "2026-09-09" }` → debe devolver los
-slots. Compararlo con la llamada directa:
-`docker exec <tenant>-booking sh -c 'wget -qO- --header="Authorization: Bearer $BOOKING_API_TOKEN" "http://127.0.0.1:3000/api/availability?service_id=<uuid>&date=2026-09-09"'`
+Herramienta del agente (handover §12.4). Consulta `GET /api/availability`
+del Booking API y devuelve una salida compacta. **No decide** disponibilidad.
 
-### Pendiente
+Entradas (trigger *Executed by Another Workflow*): `service_id`✔, `date`✔
+(`YYYY-MM-DD`), `location_id`, `resource_id`, `timezone`,
+`exclude_appointment_id`, `booking_base_url`.
 
-- Enganchar al agente principal como *Tool Workflow* (solo cuando estén
-  también las mutaciones con revalidación autoritativa — handover §12.4).
-- Automatizar la importación en el provisioning (hoy es manual).
+Salida:
+```json
+{ "available": true, "count": 6, "service_id": "…", "date": "…",
+  "timezone": "Europe/Madrid", "duration_minutes": 30,
+  "slots": [ { "start_at": "…+02:00", "end_at": "…+02:00" }, … ] }
+```
+o `{ "available": false, "error": "…", "message": "…" }`.
+
+Requisitos en el tenant:
+1. Nodo **Config (editar por tenant)**: fallback `http://demo-booking:3000`
+   → `http://<tenant>-booking:3000`. (n8n 2.31 bloquea `$env` en nodos.)
+2. Credencial `Booking API` (arriba).
+3. `<tenant>-n8n` alcanza `<tenant>-booking:3000` por `tenant_<tenant>_backend`.
+
+Probado end-to-end en `demo`. **No** enganchado al agente todavía (§12.4:
+solo tras las mutaciones con revalidación).

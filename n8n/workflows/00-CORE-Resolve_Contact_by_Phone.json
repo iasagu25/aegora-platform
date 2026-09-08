@@ -1,0 +1,130 @@
+{
+  "id": "FYKKVHLZGjfJkNXe",
+  "name": "00 · CORE · Resolve Contact by Phone",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "phone"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "322b54cf-7902-4549-a6d1-a600fbc6be2d",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.phone;\n\nif (!raw || typeof raw !== 'string') {\n  throw new Error('phone es obligatorio');\n}\n\nlet value = raw.trim();\n\n// Conservamos solo dígitos y un posible + inicial\nvalue = value.replace(/[^\\d+]/g, '');\n\n// 0034XXXXXXXXX -> +34XXXXXXXXX\nif (value.startsWith('0034')) {\n  value = `+34${value.slice(4)}`;\n}\n\n// 34XXXXXXXXX -> +34XXXXXXXXX\nelse if (value.startsWith('34') && value.length === 11) {\n  value = `+${value}`;\n}\n\n// XXXXXXXXX -> +34XXXXXXXXX\nelse if (/^\\d{9}$/.test(value)) {\n  value = `+34${value}`;\n}\n\n// +34XXXXXXXXX queda igual\nelse if (/^\\+34\\d{9}$/.test(value)) {\n  // OK\n}\n\nelse {\n  throw new Error(`Formato de teléfono no soportado: ${raw}`);\n}\n\nreturn [\n  {\n    json: {\n      phone_input: raw,\n      phone_normalized: value\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "f8f3d343-aa45-4808-9f57-d5819c04f326",
+      "name": "Code · Normalize Phone"
+    },
+    {
+      "parameters": {
+        "url": "http://demo-directus:8055/items/contact_phones",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filter[phone_normalized][_eq]",
+              "value": "={{ $json.phone_normalized }}"
+            },
+            {
+              "name": "fields",
+              "value": "id,phone_number,phone_normalized,label,is_primary,can_whatsapp,contact_id.id,contact_id.first_name,contact_id.last_name,contact_id.company,contact_id.email,contact_id.status"
+            },
+            {
+              "name": "limit",
+              "value": "10"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "d26b7dbe-e75b-4d8e-817b-9261dca0627b",
+      "name": "HTTP Request · Find Phone",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $json.data ?? [];\n\n// Recuperamos la normalización realizada antes de consultar Directus.\n// Así este workflow es la única fuente de verdad para normalizar teléfonos.\nconst normalized = $('Code · Normalize Phone').item.json;\n\nconst phoneInput = normalized.phone_input;\nconst phoneNormalized = normalized.phone_normalized;\n\nif (!Array.isArray(rows)) {\n  throw new Error('Respuesta inesperada de Directus');\n}\n\nif (!phoneNormalized) {\n  throw new Error('phone_normalized no está disponible');\n}\n\n// ---------------------------------------------------------\n// NOT FOUND\n// ---------------------------------------------------------\n\nif (rows.length === 0) {\n  return [\n    {\n      json: {\n        status: 'not_found',\n\n        phone_input: phoneInput,\n        phone_normalized: phoneNormalized,\n\n        contact: null,\n        phone: null,\n        candidates: []\n      }\n    }\n  ];\n}\n\n// ---------------------------------------------------------\n// RESOLVED\n// ---------------------------------------------------------\n\nif (rows.length === 1) {\n  const row = rows[0];\n\n  if (!row.contact_id?.id) {\n    throw new Error(\n      'Directus devolvió un teléfono sin contacto válido'\n    );\n  }\n\n  return [\n    {\n      json: {\n        status: 'resolved',\n\n        phone_input: phoneInput,\n        phone_normalized: phoneNormalized,\n\n        contact: row.contact_id,\n\n        phone: {\n          id: row.id,\n          phone_number: row.phone_number,\n          phone_normalized: row.phone_normalized,\n          label: row.label,\n          is_primary: row.is_primary,\n          can_whatsapp: row.can_whatsapp\n        },\n\n        candidates: []\n      }\n    }\n  ];\n}\n\n// ---------------------------------------------------------\n// AMBIGUOUS\n// ---------------------------------------------------------\n\nreturn [\n  {\n    json: {\n      status: 'ambiguous',\n\n      phone_input: phoneInput,\n      phone_normalized: phoneNormalized,\n\n      contact: null,\n      phone: null,\n\n      candidates: rows.map((row) => ({\n        contact: row.contact_id,\n\n        phone: {\n          id: row.id,\n          phone_number: row.phone_number,\n          phone_normalized: row.phone_normalized,\n          label: row.label,\n          is_primary: row.is_primary,\n          can_whatsapp: row.can_whatsapp\n        }\n      }))\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "5906aec5-a7b4-4452-9f4c-9c99f21ee26f",
+      "name": "Code · Classify Result"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code · Normalize Phone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Normalize Phone": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request · Find Phone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request · Find Phone": {
+      "main": [
+        [
+          {
+            "node": "Code · Classify Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "id": "86TWqG32ADMNoWuP",
+  "name": "13 · TASK · Update",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "task_id"
+            },
+            {
+              "name": "title"
+            },
+            {
+              "name": "description"
+            },
+            {
+              "name": "priority"
+            },
+            {
+              "name": "due_at"
+            },
+            {
+              "name": "contact_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "c55b841d-dfcb-40ee-8626-cf277ff2c1e9",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const task = $json.data;\n\nif (!task?.id) {\n  throw new Error(\n    'Directus no devolvió task.id'\n  );\n}\n\nreturn [\n  {\n    json: {\n      status: 'updated',\n      task\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "f71b2d09-9c9d-40e2-9e64-2d5d404dd159",
+      "name": "Code · Normalize Result"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json;\n\nconst clean = (value) => {\n  if (value === undefined || value === null) {\n    return null;\n  }\n\n  const result = String(value).trim();\n\n  return result === ''\n    ? null\n    : result;\n};\n\nconst taskId = clean(input.task_id);\n\nif (!taskId) {\n  throw new Error('task_id es obligatorio');\n}\n\nconst uuidPattern =\n  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\n\nif (!uuidPattern.test(taskId)) {\n  throw new Error(\n    `task_id no es un UUID válido: ${taskId}`\n  );\n}\n\nconst update = {};\n\nif (input.title !== undefined) {\n  const title = clean(input.title);\n\n  if (!title) {\n    throw new Error(\n      'title no puede quedar vacío'\n    );\n  }\n\n  update.title = title;\n}\n\nif (input.description !== undefined) {\n  update.description =\n    clean(input.description);\n}\n\nif (input.priority !== undefined) {\n  const priority = clean(input.priority);\n\n  const allowedPriorities = [\n    'low',\n    'normal',\n    'high',\n    'urgent'\n  ];\n\n  if (!allowedPriorities.includes(priority)) {\n    throw new Error(\n      `priority inválida: ${priority}`\n    );\n  }\n\n  update.priority = priority;\n}\n\nif (input.due_at !== undefined) {\n  const dueAtRaw = clean(input.due_at);\n\n  if (dueAtRaw === null) {\n    update.due_at = null;\n  } else {\n    const dueAt = new Date(dueAtRaw);\n\n    if (Number.isNaN(dueAt.getTime())) {\n      throw new Error(\n        `due_at no es una fecha válida: ${dueAtRaw}`\n      );\n    }\n\n    update.due_at = dueAt.toISOString();\n  }\n}\n\nif (input.contact_id !== undefined) {\n  const contactId = clean(input.contact_id);\n\n  if (contactId !== null) {\n    if (!uuidPattern.test(contactId)) {\n      throw new Error(\n        `contact_id no es un UUID válido: ${contactId}`\n      );\n    }\n  }\n\n  update.contact_id = contactId;\n}\n\nif (Object.keys(update).length === 0) {\n  throw new Error(\n    'No hay campos válidos para actualizar'\n  );\n}\n\nreturn [\n  {\n    json: {\n      task_id: taskId,\n      update\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "b041fa12-7af3-4894-b0f1-c060b54b41f8",
+      "name": "Code · Validate Input"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://demo-directus:8055/items/tasks/{{ $json.task_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.update }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "812a422f-3b13-4d74-a856-b004cf7369b8",
+      "name": "HTTP · Update Task",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code · Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Validate Input": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Update Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Update Task": {
+      "main": [
+        [
+          {
+            "node": "Code · Normalize Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}

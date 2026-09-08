@@ -1,0 +1,122 @@
+{
+  "id": "3SGnVNyFP3sPjq3k",
+  "name": "12 · TASK · Get",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "task_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "cc54e265-437d-4217-968b-feca2cbf5d43",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const task = $json.data;\n\nif (!task?.id) {\n  throw new Error(\n    'Directus no devolvió una tarea válida'\n  );\n}\n\nfunction contactLabel(contact) {\n  if (!contact) {\n    return 'Sin contacto';\n  }\n\n  const name = [\n    contact.first_name,\n    contact.last_name\n  ]\n    .filter(Boolean)\n    .join(' ')\n    .trim();\n\n  if (contact.company && name) {\n    return `${contact.company} · ${name}`;\n  }\n\n  return (\n    contact.company ||\n    name ||\n    'Sin contacto'\n  );\n}\n\nfunction dueState(task) {\n  if (\n    task.status === 'completed' ||\n    task.completed_at\n  ) {\n    return {\n      state: 'completed',\n      label: 'Completada'\n    };\n  }\n\n  if (\n    task.status === 'cancelled'\n  ) {\n    return {\n      state: 'cancelled',\n      label: 'Cancelada'\n    };\n  }\n\n  if (!task.due_at) {\n    return {\n      state: 'no_due_date',\n      label: 'Sin fecha'\n    };\n  }\n\n  const now = new Date();\n  const due = new Date(\n    task.due_at\n  );\n\n  if (\n    Number.isNaN(\n      due.getTime()\n    )\n  ) {\n    return {\n      state: 'invalid_due_date',\n      label: 'Fecha inválida'\n    };\n  }\n\n  if (\n    due.getTime() <\n    now.getTime()\n  ) {\n    return {\n      state: 'overdue',\n      label: 'Retrasada'\n    };\n  }\n\n  const sameDay =\n    due.getFullYear() === now.getFullYear() &&\n    due.getMonth() === now.getMonth() &&\n    due.getDate() === now.getDate();\n\n  if (sameDay) {\n    return {\n      state: 'today',\n      label: 'Hoy'\n    };\n  }\n\n  return {\n    state: 'upcoming',\n    label: 'Próxima'\n  };\n}\n\nconst timing = dueState(task);\nconst contact = task.contact_id;\n\nreturn [\n  {\n    json: {\n      status: 'resolved',\n\n      task: {\n        id:\n          task.id,\n\n        title:\n          task.title ?? null,\n\n        description:\n          task.description ?? null,\n\n        status:\n          task.status ?? null,\n\n        priority:\n          task.priority ?? null,\n\n        due_at:\n          task.due_at ?? null,\n\n        due_state:\n          timing.state,\n\n        due_label:\n          timing.label,\n\n        completed_at:\n          task.completed_at ?? null,\n\n        source:\n          task.source ?? null,\n\n        created_at:\n          task.created_at ?? null,\n\n        updated_at:\n          task.updated_at ?? null\n      },\n\n      contact: contact\n        ? {\n            id:\n              contact.id,\n\n            first_name:\n              contact.first_name ?? null,\n\n            last_name:\n              contact.last_name ?? null,\n\n            company:\n              contact.company ?? null,\n\n            email:\n              contact.email ?? null,\n\n            status:\n              contact.status ?? null,\n\n            label:\n              contactLabel(contact)\n          }\n        : null\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "a15620fe-c6ba-451d-a29b-f304607fb9c3",
+      "name": "Code · Normalize Result"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json;\n\nconst clean = (value) => {\n  if (value === undefined || value === null) {\n    return null;\n  }\n\n  const result = String(value).trim();\n\n  return result === ''\n    ? null\n    : result;\n};\n\nconst taskId = clean(\n  input.task_id\n);\n\nif (!taskId) {\n  throw new Error(\n    'task_id es obligatorio'\n  );\n}\n\nconst uuidPattern =\n  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\n\nif (!uuidPattern.test(taskId)) {\n  throw new Error(\n    `task_id no es un UUID válido: ${taskId}`\n  );\n}\n\nreturn [\n  {\n    json: {\n      task_id: taskId\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "a53aedc1-0420-4a29-9936-2b02b68e6816",
+      "name": "Code · Validate Input"
+    },
+    {
+      "parameters": {
+        "url": "=http://demo-directus:8055/items/tasks/{{ $json.task_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "id,title,description,status,priority,due_at,completed_at,source,created_at,updated_at,contact_id.id,contact_id.first_name,contact_id.last_name,contact_id.company,contact_id.email,contact_id.status"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "60739ff7-c2e4-4f4f-bb98-101b6e28616e",
+      "name": "HTTP · Get Task",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code · Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Validate Input": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Get Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Get Task": {
+      "main": [
+        [
+          {
+            "node": "Code · Normalize Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}

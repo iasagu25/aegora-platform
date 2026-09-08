@@ -1,0 +1,141 @@
+{
+  "id": "pE28oSI8VVsSUOsO",
+  "name": "03 · APPOINTMENT · Create",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "contact_id"
+            },
+            {
+              "name": "title"
+            },
+            {
+              "name": "start_at"
+            },
+            {
+              "name": "end_at"
+            },
+            {
+              "name": "notes"
+            },
+            {
+              "name": "status"
+            },
+            {
+              "name": "source"
+            },
+            {
+              "name": "external_provider"
+            },
+            {
+              "name": "external_event_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -656,
+        -16
+      ],
+      "id": "f411c30c-ff52-492a-a90d-705a7ee99258",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json;\n\nconst clean = (value) => {\n  if (value === undefined || value === null) {\n    return null;\n  }\n\n  const result = String(value).trim();\n\n  return result === ''\n    ? null\n    : result;\n};\n\nconst contactId = clean(input.contact_id);\nconst title = clean(input.title);\nconst startAtRaw = clean(input.start_at);\nconst endAtRaw = clean(input.end_at);\n\nif (!title) {\n  throw new Error('title es obligatorio');\n}\n\nif (!startAtRaw) {\n  throw new Error('start_at es obligatorio');\n}\n\nif (!endAtRaw) {\n  throw new Error('end_at es obligatorio');\n}\n\nconst startAt = new Date(startAtRaw);\nconst endAt = new Date(endAtRaw);\n\nif (Number.isNaN(startAt.getTime())) {\n  throw new Error(\n    `start_at no es una fecha válida: ${startAtRaw}`\n  );\n}\n\nif (Number.isNaN(endAt.getTime())) {\n  throw new Error(\n    `end_at no es una fecha válida: ${endAtRaw}`\n  );\n}\n\nif (endAt.getTime() <= startAt.getTime()) {\n  throw new Error(\n    'end_at debe ser posterior a start_at'\n  );\n}\n\nconst allowedStatuses = [\n  'scheduled',\n  'confirmed',\n  'cancelled',\n  'completed',\n  'no_show'\n];\n\nconst status =\n  clean(input.status) ?? 'scheduled';\n\nif (!allowedStatuses.includes(status)) {\n  throw new Error(\n    `status inválido: ${status}`\n  );\n}\n\nconst allowedSources = [\n  'manual',\n  'ai',\n  'system'\n];\n\nconst source =\n  clean(input.source) ?? 'ai';\n\nif (!allowedSources.includes(source)) {\n  throw new Error(\n    `source inválido: ${source}`\n  );\n}\n\nreturn [\n  {\n    json: {\n      appointment: {\n        contact_id: contactId,\n        title,\n\n        start_at: startAt.toISOString(),\n        end_at: endAt.toISOString(),\n\n        status,\n\n        notes: clean(input.notes),\n\n        source,\n\n        external_provider:\n          clean(input.external_provider),\n\n        external_event_id:\n          clean(input.external_event_id)\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        -16
+      ],
+      "id": "fb46ce54-0df9-4622-a542-95d6cdb69fee",
+      "name": "Code · Validate Input"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://demo-directus:8055/items/appointments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.appointment }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -240,
+        -16
+      ],
+      "id": "f55b9343-2596-4a02-a0e1-fb1ca3448b03",
+      "name": "HTTP · Create Appointment",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const appointment = $json.data;\n\nif (!appointment?.id) {\n  throw new Error(\n    'Directus no devolvió appointment.id'\n  );\n}\n\nreturn [\n  {\n    json: {\n      status: 'created',\n      appointment\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -32,
+        -16
+      ],
+      "id": "b8cad565-19e5-417b-b83d-f0e71058310b",
+      "name": "Code · Return Result"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code · Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Validate Input": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Create Appointment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Create Appointment": {
+      "main": [
+        [
+          {
+            "node": "Code · Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}

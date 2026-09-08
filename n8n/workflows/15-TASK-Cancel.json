@@ -1,0 +1,117 @@
+{
+  "id": "9HaPDKszZDdFydgr",
+  "name": "15 · TASK · Cancel",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "task_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "0c3c9f44-b11a-452e-af3c-80326d840ae2",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const task = $json.data;\n\nif (!task?.id) {\n  throw new Error(\n    'Directus no devolvió task.id'\n  );\n}\n\nif (task.status !== 'cancelled') {\n  throw new Error(\n    `Estado inesperado tras cancelar tarea: ${task.status}`\n  );\n}\n\nreturn [\n  {\n    json: {\n      status: 'cancelled',\n      task\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "ef878fe0-4b03-45cc-aeea-e09f8ac31453",
+      "name": "Code · Normalize Result"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json;\n\nconst clean = (value) => {\n  if (value === undefined || value === null) {\n    return null;\n  }\n\n  const result = String(value).trim();\n\n  return result === ''\n    ? null\n    : result;\n};\n\nconst taskId = clean(input.task_id);\n\nif (!taskId) {\n  throw new Error(\n    'task_id es obligatorio'\n  );\n}\n\nconst uuidPattern =\n  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\n\nif (!uuidPattern.test(taskId)) {\n  throw new Error(\n    `task_id no es un UUID válido: ${taskId}`\n  );\n}\n\nreturn [\n  {\n    json: {\n      task_id: taskId,\n\n      update: {\n        status: 'cancelled',\n        completed_at: null\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "e3beb81d-3ae6-4cd8-8a8b-0edf624cc650",
+      "name": "Code · Validate Input"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ 'http://demo-directus:8055/items/tasks/' + $json.task_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.update }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "feb535fb-c8ab-43dd-a2ba-41b65dc652f0",
+      "name": "HTTP · Update Task",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code · Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Validate Input": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Update Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Update Task": {
+      "main": [
+        [
+          {
+            "node": "Code · Normalize Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}

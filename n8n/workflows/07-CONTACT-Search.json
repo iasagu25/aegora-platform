@@ -1,0 +1,134 @@
+{
+  "id": "QdhC29nR9H34907a",
+  "name": "07 · CONTACT · Search",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "query"
+            },
+            {
+              "name": "limit",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "48c0bb6d-4334-443f-883f-b64931dd50c1",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "url": "=http://demo-directus:8055/items/contacts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "id,first_name,last_name,company,email,status,notes,phones.id,phones.phone_number,phones.phone_normalized,phones.label,phones.is_primary,phones.can_whatsapp"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $('Code · Prepare Search').item.json.limit }}"
+            },
+            {
+              "name": "filter",
+              "value": "={{ JSON.stringify($('Code · Prepare Search').item.json.filter) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "32d2fd8b-801a-40d3-8ea1-1e8d65c42dbb",
+      "name": "HTTP · Get Contact",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $json.data ?? [];\n\nif (!Array.isArray(rows)) {\n  throw new Error(\n    'Respuesta inesperada de Directus'\n  );\n}\n\nconst query =\n  $('Code · Prepare Search').item.json.query;\n\nconst results = rows.map(contact => {\n  const phones =\n    Array.isArray(contact.phones)\n      ? contact.phones\n      : [];\n\n  const primaryPhone =\n    phones.find(\n      phone => phone?.is_primary === true\n    ) ??\n    phones[0] ??\n    null;\n\n  return {\n    contact: {\n      id: contact.id,\n      first_name:\n        contact.first_name ?? null,\n\n      last_name:\n        contact.last_name ?? null,\n\n      company:\n        contact.company ?? null,\n\n      email:\n        contact.email ?? null,\n\n      status:\n        contact.status ?? null,\n\n      notes:\n        contact.notes ?? null\n    },\n\n    primary_phone:\n      primaryPhone,\n\n    phones\n  };\n});\n\nlet status;\n\nif (results.length === 0) {\n  status = 'not_found';\n} else if (results.length === 1) {\n  status = 'single';\n} else {\n  status = 'multiple';\n}\n\nreturn [\n  {\n    json: {\n      status,\n      query,\n      count: results.length,\n      results\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "21131059-7cc8-4fd0-9971-b38a1e3c1ddf",
+      "name": "Code · Normalize Result"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json;\n\nconst clean = (value) => {\n  if (value === undefined || value === null) {\n    return null;\n  }\n\n  const result = String(value).trim();\n\n  return result === ''\n    ? null\n    : result;\n};\n\nconst query = clean(input.query);\n\nif (!query) {\n  throw new Error('query es obligatorio');\n}\n\nlet limit = Number(input.limit ?? 20);\n\nif (\n  !Number.isInteger(limit) ||\n  limit < 1\n) {\n  throw new Error(\n    `limit inválido: ${input.limit}`\n  );\n}\n\nlimit = Math.min(limit, 50);\n\n/*\n * Versión compacta del término para facilitar\n * búsquedas telefónicas.\n *\n * No sustituye al normalizador oficial del\n * Resolve Contact by Phone.\n */\n\nconst phoneLike =\n  query.replace(/[^\\d+]/g, '');\n\nconst filters = [\n  {\n    first_name: {\n      _icontains: query\n    }\n  },\n  {\n    last_name: {\n      _icontains: query\n    }\n  },\n  {\n    company: {\n      _icontains: query\n    }\n  },\n  {\n    email: {\n      _icontains: query\n    }\n  },\n  {\n    phones: {\n      phone_number: {\n        _icontains: query\n      }\n    }\n  }\n];\n\nif (phoneLike.length >= 6) {\n  filters.push({\n    phones: {\n      phone_normalized: {\n        _icontains: phoneLike\n      }\n    }\n  });\n}\n\nreturn [\n  {\n    json: {\n      query,\n\n      phone_like:\n        phoneLike.length >= 6\n          ? phoneLike\n          : null,\n\n      limit,\n\n      filter: {\n        _or: filters\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "c7e48301-7ba5-4f06-bafd-25403df04953",
+      "name": "Code · Prepare Search"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code · Prepare Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Get Contact": {
+      "main": [
+        [
+          {
+            "node": "Code · Normalize Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Prepare Search": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Get Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}

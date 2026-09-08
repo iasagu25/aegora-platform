@@ -1,0 +1,502 @@
+{
+  "id": "ZRsLhADqrYxOSIge",
+  "name": "01 · CONTACT · Upsert",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "phone"
+            },
+            {
+              "name": "first_name"
+            },
+            {
+              "name": "last_name"
+            },
+            {
+              "name": "company"
+            },
+            {
+              "name": "email"
+            },
+            {
+              "name": "phone_label"
+            },
+            {
+              "name": "can_whatsapp"
+            },
+            {
+              "name": "source"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -16,
+        -400
+      ],
+      "id": "d3a5c3ed-38ab-42a2-be29-84f6ff46929b",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "FYKKVHLZGjfJkNXe",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/FYKKVHLZGjfJkNXe",
+          "cachedResultName": "00 · CORE · Resolve Contact by Phone"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "phone": "={{ $json.input.phone }}"
+          },
+          "matchingColumns": [
+            "phone"
+          ],
+          "schema": [
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        224,
+        0
+      ],
+      "id": "5fe819ea-bafb-452a-96ba-1f0bb7be9631",
+      "name": "Execute · Resolve Contact by Phone"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.resolution.status }}",
+                    "rightValue": "resolved",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "4a251ff5-86bc-47ec-8fd2-883e7303d961"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "resolved"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "feab773b-45e1-44ea-b9f0-9c52603bc37a",
+                    "leftValue": "={{ $json.resolution.status }}",
+                    "rightValue": "not_found",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "not_found"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "b3389107-2991-4d02-a06c-fecfbf61fc5f",
+                    "leftValue": "={{ $json.resolution.status }}",
+                    "rightValue": "ambiguous",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ambiguous"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        848,
+        -16
+      ],
+      "id": "47ebdac6-925a-4654-8beb-de5f8c424adc",
+      "name": "Switch · Resolution"
+    },
+    {
+      "parameters": {
+        "jsCode": "const { input, resolution } = $json;\n\nif (\n  resolution.status !== 'resolved' ||\n  !resolution.contact?.id\n) {\n  throw new Error(\n    'Se esperaba un contacto resuelto'\n  );\n}\n\nconst update = {};\n\nfor (const field of [\n  'first_name',\n  'last_name',\n  'company',\n  'email'\n]) {\n  if (input[field] !== null) {\n    update[field] = input[field];\n  }\n}\n\nreturn [\n  {\n    json: {\n      action: 'update',\n      contact_id: resolution.contact.id,\n      phone_id: resolution.phone?.id ?? null,\n\n      update,\n\n      existing_contact: resolution.contact,\n      phone: resolution.phone,\n\n      input\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        -176
+      ],
+      "id": "b9c6c1ed-7179-4cde-991f-74f6b2c6d67f",
+      "name": "Code · Build Contact Update"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://demo-directus:8055/items/contacts/{{ $json.contact_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.update }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1280,
+        -176
+      ],
+      "id": "ba8d17fc-0966-4b2a-b81a-927633c50c5e",
+      "name": "HTTP · Update Contact",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const { input, resolution } = $json;\n\nif (resolution.status !== 'not_found') {\n  throw new Error(\n    'Se esperaba status not_found'\n  );\n}\n\nconst contact = {\n  status: 'active'\n};\n\nfor (const field of [\n  'first_name',\n  'last_name',\n  'company',\n  'email'\n]) {\n  if (input[field] !== null) {\n    contact[field] = input[field];\n  }\n}\n\nreturn [\n  {\n    json: {\n      input,\n      resolution,\n      contact\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        0
+      ],
+      "id": "614630d7-3a90-447e-bce5-8e64ed93ccb1",
+      "name": "Code · Build New Contact"
+    },
+    {
+      "parameters": {
+        "jsCode": "const createdContact = $json.data;\n\nconst input =\n  $('Code · Build New Contact').item.json.input;\n\nconst resolution =\n  $('Code · Build New Contact').item.json.resolution;\n\nif (!createdContact?.id) {\n  throw new Error(\n    'Directus no devolvió contact.id'\n  );\n}\n\nif (!resolution.phone_normalized) {\n  throw new Error(\n    'phone_normalized no está disponible'\n  );\n}\n\nreturn [\n  {\n    json: {\n      contact: createdContact,\n\n      phone: {\n        contact_id: createdContact.id,\n\n        phone_number: input.phone,\n\n        phone_normalized:\n          resolution.phone_normalized,\n\n        label:\n          input.phone_label,\n\n        is_primary: true,\n\n        can_whatsapp:\n          input.can_whatsapp\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1488,
+        0
+      ],
+      "id": "6228370d-24e2-40a9-b081-07537b51e723",
+      "name": "Code · Build New Phone"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://demo-directus:8055/items/contact_phones",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.phone }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1712,
+        0
+      ],
+      "id": "e871b21c-2f98-4da8-adb2-30f7a8b5b447",
+      "name": "HTTP · Create Phone",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://demo-directus:8055/items/contacts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.contact }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1280,
+        0
+      ],
+      "id": "9538ef43-4220-490f-a0eb-295a4c929626",
+      "name": "HTTP · Create Contact",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json;\n\nif (\n  !input.phone ||\n  typeof input.phone !== 'string' ||\n  !input.phone.trim()\n) {\n  throw new Error('phone es obligatorio');\n}\n\nconst clean = (value) => {\n  if (value === undefined || value === null) {\n    return null;\n  }\n\n  const normalized = String(value).trim();\n\n  return normalized === ''\n    ? null\n    : normalized;\n};\n\nreturn [\n  {\n    json: {\n      input: {\n        phone: input.phone.trim(),\n\n        first_name: clean(input.first_name),\n        last_name: clean(input.last_name),\n        company: clean(input.company),\n        email: clean(input.email),\n\n        phone_label:\n          clean(input.phone_label) ?? 'mobile',\n\n        can_whatsapp:\n          typeof input.can_whatsapp === 'boolean'\n            ? input.can_whatsapp\n            : false,\n\n        source: clean(input.source)\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "efdf7947-a1bc-417d-b01c-90b2faeb6a68",
+      "name": "Code · Prepare Input"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input =\n  $('Code · Prepare Input').item.json.input;\n\nconst resolution = $json;\n\nif (!resolution?.status) {\n  throw new Error(\n    'El resolver no devolvió status'\n  );\n}\n\nreturn [\n  {\n    json: {\n      input,\n      resolution\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        0
+      ],
+      "id": "06aa3395-dda2-4bcb-9136-2a084c852755",
+      "name": "Code · Merge Context"
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $json.data;\n\nreturn [\n  {\n    json: {\n      status: 'resolved',\n      action: 'updated',\n      contact: response\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1488,
+        -176
+      ],
+      "id": "89956233-dfae-4519-adfb-a888898ef216",
+      "name": "Code · Return Updated"
+    },
+    {
+      "parameters": {
+        "jsCode": "const phone = $json.data;\n\nconst contact =\n  $('Code · Build New Phone').item.json.contact;\n\nreturn [\n  {\n    json: {\n      status: 'resolved',\n      action: 'created',\n      contact,\n      phone\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1936,
+        0
+      ],
+      "id": "cd75602c-e73a-4476-8de2-6fc0b343372b",
+      "name": "Code · Return Created"
+    },
+    {
+      "parameters": {
+        "jsCode": "const { input, resolution } = $json;\n\nreturn [\n  {\n    json: {\n      status: 'ambiguous',\n      action: 'none',\n\n      phone_input:\n        resolution.phone_input,\n\n      phone_normalized:\n        resolution.phone_normalized,\n\n      candidates:\n        resolution.candidates,\n\n      input\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        176
+      ],
+      "id": "23f4e310-8afc-4351-bd54-0d24a1fb2807",
+      "name": "Code · Return Ambiguous"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code · Prepare Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · Resolve Contact by Phone": {
+      "main": [
+        [
+          {
+            "node": "Code · Merge Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch · Resolution": {
+      "main": [
+        [
+          {
+            "node": "Code · Build Contact Update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Build New Contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Return Ambiguous",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Build Contact Update": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Update Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Build New Contact": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Create Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Build New Phone": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Create Phone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Create Contact": {
+      "main": [
+        [
+          {
+            "node": "Code · Build New Phone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Prepare Input": {
+      "main": [
+        [
+          {
+            "node": "Execute · Resolve Contact by Phone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Merge Context": {
+      "main": [
+        [
+          {
+            "node": "Switch · Resolution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Update Contact": {
+      "main": [
+        [
+          {
+            "node": "Code · Return Updated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Create Phone": {
+      "main": [
+        [
+          {
+            "node": "Code · Return Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}

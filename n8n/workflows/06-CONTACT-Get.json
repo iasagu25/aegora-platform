@@ -1,0 +1,131 @@
+{
+  "id": "Ba2Ci0yOTbyJm4Qh",
+  "name": "06 · CONTACT · Get",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "contact_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "f74865bb-2c64-4d59-934a-8235a4a0c4a0",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json;\n\nconst clean = (value) => {\n  if (value === undefined || value === null) {\n    return null;\n  }\n\n  const result = String(value).trim();\n\n  return result === ''\n    ? null\n    : result;\n};\n\nconst contactId = clean(input.contact_id);\n\nif (!contactId) {\n  throw new Error('contact_id es obligatorio');\n}\n\nconst uuidPattern =\n  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\n\nif (!uuidPattern.test(contactId)) {\n  throw new Error(\n    `contact_id no es un UUID válido: ${contactId}`\n  );\n}\n\nreturn [\n  {\n    json: {\n      contact_id: contactId\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "8895ee30-e169-4120-a57c-e4d30a8d3b43",
+      "name": "Code · Validate Input"
+    },
+    {
+      "parameters": {
+        "url": "=http://demo-directus:8055/items/contacts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "id,first_name,last_name,company,email,status,notes,created_at,updated_at,phones.id,phones.phone_number,phones.phone_normalized,phones.label,phones.is_primary,phones.can_whatsapp,tasks.id,tasks.title,tasks.description,tasks.status,tasks.priority,tasks.due_at,tasks.completed_at,tasks.source,appointments.id,appointments.title,appointments.start_at,appointments.end_at,appointments.status,appointments.notes,appointments.source,appointments.external_provider,appointments.external_event_id"
+            },
+            {
+              "name": "filter",
+              "value": "={{ JSON.stringify({ id: { _eq: $json.contact_id } }) }}"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "493976c9-b61a-40e6-85b3-794a3e74291c",
+      "name": "HTTP · Get Contact",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $json.data ?? [];\n\nif (!Array.isArray(rows)) {\n  throw new Error(\n    'Respuesta inesperada de Directus al consultar el contacto'\n  );\n}\n\nif (rows.length === 0) {\n  return [\n    {\n      json: {\n        status: 'not_found',\n        contact: null,\n        primary_phone: null,\n        phones: [],\n        tasks: [],\n        appointments: []\n      }\n    }\n  ];\n}\n\nconst contact = rows[0];\n\nif (!contact?.id) {\n  throw new Error(\n    'Directus devolvió un contacto sin id'\n  );\n}\n\nconst phones = Array.isArray(contact.phones)\n  ? contact.phones\n  : [];\n\nconst tasks = Array.isArray(contact.tasks)\n  ? contact.tasks\n  : [];\n\nconst appointments = Array.isArray(contact.appointments)\n  ? contact.appointments\n  : [];\n\nconst primaryPhone =\n  phones.find(\n    phone => phone?.is_primary === true\n  ) ??\n  phones[0] ??\n  null;\n\nreturn [\n  {\n    json: {\n      status: 'resolved',\n\n      contact: {\n        id: contact.id,\n        first_name: contact.first_name ?? null,\n        last_name: contact.last_name ?? null,\n        company: contact.company ?? null,\n        email: contact.email ?? null,\n        status: contact.status ?? null,\n        notes: contact.notes ?? null,\n        created_at: contact.created_at ?? null,\n        updated_at: contact.updated_at ?? null\n      },\n\n      primary_phone: primaryPhone,\n\n      phones,\n\n      tasks,\n\n      appointments\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "7c9ecfb1-7950-46e0-b92a-be67ec6dec70",
+      "name": "Code · Normalize Result"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code · Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Validate Input": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Get Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Get Contact": {
+      "main": [
+        [
+          {
+            "node": "Code · Normalize Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}
