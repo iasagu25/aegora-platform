@@ -37,6 +37,10 @@ volumes/
 *.tar
 *.tar.gz
 
+# Versionable SQL (idempotent schema/index layer, not dumps)
+!directus/sql/
+!directus/sql/*.sql
+
 
 # =============================================================================
 # Logs

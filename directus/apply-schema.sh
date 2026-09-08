@@ -5,6 +5,8 @@ IFS=$'\n\t'
 readonly PLATFORM_ROOT="/opt/aegora/platform"
 readonly TENANTS_ROOT="/opt/aegora/tenants"
 readonly SCHEMA_FILE="${PLATFORM_ROOT}/directus/schema/base.yaml"
+readonly SQL_INDEXES_FILE="${PLATFORM_ROOT}/directus/sql/booking-indexes.sql"
+readonly POSTGRES_CONTAINER="aegora-postgres"
 
 TENANT=""
 APPLY=false
@@ -16,6 +18,9 @@ DIRECTUS_VERSION=""
 DIRECTUS_HEALTH=""
 DECLARED_DIRECTUS_VERSION=""
 CONTAINER_SCHEMA="/tmp/aegora-schema.yaml"
+DB_DATABASE=""
+DB_USER=""
+DB_PASSWORD=""
 
 log() { printf '[%s] %s\n' "$(date --iso-8601=seconds)" "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
@@ -41,15 +46,21 @@ Uso:
   apply-schema.sh --tenant TENANT [--apply]
 
 Sin --apply:
-  valida el tenant y ejecuta Directus schema apply --dry-run.
+  valida el tenant, ejecuta Directus schema apply --dry-run y valida
+  directus/sql/booking-indexes.sql contra la BD del tenant dentro de
+  una transacción que se revierte (BEGIN ... ROLLBACK).
 
 Con --apply:
-  aplica directus/schema/base.yaml al tenant, verifica el estado base
-  y restaura después la configuración UI administrada por Aegora.
+  aplica directus/schema/base.yaml al tenant, verifica el estado base,
+  aplica directus/sql/booking-indexes.sql (índices/constraints
+  idempotentes) dentro de BEGIN ... COMMIT, y restaura después la
+  configuración UI administrada por Aegora.
 
 Nota:
   Los custom displays se gestionan fuera de base.yaml mediante
   configure-directus-ui.sh.
+  La capa SQL se ejecuta vía psql en el contenedor aegora-postgres
+  usando las credenciales de BD del contenedor Directus.
 EOF
 }
 
@@ -58,6 +69,27 @@ require_file() { [[ -f "$1" ]] || fail "Falta el fichero requerido: $1"; }
 container_running() { [[ "$(docker inspect --format '{{.State.Status}}' "$1" 2>/dev/null)" == "running" ]]; }
 container_health() {
   docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}not-configured{{end}}' "$1" 2>/dev/null
+}
+
+# Ejecuta SQL_INDEXES_FILE contra la BD del tenant envuelto en una
+# transacción. $1 = COMMIT (persistir) | ROLLBACK (validar sin persistir).
+# El control de transacción se inyecta aquí, no en el .sql.
+run_index_sql() {
+  local closer="$1"
+
+  {
+    printf "BEGIN;\n"
+    printf "SET lock_timeout = '5s';\n"
+    cat "$SQL_INDEXES_FILE"
+    printf "%s;\n" "$closer"
+  } | PGPASSWORD="$DB_PASSWORD" docker exec -i -e PGPASSWORD \
+        "$POSTGRES_CONTAINER" \
+        psql \
+          -v ON_ERROR_STOP=1 \
+          --no-psqlrc \
+          -U "$DB_USER" \
+          -d "$DB_DATABASE" \
+          -f -
 }
 
 while [[ $# -gt 0 ]]; do
@@ -86,6 +118,7 @@ done
 
 require_command docker
 require_file "$SCHEMA_FILE"
+require_file "$SQL_INDEXES_FILE"
 
 TENANT_ROOT="${TENANTS_ROOT}/${TENANT}"
 TENANT_CONFIG="${TENANT_ROOT}/config/tenant.env"
@@ -124,6 +157,19 @@ DIRECTUS_VERSION="$(
 [[ "$DIRECTUS_VERSION" == "$DECLARED_DIRECTUS_VERSION" ]] ||
   fail "Versión Directus inconsistente. Declarada=${DECLARED_DIRECTUS_VERSION}, contenedor=${DIRECTUS_VERSION}"
 
+docker inspect "$POSTGRES_CONTAINER" >/dev/null 2>&1 ||
+  fail "No existe el contenedor Postgres: ${POSTGRES_CONTAINER}"
+
+container_running "$POSTGRES_CONTAINER" ||
+  fail "Postgres no está running: ${POSTGRES_CONTAINER}"
+
+DB_DATABASE="$(docker exec "$DIRECTUS_CONTAINER" node -p "process.env.DB_DATABASE || ''" | tr -d '\r\n')"
+DB_USER="$(docker exec "$DIRECTUS_CONTAINER" node -p "process.env.DB_USER || ''" | tr -d '\r\n')"
+DB_PASSWORD="$(docker exec "$DIRECTUS_CONTAINER" node -p "process.env.DB_PASSWORD || ''" | tr -d '\r\n')"
+
+[[ -n "$DB_DATABASE" && -n "$DB_USER" ]] ||
+  fail "No se pudieron leer las credenciales de BD del contenedor Directus."
+
 log "Copiando schema versionado al contenedor."
 
 docker cp   "$SCHEMA_FILE"   "${DIRECTUS_CONTAINER}:${CONTAINER_SCHEMA}"
@@ -146,6 +192,10 @@ Directus:
 Schema:
   ${SCHEMA_FILE}
 
+SQL:
+  ${SQL_INDEXES_FILE}
+  -> ${POSTGRES_CONTAINER} / db=${DB_DATABASE} user=${DB_USER}
+
 Modo:
   $([[ "$APPLY" == true ]] && printf 'APPLY' || printf 'DRY RUN')
 
@@ -158,13 +208,23 @@ if [[ "$APPLY" != true ]]; then
 
   docker exec     "$DIRECTUS_CONTAINER"     node     /directus/cli.js     schema apply     --dry-run     "$CONTAINER_SCHEMA"
 
-  log "Dry-run completado correctamente."
+  log "Dry-run de schema completado correctamente."
+
+  log "Validando índices/constraints SQL (BEGIN ... ROLLBACK, sin persistir)."
+
+  run_index_sql ROLLBACK
+
+  log "Validación SQL completada."
 
   cat <<'EOF'
 
 Nota:
   El dry-run puede mostrar diferencias en custom displays mientras
   el overlay UI administrado esté activo. Es esperado.
+
+  La validación SQL ejecuta el fichero dentro de una transacción que
+  se revierte: crea los índices y hace ROLLBACK, por lo que en la
+  primera pasada puede construirlos y descartarlos. No persiste nada.
 
 EOF
 
@@ -185,6 +245,12 @@ docker exec   "$DIRECTUS_CONTAINER"   node   /directus/cli.js   schema apply   -
 
 log "Verificación posterior del schema completada."
 
+log "Aplicando índices/constraints SQL idempotentes (BEGIN ... COMMIT)."
+
+run_index_sql COMMIT
+
+log "Índices/constraints SQL aplicados correctamente."
+
 cat <<EOF
 
 ============================================================
@@ -196,6 +262,9 @@ Tenant:
 
 Schema:
   ${SCHEMA_FILE}
+
+SQL:
+  ${SQL_INDEXES_FILE}
 
 Estado:
   OK
