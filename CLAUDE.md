@@ -110,11 +110,14 @@ documentado sigue siendo cierto.
     Integrado como etapas en `onboard-tenant.sh`; ruta Caddy `${BOOKING_HOST}`
     en `publish-tenant.sh` (condicional a que el contenedor exista).
     `demo-booking` desplegado y healthy.
+  - `availability_exceptions.start_at/end_at` pasados a `timestamptz`
+    (antes `timestamp` sin zona; ahora consistente con `appointments`).
+    Cambio de tipo Directus no se puede por PATCH `/fields` en 12.2: se hizo
+    con `ALTER … USING <col> AT TIME ZONE 'Europe/Madrid'` en `demo` + snapshot.
 - Pendiente P3:
   - Quitar `booking_<tenant>` (DB + rol) de `create-tenant.sh` + `backup.manifest.json`
     (customers + template). El `booking_<tenant>` vacío actual es peso muerto inofensivo.
-  - `availability_exceptions.start_at/end_at` son `timestamp` sin zona vs
-    `appointments` `timestamptz` — unificar a `timestamptz`.
+  - Aplicar `base.yaml` (68cd6f7) + `booking-indexes.sql` en `aegora-internal`.
   - Migrar build A → imagen en GHCR (CI en `aegora-booking`).
   - Herramienta n8n *Appointment Availability* que consume el Booking API (P4).
 
