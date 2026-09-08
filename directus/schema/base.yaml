@@ -1548,7 +1548,7 @@ fields:
       foreign_key_column: null
   - collection: availability_exceptions
     field: start_at
-    type: dateTime
+    type: timestamp
     meta:
       collection: availability_exceptions
       conditions: null
@@ -1573,7 +1573,7 @@ fields:
     schema:
       name: start_at
       table: availability_exceptions
-      data_type: timestamp without time zone
+      data_type: timestamp with time zone
       default_value: null
       max_length: null
       numeric_precision: null
@@ -1589,7 +1589,7 @@ fields:
       foreign_key_column: null
   - collection: availability_exceptions
     field: end_at
-    type: dateTime
+    type: timestamp
     meta:
       collection: availability_exceptions
       conditions: null
@@ -1614,7 +1614,7 @@ fields:
     schema:
       name: end_at
       table: availability_exceptions
-      data_type: timestamp without time zone
+      data_type: timestamp with time zone
       default_value: null
       max_length: null
       numeric_precision: null
