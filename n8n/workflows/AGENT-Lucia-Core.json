@@ -1,0 +1,1504 @@
+{
+  "id": "aegoraAgentLuciaCore",
+  "name": "AGENT · Lucía · Core",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "message"
+            },
+            {
+              "name": "sessionID"
+            },
+            {
+              "name": "client_id"
+            },
+            {
+              "name": "canal"
+            },
+            {
+              "name": "texto_usuario"
+            },
+            {
+              "name": "tool_forzada"
+            },
+            {
+              "name": "no_reinterpretar_intencion"
+            },
+            {
+              "name": "flujo_activo"
+            },
+            {
+              "name": "contact_name"
+            },
+            {
+              "name": "contact_phone"
+            },
+            {
+              "name": "contact_company"
+            },
+            {
+              "name": "service_query"
+            },
+            {
+              "name": "date"
+            },
+            {
+              "name": "time"
+            },
+            {
+              "name": "appointment_ref"
+            },
+            {
+              "name": "booking_base_url"
+            },
+            {
+              "name": "directus_base_url"
+            },
+            {
+              "name": "tenant_timezone"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "lucia-510610004847",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c1",
+              "name": "booking_base_url",
+              "type": "string",
+              "value": "={{ ($json.booking_base_url && $json.booking_base_url.toString().trim()) || 'http://demo-booking:3000' }}"
+            },
+            {
+              "id": "c2",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "={{ ($json.directus_base_url && $json.directus_base_url.toString().trim()) || 'http://demo-directus:8055' }}"
+            },
+            {
+              "id": "c3",
+              "name": "tenant_timezone",
+              "type": "string",
+              "value": "={{ ($json.tenant_timezone && $json.tenant_timezone.toString().trim()) || 'Europe/Madrid' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "id": "lucia-139750076091",
+      "name": "Config (editar por tenant)",
+      "notes": "Ajusta los 3 fallbacks a http://<tenant>-booking:3000 / http://<tenant>-directus:8055 / zona del negocio."
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "=## SISTEMA: LUCÍA · CORE\nAHORA: {{ $now.setZone($json.tenant_timezone || 'Europe/Madrid').toFormat(\"cccc dd LLLL yyyy HH:mm\") }}\nZONA: {{ $json.tenant_timezone || 'Europe/Madrid' }} · CANAL: {{ $json.canal || 'webchat' }}\n\nEres Lucía, asistente de este negocio. Aquí solo INTERPRETAS y devuelves SOLO un JSON.\nNO ejecutas acciones. NO inventas disponibilidad, citas ni identificadores (UUID de\nservicios/contactos/recursos/citas): describes el significado (p.ej. nombre del\nservicio), el sistema resuelve los IDs. NO redactas conocimiento aquí.\n\nCONTEXTO\n- TEXTO: {{ $json.texto_usuario || $json.message || '' }}\n- FLUJO ACTIVO: {{ $json.flujo_activo || 'null' }}\n- TOOL FORZADA: {{ $json.tool_forzada || 'null' }} · NO REINTERPRETAR: {{ $json.no_reinterpretar_intencion || false }}\n- ya recogido -> nombre: {{ $json.contact_name || 'null' }} · tel: {{ $json.contact_phone || 'null' }} · empresa: {{ $json.contact_company || 'null' }} · servicio: {{ $json.service_query || 'null' }} · fecha: {{ $json.date || 'null' }} · hora: {{ $json.time || 'null' }} · ref cita: {{ $json.appointment_ref || 'null' }}\n\nPRIORIDAD: 1) tool forzada  2) continuidad de flujo  3) extracción  4) intención  5) pregunta mínima.\n\nCONTINUIDAD: si FLUJO ACTIVO indica una operación en curso, el siguiente mensaje la\ncontinúa; completa los datos que aporte el usuario y no reclasifiques salvo cambio\nexplícito.\n\nINTENCIONES (intent):\n- create_appointment / reschedule_appointment / cancel_appointment\n- list_availability\n- create_task\n- knowledge  (info: servicios, precios, cómo funciona)\n- null  (saludo / genérico / falta contexto)\n\nREGLAS\n- Genérico -> intent null, needs_user_reply true, reply_to_user \"Hola, ¿en qué puedo ayudarte?\".\n- Conocimiento -> intent \"knowledge\", needs_user_reply false, reply_to_user \"\".\n- Reservar: si el usuario menciona qué necesita, ponlo en service_query (texto, NO UUID);\n  si no, service_query null.\n  · fecha+hora concretas -> intent create_appointment; resuelve date=YYYY-MM-DD y time=HH:mm;\n    ready_to_execute true si además hay servicio y (nombre o teléfono), si no pide SOLO lo que falte.\n  · solo fecha sin hora -> intent list_availability; resuelve date; ready_to_execute true.\n  · sin fecha -> intent create_appointment; needs_user_reply true; reply \"¿Qué día y a qué hora te viene bien?\".\n- Listar horarios -> intent list_availability; resuelve date (hoy/mañana/pasado/\"el jueves\"...) a\n  YYYY-MM-DD; si puedes ready_to_execute true; si no date null + pregunta.\n- Reprogramar/cancelar -> intent reschedule_appointment / cancel_appointment; pon en\n  appointment_ref lo que use el usuario (\"la del jueves\"); para reprogramar resuelve la nueva date+time.\n- Tareas -> intent create_task; task.type callback|review_doc|admin|email|null;\n  task.priority urgent|important|callback|normal|null; task.due_date YYYY-MM-DD si aparece;\n  \"por la mañana\"->13:00, \"por la tarde\"->18:00, hora exacta si la da; task.note = asunto.\n\nEXTRACCIÓN: solo datos del usuario/su empresa, no de terceros.\n- contact.name solo si el usuario se identifica (\"soy Juan\"); NO si es de otra persona\n  (\"cita para Marta\") -> ese nombre va en task.note / appointment_ref.\n- contact.phone solo si es el teléfono del usuario.\n- contact.company solo si la da como dato propio.\n- Ante duda null. Nunca ready_to_execute true sin date. Nunca time si el usuario no la dio.\n\nSALIDA — un único JSON válido, sin texto alrededor:\n{\n  \"intent\": \"create_appointment|reschedule_appointment|cancel_appointment|list_availability|create_task|knowledge|null\",\n  \"needs_user_reply\": boolean, \"reply_to_user\": \"string\", \"ready_to_execute\": boolean,\n  \"contact\": { \"name\": \"string|null\", \"phone\": \"string|null\", \"company\": \"string|null\" },\n  \"service_query\": \"string|null\", \"date\": \"YYYY-MM-DD|null\", \"time\": \"HH:mm|null\",\n  \"appointment_ref\": \"string|null\",\n  \"task\": { \"type\": \"callback|review_doc|admin|email|null\", \"priority\": \"urgent|important|callback|normal|null\", \"due_date\": \"YYYY-MM-DD|null\", \"note\": \"string|null\" },\n  \"confirmation\": boolean|null\n}\nSi no sabes un valor usa null; no omitas claves."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        460,
+        0
+      ],
+      "id": "lucia-890895488458",
+      "name": "AI Agent - Core"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        380,
+        220
+      ],
+      "id": "lucia-339438161657",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "fxKaYIovKoE9cnsk",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.sessionID }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        520,
+        220
+      ],
+      "id": "lucia-057693012162",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "jsCode": "let raw = ($json.output ?? '').trim();\nif (raw.startsWith('```')) raw = raw.replace(/^```json\\s*/i,'').replace(/^```\\s*/i,'').replace(/\\s*```$/,'');\nlet core;\ntry { core = JSON.parse(raw); } catch (e) { throw new Error('La salida del Core no es JSON válido: ' + raw); }\nconst cfg = $('Config (editar por tenant)').item.json;\nconst trg = $('When Executed by Another Workflow').item.json;\nreturn [{ json: {\n  ...core,\n  intent: core.intent === 'null' ? null : core.intent,\n  contact: core.contact || {},\n  task: core.task || {},\n  sessionID: trg.sessionID, client_id: trg.client_id, canal: trg.canal, message: trg.message,\n  booking_base_url: cfg.booking_base_url, directus_base_url: cfg.directus_base_url, tenant_timezone: cfg.tenant_timezone,\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        0
+      ],
+      "id": "lucia-884277607324",
+      "name": "Output IA → JSON"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "knowledge",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "knowledge",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "knowledge"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "list_availability",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "list_availability",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "list_availability"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "create_appointment",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "create_appointment",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "create_appointment"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "create_task",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "create_task",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "create_task"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "resched",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "reschedule_appointment",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "cancel",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "cancel_appointment",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "mutate_appointment"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "reply"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        920,
+        0
+      ],
+      "id": "lucia-892050982368",
+      "name": "Switch · intent"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Base de conocimiento del negocio: servicios, precios, funcionamiento.",
+        "tableName": "documentos_lucia",
+        "topK": 50,
+        "options": {
+          "columnNames": {
+            "values": {
+              "contentColumnName": "content"
+            }
+          },
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "client_id",
+                "value": "={{ $json.client_id }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1.3,
+      "position": [
+        1180,
+        360
+      ],
+      "id": "lucia-829753831898",
+      "name": "consultar_conocimiento",
+      "credentials": {
+        "postgres": {
+          "id": "kyc8Qow5Zz0zaMOh",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-ada-002",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1180,
+        520
+      ],
+      "id": "lucia-608997448012",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "fxKaYIovKoE9cnsk",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1320,
+        360
+      ],
+      "id": "lucia-761925768671",
+      "name": "OpenAI Chat Model · Conocimiento",
+      "credentials": {
+        "openAiApi": {
+          "id": "fxKaYIovKoE9cnsk",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "=Eres Lucía. Responde la consulta del usuario usando SOLO el contexto recuperado con la tool 'consultar_conocimiento'. No inventes. Si no basta, dilo. Español de España, claro y breve. No hables de herramientas. Devuelve SOLO JSON: { \"response\": \"string\" }"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        1420,
+        180
+      ],
+      "id": "lucia-670866103520",
+      "name": "AI Agent - Conocimiento"
+    },
+    {
+      "parameters": {
+        "jsCode": "let raw = ($json.output ?? '').trim();\nif (raw.startsWith('```')) raw = raw.replace(/^```json\\s*/i,'').replace(/^```\\s*/i,'').replace(/\\s*```$/,'');\nlet k = {}; try { k = JSON.parse(raw); } catch (e) { k = { response: raw }; }\nreturn [{ json: { ok: true, intent: 'knowledge', reply_to_user: k.response || '', needs_user_reply: false } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1640,
+        180
+      ],
+      "id": "lucia-587587878431",
+      "name": "Salida · conocimiento"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "r",
+              "leftValue": "={{ $json.ready_to_execute }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1180,
+        -320
+      ],
+      "id": "lucia-578161009792",
+      "name": "¿Lista lista?"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraToolResolveService",
+          "mode": "list",
+          "cachedResultName": "26 · TOOL · Resolve Service"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "service_query": "={{ $json.service_query }}",
+            "directus_base_url": "={{ $json.directus_base_url }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "service_query",
+              "displayName": "service_query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "directus_base_url",
+              "displayName": "directus_base_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1400,
+        -400
+      ],
+      "id": "lucia-711541036322",
+      "name": "Call · 26 Resolve Service (lista)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "s",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "single",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1620,
+        -400
+      ],
+      "id": "lucia-182049924721",
+      "name": "¿Servicio único? (lista)"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraApptAvailabilityV1",
+          "mode": "list",
+          "cachedResultName": "APPOINTMENT Availability"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "service_id": "={{ $json.service_id }}",
+            "date": "={{ $('Output IA → JSON').item.json.date }}",
+            "timezone": "={{ $('Output IA → JSON').item.json.tenant_timezone }}",
+            "booking_base_url": "={{ $('Output IA → JSON').item.json.booking_base_url }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "service_id",
+              "displayName": "service_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "timezone",
+              "displayName": "timezone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "booking_base_url",
+              "displayName": "booking_base_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1840,
+        -460
+      ],
+      "id": "lucia-108828396409",
+      "name": "Call · APPOINTMENT_Availability"
+    },
+    {
+      "parameters": {
+        "jsCode": "const av = $json ?? {};\nconst tz = $('Output IA → JSON').item.json.tenant_timezone || 'Europe/Madrid';\nconst slots = Array.isArray(av.slots) ? av.slots : [];\nconst horas = slots.map(s => DateTime.fromISO(s.start_at).setZone(tz).toFormat('HH:mm'));\nreturn [{ json: {\n  date: av.date, available: av.available === true,\n  bloques_texto_humano: horas.join(', '),\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2060,
+        -460
+      ],
+      "id": "lucia-595835775875",
+      "name": "Preparar bloques"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        2200,
+        -300
+      ],
+      "id": "lucia-891426460748",
+      "name": "OpenAI Chat Model · Redacta",
+      "credentials": {
+        "openAiApi": {
+          "id": "fxKaYIovKoE9cnsk",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify({ fecha: $json.date, bloques: $json.bloques_texto_humano }) }}",
+        "options": {
+          "systemMessage": "Eres Lucía. Redacta en español de España, natural y breve, los horarios disponibles. Fecha: {{ $json.date }}. Bloques: {{ $json.bloques_texto_humano }}. No inventes horarios. Si no hay bloques, di que no quedan huecos ese día. Termina preguntando qué hora le encaja mejor."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        2280,
+        -460
+      ],
+      "id": "lucia-385663729625",
+      "name": "AI Agent - Redacta horarios"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ok: true, intent: 'list_availability', reply_to_user: $json.output || $json.text || '', needs_user_reply: true } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2500,
+        -460
+      ],
+      "id": "lucia-996837271187",
+      "name": "Salida · lista horarios"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json ?? {};\nif (r.status === 'multiple') {\n  const nombres = (r.candidates || []).map(c => c.name).join(', ');\n  return [{ json: { ok: true, intent: 'list_availability', needs_user_reply: true,\n    reply_to_user: `¿Para qué servicio? Tenemos: ${nombres}.` } }];\n}\nreturn [{ json: { ok: true, intent: 'list_availability', needs_user_reply: true,\n  reply_to_user: 'No encuentro ese servicio. ¿Puedes decírmelo de otra forma?' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        -320
+      ],
+      "id": "lucia-723729591968",
+      "name": "Salida · falta servicio (lista)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "r",
+              "leftValue": "={{ $json.ready_to_execute }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1180,
+        120
+      ],
+      "id": "lucia-700119813228",
+      "name": "¿Reserva lista?"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraToolResolveService",
+          "mode": "list",
+          "cachedResultName": "26 · TOOL · Resolve Service"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "service_query": "={{ $json.service_query }}",
+            "directus_base_url": "={{ $json.directus_base_url }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "service_query",
+              "displayName": "service_query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "directus_base_url",
+              "displayName": "directus_base_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1400,
+        60
+      ],
+      "id": "lucia-138954717197",
+      "name": "Call · 26 Resolve Service (reserva)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "s",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "single",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1620,
+        60
+      ],
+      "id": "lucia-592134739508",
+      "name": "¿Servicio único? (reserva)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const core = $('Output IA → JSON').item.json;\nconst svc = $json;  // salida de Resolve Service (single)\nconst tz = core.tenant_timezone || 'Europe/Madrid';\nif (!core.date || !core.time) {\n  return [{ json: { _no_datetime: true, service_id: svc.service_id } }];\n}\nconst start = DateTime.fromISO(`${core.date}T${core.time}`, { zone: tz });\nif (!start.isValid) return [{ json: { _no_datetime: true, service_id: svc.service_id } }];\nreturn [{ json: {\n  service_id: svc.service_id,\n  start_at: start.toISO(),\n  contact_id: null,\n  phone: core.contact?.phone || null,\n  query: core.contact?.name || null,\n  source: 'ai',\n  idempotency_key: `${core.sessionID || core.canal || 'lucia'}-${start.toISO()}`,\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        20
+      ],
+      "id": "lucia-065595042363",
+      "name": "Construir start_at"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "d",
+              "leftValue": "={{ $json._no_datetime }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2060,
+        20
+      ],
+      "id": "lucia-148263217985",
+      "name": "¿Hay fecha y hora?"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "TN8UZBnpGC9HKjqq",
+          "mode": "list",
+          "cachedResultName": "22 · TOOL · Appointment Create"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "={{ $json.contact_id }}",
+            "phone": "={{ $json.phone }}",
+            "query": "={{ $json.query }}",
+            "service_id": "={{ $json.service_id }}",
+            "start_at": "={{ $json.start_at }}",
+            "source": "={{ $json.source }}",
+            "idempotency_key": "={{ $json.idempotency_key }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "query",
+              "displayName": "query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "service_id",
+              "displayName": "service_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "start_at",
+              "displayName": "start_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "idempotency_key",
+              "displayName": "idempotency_key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        2280,
+        -40
+      ],
+      "id": "lucia-600941873128",
+      "name": "Call · 22 Appointment Create"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json ?? {};\nif (r.ok === true) {\n  const a = r.data?.appointment || {};\n  const tz = $('Output IA → JSON').item.json.tenant_timezone || 'Europe/Madrid';\n  const cuando = a.start_at ? DateTime.fromISO(a.start_at).setZone(tz).toFormat(\"cccc dd LLLL 'a las' HH:mm\") : '';\n  return [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: false,\n    reply_to_user: r.message?.includes('idempotente') ? `Tu cita ya estaba reservada para el ${cuando}.` : `Listo, cita confirmada para el ${cuando}.`,\n    appointment: a } }];\n}\nif (r.status === 'slot_conflict' || r.status === 'slot_taken') {\n  return [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: 'Ese horario ya no está disponible. ¿Quieres que mire otros huecos de ese día?' } }];\n}\nreturn [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n  reply_to_user: r.message || 'No he podido crear la cita. ¿Lo intentamos de otra forma?' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2500,
+        -40
+      ],
+      "id": "lucia-235488014176",
+      "name": "Salida · reserva"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json ?? {};\nif (r._no_datetime) return [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: true,\n  reply_to_user: '¿Qué día y a qué hora te viene bien?' } }];\nif (r.status === 'multiple') {\n  const nombres = (r.candidates || []).map(c => c.name).join(', ');\n  return [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: `¿Para qué servicio? Tenemos: ${nombres}.` } }];\n}\nreturn [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: true,\n  reply_to_user: 'No encuentro ese servicio. ¿Puedes decírmelo de otra forma?' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2280,
+        140
+      ],
+      "id": "lucia-676728685649",
+      "name": "Salida · pedir datos reserva"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "n60GQzDdvZUbICDI",
+          "mode": "list",
+          "cachedResultName": "19 · TOOL · Task Create"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "phone": "={{ $json.contact && $json.contact.phone ? $json.contact.phone : null }}",
+            "query": "={{ $json.contact && $json.contact.name ? $json.contact.name : null }}",
+            "title": "={{ ($json.task && $json.task.type ? '['+$json.task.type+'] ' : '') + (($json.task && $json.task.note) || 'Tarea') }}",
+            "description": "={{ $json.task && $json.task.note ? $json.task.note : $json.message }}",
+            "priority": "={{ $json.task && $json.task.priority ? $json.task.priority : null }}",
+            "due_at": "={{ $json.task && $json.task.due_date ? $json.task.due_date : null }}",
+            "source": "ai"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "query",
+              "displayName": "query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "priority",
+              "displayName": "priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "due_at",
+              "displayName": "due_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1180,
+        420
+      ],
+      "id": "lucia-690538255024",
+      "name": "Call · 19 Task Create"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json ?? {};\nreturn [{ json: { ok: r.ok !== false, intent: 'create_task', needs_user_reply: false,\n  reply_to_user: (r.ok !== false) ? 'Anotado, me encargo de ello.' : (r.message || 'No he podido anotar la tarea.'),\n  task: r.data ?? r } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        420
+      ],
+      "id": "lucia-736696429696",
+      "name": "Salida · tarea"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ok: false, intent: $json.intent, needs_user_reply: true,\n  reply_to_user: 'Para cambiar o anular una cita todavía te tengo que pasar con el equipo. Enseguida lo activamos.' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1180,
+        560
+      ],
+      "id": "lucia-750622275251",
+      "name": "Salida · mutación cita (pendiente)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const c = $json ?? {};\nreturn [{ json: {\n  ok: true, intent: c.intent ?? null,\n  needs_user_reply: c.needs_user_reply ?? true,\n  reply_to_user: c.reply_to_user || 'Hola, ¿en qué puedo ayudarte?',\n  flujo_activo: c.intent,\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1180,
+        700
+      ],
+      "id": "lucia-034121738790",
+      "name": "Salida · respuesta directa"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Core",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Core",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent - Core",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Core": {
+      "main": [
+        [
+          {
+            "node": "Output IA → JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Output IA → JSON": {
+      "main": [
+        [
+          {
+            "node": "Switch · intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch · intent": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Conocimiento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Lista lista?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Reserva lista?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call · 19 Task Create",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Salida · mutación cita (pendiente)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Salida · respuesta directa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model · Conocimiento": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Conocimiento",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_conocimiento": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Conocimiento",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "consultar_conocimiento",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Conocimiento": {
+      "main": [
+        [
+          {
+            "node": "Salida · conocimiento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Lista lista?": {
+      "main": [
+        [
+          {
+            "node": "Call · 26 Resolve Service (lista)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call · 26 Resolve Service (lista)": {
+      "main": [
+        [
+          {
+            "node": "¿Servicio único? (lista)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Servicio único? (lista)": {
+      "main": [
+        [
+          {
+            "node": "Call · APPOINTMENT_Availability",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Salida · falta servicio (lista)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call · APPOINTMENT_Availability": {
+      "main": [
+        [
+          {
+            "node": "Preparar bloques",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar bloques": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Redacta horarios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model · Redacta": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Redacta horarios",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Redacta horarios": {
+      "main": [
+        [
+          {
+            "node": "Salida · lista horarios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Reserva lista?": {
+      "main": [
+        [
+          {
+            "node": "Call · 26 Resolve Service (reserva)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call · 26 Resolve Service (reserva)": {
+      "main": [
+        [
+          {
+            "node": "¿Servicio único? (reserva)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Servicio único? (reserva)": {
+      "main": [
+        [
+          {
+            "node": "Construir start_at",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Salida · pedir datos reserva",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construir start_at": {
+      "main": [
+        [
+          {
+            "node": "¿Hay fecha y hora?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay fecha y hora?": {
+      "main": [
+        [
+          {
+            "node": "Call · 22 Appointment Create",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Salida · pedir datos reserva",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call · 22 Appointment Create": {
+      "main": [
+        [
+          {
+            "node": "Salida · reserva",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call · 19 Task Create": {
+      "main": [
+        [
+          {
+            "node": "Salida · tarea",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}

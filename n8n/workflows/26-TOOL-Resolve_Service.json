@@ -1,0 +1,93 @@
+{
+  "id": "aegoraToolResolveService",
+  "name": "26 · TOOL · Resolve Service",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            { "name": "service_query" },
+            { "name": "service_id" },
+            { "name": "directus_base_url" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "id": "26a00000-0000-4000-8000-000000000001",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg-directus-url",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "={{ ($json.directus_base_url && $json.directus_base_url.toString().trim()) || 'http://demo-directus:8055' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [200, 0],
+      "id": "26a00000-0000-4000-8000-000000000002",
+      "name": "Config (editar por tenant)",
+      "notes": "Cambia el fallback por http://<tenant>-directus:8055."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.directus_base_url }}/items/services",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ 'filter[active][_eq]': 'true', fields: 'id,name,description', limit: -1 }) }}",
+        "options": {
+          "response": { "response": { "neverError": true, "fullResponse": true } }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [416, 0],
+      "id": "26a00000-0000-4000-8000-000000000003",
+      "name": "HTTP · Directus services",
+      "credentials": {
+        "httpHeaderAuth": { "id": "CFY5g7INvQxRg8EB", "name": "Directus · demo" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const trigger = $('When Executed by Another Workflow').item.json;\nconst r = $json ?? {};\nconst body = (r.body ?? r) || {};\nconst services = Array.isArray(body.data) ? body.data : [];\n\nconst uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\nconst clean = v => (v === undefined || v === null) ? null : (String(v).trim() || null);\nconst norm = s => (s || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().replace(/[^a-z0-9\\s]/g, ' ').replace(/\\s+/g, ' ').trim();\n\nconst single = (id, name) => [{ json: { status: 'single', service_id: id, service_name: name } }];\nconst multiple = (list) => [{ json: { status: 'multiple', candidates: list.map(s => ({ id: s.id, name: s.name })) } }];\nconst notFound = (q) => [{ json: { status: 'not_found', service_query: q ?? null } }];\n\n// 1) passthrough: service_id ya resuelto\nconst passId = clean(trigger.service_id);\nif (passId && uuid.test(passId)) {\n  const m = services.find(s => s.id === passId);\n  return single(passId, m ? m.name : null);\n}\n\nif (!services.length) return notFound(clean(trigger.service_query));\n\nconst opts = services.map(s => ({ id: s.id, name: s.name, n: norm(s.name) }));\nconst q = norm(trigger.service_query);\n\n// 2) sin query: si solo hay 1 servicio activo, es ese; si hay varios, preguntar\nif (!q) {\n  return opts.length === 1 ? single(opts[0].id, opts[0].name) : multiple(opts);\n}\n\n// 3) match exacto\nlet hit = opts.filter(s => s.n === q);\nif (hit.length === 1) return single(hit[0].id, hit[0].name);\n\n// 4) substring en cualquier dirección\nhit = opts.filter(s => s.n.includes(q) || q.includes(s.n));\nif (hit.length === 1) return single(hit[0].id, hit[0].name);\nif (hit.length > 1) return multiple(hit);\n\n// 5) solape de tokens\nconst qt = new Set(q.split(' ').filter(Boolean));\nconst scored = opts\n  .map(s => ({ s, score: s.n.split(' ').filter(t => qt.has(t)).length }))\n  .filter(x => x.score > 0)\n  .sort((a, b) => b.score - a.score);\n\nif (scored.length === 1) return single(scored[0].s.id, scored[0].s.name);\nif (scored.length > 1 && scored[0].score > scored[1].score) return single(scored[0].s.id, scored[0].s.name);\nif (scored.length > 1) return multiple(scored.map(x => x.s));\n\nreturn notFound(clean(trigger.service_query));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [632, 0],
+      "id": "26a00000-0000-4000-8000-000000000004",
+      "name": "Code · Match service"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [[{ "node": "Config (editar por tenant)", "type": "main", "index": 0 }]]
+    },
+    "Config (editar por tenant)": {
+      "main": [[{ "node": "HTTP · Directus services", "type": "main", "index": 0 }]]
+    },
+    "HTTP · Directus services": {
+      "main": [[{ "node": "Code · Match service", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}

@@ -58,11 +58,50 @@ por el Booking API (revalidación de disponibilidad + advisory lock).
 | `22 · TOOL · Appointment Create` | Contrato nuevo: `service_id`✔ + `start_at`✔ + identificador de contacto; sin `title`/`end_at`/`status`. Sigue resolviendo contacto (WF17). **El schema de la herramienta en el agente hay que actualizarlo.** |
 | `24 / 25` (wrappers) | Sin cambios: resuelven contacto (WF17) y validan pertenencia/estado; llaman a `11/05`. |
 
+## Cerebro de Lucía — `AGENT-Lucia-Core.json` + `26 · TOOL · Resolve Service`
+
+Reconstrucción del "Lucia Cerebro v5" (66 nodos, contra APIs/colecciones
+muertas). **Dirección A**: `AI Agent - Core` solo interpreta → JSON; un router
+determinista (`Switch` sobre `intent`) llama a los workflows versionados vía
+`Execute Workflow`. El LLM **nunca** inventa UUIDs: el `service_id` lo resuelve
+`26 · TOOL · Resolve Service` contra Directus `services` (single / multiple /
+not_found), el `contact_id` lo resuelven los propios tools (WF17).
+
+- Prompt del Core: `n8n/prompts/lucia-core.md` (genérico por sector; el catálogo
+  de servicios y el conocimiento son del tenant).
+- `26 · TOOL · Resolve Service`: `service_query` (texto) → `service_id`. Sin
+  query y un solo servicio activo → ese; varios → preguntar.
+- Ramas del router en v1: `knowledge` (RAG pgvector), `list_availability`
+  (→ `APPOINTMENT_Availability` → `Redacta horarios`), `create_appointment`
+  (→ `26` → `22`), `create_task` (→ `19`), `null`/genérico (respuesta directa).
+- **Pendiente**: `reschedule_appointment` / `cancel_appointment` — hoy devuelven
+  un stub. Necesitan resolver el `appointment_id` vía `23 · Appointment List` +
+  match determinista sobre `appointment_ref`/fecha antes de llamar a `24`/`25`.
+
+### Requisitos en el tenant
+
+1. Credenciales n8n: `Booking API` (Header Auth), `Directus · demo` (Header
+   Auth), `OpenAi account`, `Postgres account`.
+2. Nodo `Config` del Core: ajustar `booking_base_url` / `directus_base_url` /
+   `tenant_timezone`. Reenvía `booking_base_url` a los tools.
+3. Tabla pgvector `documentos_lucia` (rama de conocimiento).
+4. Tras importar: en cada nodo HTTP/`Execute Workflow`/agente, re-seleccionar la
+   credencial correspondiente (los `id` del JSON son placeholders o del export
+   de demo).
+
+### A validar en el VPS (hand-authored, no probado en local)
+
+- Schemas de nodos langchain (`agent` v3, `lmChatOpenAi` v1.3, `vectorStorePGVector`).
+- Expresiones con optional chaining (`$json.contact && $json.contact.phone`).
+- Índices de salida del `Switch` (fallback = última salida).
+- `DateTime` (luxon) disponible en los Code node de este n8n.
+
 ## Deuda conocida
 
-- **Host de Directus hardcodeado** (`http://demo-directus:8055/...`) en casi
-  todos los workflows. Para multi-tenant hay que parametrizarlo (patrón nodo
-  `Config` como en `APPOINTMENT_Availability.json` y ahora `11`/`05`). Pendiente.
+- **Host de Directus hardcodeado** (`http://demo-directus:8055/...`) en los
+  workflows `00-25`. Para multi-tenant hay que parametrizarlo (patrón nodo
+  `Config` como en `APPOINTMENT_Availability`, `11`, `05`, `03`, `26` y el
+  cerebro). Pendiente.
 
 ## Importar / exportar
 
