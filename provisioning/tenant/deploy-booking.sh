@@ -26,7 +26,10 @@ readonly RENDERER="${PLATFORM_ROOT}/provisioning/tenant/render-template.py"
 readonly POSTGRES_CONTAINER="aegora-postgres"
 readonly PROXY_NETWORK="aegora_proxy"
 
-readonly BOOKING_REPO_URL="${BOOKING_REPO_URL:-https://github.com/iasagu25/aegora-booking.git}"
+# SSH por defecto: mismo mecanismo que el repo de plataforma en el VPS.
+# La clave del VPS debe tener acceso de lectura a aegora-booking (deploy key
+# read-only en ese repo, o clave compartida). Override con BOOKING_REPO_URL.
+readonly BOOKING_REPO_URL="${BOOKING_REPO_URL:-git@github.com:iasagu25/aegora-booking.git}"
 readonly BOOKING_SRC_DIR="${BOOKING_SRC_DIR:-/opt/aegora/src/aegora-booking}"
 
 readonly HEALTH_TIMEOUT_SECONDS="${HEALTH_TIMEOUT_SECONDS:-120}"
