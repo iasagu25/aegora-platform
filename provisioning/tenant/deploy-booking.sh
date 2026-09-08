@@ -161,6 +161,11 @@ container_running "$POSTGRES_CONTAINER" || fail "Postgres no está running: ${PO
 network_exists "$TENANT_BACKEND_NETWORK" || fail "No existe la red del tenant: ${TENANT_BACKEND_NETWORK}"
 network_exists "$PROXY_NETWORK" || fail "No existe la red proxy: ${PROXY_NETWORK}"
 
+docker network inspect "$TENANT_BACKEND_NETWORK" \
+  --format '{{range .Containers}}{{println .Name}}{{end}}' 2>/dev/null |
+  grep -Fxq "$POSTGRES_CONTAINER" ||
+  fail "${POSTGRES_CONTAINER} no está conectado a ${TENANT_BACKEND_NETWORK}; el Booking API no podría alcanzar la BD."
+
 POSTGRES_ADMIN_USER="$(docker exec "$POSTGRES_CONTAINER" printenv POSTGRES_USER | tr -d '\r\n')"
 [[ -n "$POSTGRES_ADMIN_USER" ]] || fail "No se pudo detectar POSTGRES_USER."
 
