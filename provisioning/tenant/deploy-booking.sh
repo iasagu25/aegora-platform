@@ -26,10 +26,11 @@ readonly RENDERER="${PLATFORM_ROOT}/provisioning/tenant/render-template.py"
 readonly POSTGRES_CONTAINER="aegora-postgres"
 readonly PROXY_NETWORK="aegora_proxy"
 
-# SSH por defecto: mismo mecanismo que el repo de plataforma en el VPS.
-# La clave del VPS debe tener acceso de lectura a aegora-booking (deploy key
-# read-only en ese repo, o clave compartida). Override con BOOKING_REPO_URL.
-readonly BOOKING_REPO_URL="${BOOKING_REPO_URL:-git@github.com:iasagu25/aegora-booking.git}"
+# SSH vía alias de ~/.ssh/config (root), igual convención que el repo de
+# plataforma (Host github-aegora-platform). Requiere una deploy key read-only
+# de aegora-booking en /root/.ssh/ y su Host en /root/.ssh/config.
+# Override con BOOKING_REPO_URL.
+readonly BOOKING_REPO_URL="${BOOKING_REPO_URL:-git@github-aegora-booking:iasagu25/aegora-booking.git}"
 readonly BOOKING_SRC_DIR="${BOOKING_SRC_DIR:-/opt/aegora/src/aegora-booking}"
 
 readonly HEALTH_TIMEOUT_SECONDS="${HEALTH_TIMEOUT_SECONDS:-120}"
@@ -184,30 +185,36 @@ db_present="$(
 
 # =============================================================================
 # Checkout + imagen
+#
+# PLAN no toca la red ni git (no requiere auth). Solo APPLY clona/fetch/build.
 # =============================================================================
 
-if [[ ! -d "${BOOKING_SRC_DIR}/.git" ]]; then
-  if [[ "$APPLY" != true ]]; then
-    log "PLAN: se clonaría ${BOOKING_REPO_URL} en ${BOOKING_SRC_DIR}"
+RESOLVED_SHA="pending"
+HAS_CHECKOUT=false
+[[ -d "${BOOKING_SRC_DIR}/.git" ]] && HAS_CHECKOUT=true
+
+if [[ "$APPLY" != true ]]; then
+  if [[ "$HAS_CHECKOUT" == true ]]; then
+    RESOLVED_SHA="$(git -C "$BOOKING_SRC_DIR" rev-parse --short=12 HEAD 2>/dev/null || echo pending)"
+    log "PLAN: APPLY hará fetch + checkout '${REF}' en ${BOOKING_SRC_DIR} (HEAD actual: ${RESOLVED_SHA})."
   else
+    log "PLAN: APPLY clonará ${BOOKING_REPO_URL} en ${BOOKING_SRC_DIR} y hará checkout '${REF}'."
+  fi
+else
+  if [[ "$HAS_CHECKOUT" != true ]]; then
     install -d -m 755 "$(dirname "$BOOKING_SRC_DIR")"
     log "Clonando ${BOOKING_REPO_URL}"
     git clone "$BOOKING_REPO_URL" "$BOOKING_SRC_DIR"
   fi
-fi
 
-RESOLVED_SHA=""
-if [[ -d "${BOOKING_SRC_DIR}/.git" ]]; then
   git -C "$BOOKING_SRC_DIR" fetch --prune --tags origin
   if git -C "$BOOKING_SRC_DIR" rev-parse --verify --quiet "origin/${REF}" >/dev/null; then
-    [[ "$APPLY" != true ]] || git -C "$BOOKING_SRC_DIR" checkout -B "$REF" "origin/${REF}"
-    RESOLVED_SHA="$(git -C "$BOOKING_SRC_DIR" rev-parse --short=12 "origin/${REF}")"
+    git -C "$BOOKING_SRC_DIR" checkout -B "$REF" "origin/${REF}"
   else
-    [[ "$APPLY" != true ]] || git -C "$BOOKING_SRC_DIR" checkout --detach "$REF"
-    RESOLVED_SHA="$(git -C "$BOOKING_SRC_DIR" rev-parse --short=12 "$REF")"
+    git -C "$BOOKING_SRC_DIR" checkout --detach "$REF"
   fi
+  RESOLVED_SHA="$(git -C "$BOOKING_SRC_DIR" rev-parse --short=12 HEAD)"
 fi
-[[ -n "$RESOLVED_SHA" ]] || RESOLVED_SHA="pending"
 
 BOOKING_IMAGE="aegora-booking:${RESOLVED_SHA}"
 

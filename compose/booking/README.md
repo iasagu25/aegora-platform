@@ -7,7 +7,7 @@ Componente autoritativo de disponibilidad y mutación de reservas
 ## Imagen
 
 - **Build local en el VPS (opción A).** Sin registro externo en V1.
-- `provisioning/tenant/deploy-booking.sh` mantiene un checkout en
+- `provisioning/tenant/deploy-booking.sh` mantiene un checkout (SSH deploy key) en
   `/opt/aegora/src/aegora-booking` y construye `aegora-booking:<git-sha>`.
 - Migración futura a `ghcr.io/iasagu25/aegora-booking:<version>` prevista.
 
