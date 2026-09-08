@@ -122,10 +122,11 @@ require_file "$RENDERER"
 require_file "${TEMPLATE_ROOT}/compose.yml.tpl"
 require_file "${TEMPLATE_ROOT}/.env.tpl"
 
-readonly TENANT_ROOT="${TENANTS_ROOT}/${TENANT}"
-readonly TENANT_CONFIG="${TENANT_ROOT}/config/tenant.env"
-readonly POSTGRES_SECRET="${TENANT_ROOT}/secrets/postgres.env"
-readonly BOOKING_SECRET="${TENANT_ROOT}/secrets/booking.env"
+# Sin readonly: tenant.env vuelve a definir TENANT_ROOT (y otras) al sourcearlo.
+TENANT_ROOT="${TENANTS_ROOT}/${TENANT}"
+TENANT_CONFIG="${TENANT_ROOT}/config/tenant.env"
+POSTGRES_SECRET="${TENANT_ROOT}/secrets/postgres.env"
+BOOKING_SECRET="${TENANT_ROOT}/secrets/booking.env"
 
 require_file "$TENANT_CONFIG"
 require_file "$POSTGRES_SECRET"
