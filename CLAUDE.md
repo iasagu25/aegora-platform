@@ -45,39 +45,64 @@ documentado sigue siendo cierto.
   `... | grep -vE '^\[[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}\]' > out.yaml`
 - Tenant `demo`: usuarios reales en BD son `admin@aegora.es` y
   `n8n-service-demo@aegora.es`. El usuario técnico de provisioning
-  (`directus-provisioning@aegora.es`, documentado en el handover) **no
-  existe en demo** — pendiente crearlo. Sí existe en `aegora-internal`.
+  (`directus-provisioning@aegora.es`) **ya existe en demo** (creado con
+  `directus/provision-directus-access.sh --tenant demo --apply`; token en
+  `/opt/aegora/tenants/demo/secrets/directus-provisioning.env`). También
+  en `aegora-internal`. Para llamadas a la API de Directus, usar ese token
+  ejecutando `node` dentro del contenedor contra `http://127.0.0.1:8055`
+  (evita DNS/permisos del host).
 - Directus fijado en 12.2.0 a propósito (no actualizar a 12.3.x todavía,
   hasta estabilizar provisioning).
 - Health check: usar `/server/ping`, NO `/server/health` (devuelve 403 en 12.2.0).
 
 ## Modelo de booking en Directus — decisiones ya tomadas
 - Semántica V1 simple: `service_resources` = pool OR de recursos alternativos
-  por servicio. `appointment_resources` = AND, recursos comprometidos por una
-  cita concreta (junction plana, sin interfaz M2M — Directus 12.2 tiene un bug
-  conocido con M2M inverso sobre la misma junction: "Interfaz list-m2m no
-  encontrada"). Sin categorías/grupos de recursos en V1.
+  por servicio. `appointment_resources` = recursos asociados a una cita
+  (junction plana, sin interfaz M2M — Directus 12.2 tiene un bug conocido con
+  M2M inverso sobre la misma junction: "Interfaz list-m2m no encontrada").
+  Sin categorías/grupos de recursos en V1.
+- Multi-recurso (decidido con el contrato Booking V1): una cita tiene 1..N
+  recursos vía `appointment_resources.role` (`primary` | `participant`, default
+  `primary`). Solo el `primary` valida disponibilidad; los `participant` no son
+  condición AND. AND real (salas/participantes obligatorios) queda para el
+  futuro — es evolución del motor, no del modelo.
 - `availability_rules` funciona como allow-list: ausencia de regla para un
   día = no disponible ese día (no usar `availability_exceptions` para
   patrones recurrentes como fin de semana, solo para desviaciones puntuales).
 - La junction pool-OR se llama `service_resources` (singular). El nombre
   `services_resources` fue un typo; corregido en Directus y en `base.yaml`.
-- Estado: Prioridades 1 y 2 CERRADAS.
+- Estado: Prioridades 1 y 2 CERRADAS. Prioridad 3 EN CURSO.
   - P1 (modelo Directus): 18 relaciones M2O creadas y validadas.
   - P2 (índices/constraints SQL): `directus/sql/booking-indexes.sql` —
-    capa idempotente (`CREATE [UNIQUE] INDEX IF NOT EXISTS`) con los 20
-    índices de la sección 12.2 del handover. Integrada en
+    capa idempotente (`CREATE [UNIQUE] INDEX IF NOT EXISTS`) con los índices
+    de la sección 12.2 del handover + `uq_appointments_idempotency_key`
+    (UNIQUE parcial `WHERE idempotency_key IS NOT NULL`). Integrada en
     `apply-schema.sh` respetando PLAN/APPLY: dry-run la valida en
     `BEGIN … ROLLBACK`, `--apply` la persiste en `BEGIN … COMMIT`
     (schema primero, luego SQL). Ejecuta vía `psql` en `aegora-postgres`
     leyendo credenciales del contenedor Directus.
-  - `base.yaml` regenerado como snapshot completo desde `demo` (incluye
+  - `base.yaml` es un snapshot completo regenerado desde `demo` (incluye
     `relations:` — su ausencia hacía cascar `schema apply --dry-run` en
     `get-snapshot-diff.js`). Displays custom (`aegora-phone-display`,
     `field-actions`) se dejan a null en `base.yaml`: los gestiona
     `configure-directus-ui.sh`, por lo que el dry-run muestra ese diff
-    de forma esperada.
-- Siguiente hito: Prioridad 3 — Availability/Booking Engine (Booking API).
+    de forma esperada. Flujo de cambio de esquema: crear/ajustar campos en
+    `demo` vía API → `schema snapshot` → reemplazar `base.yaml` → re-quitar
+    los 2 displays custom → commit → `apply-schema.sh` en los tenants.
+  - P3 (Booking API): contrato V1 **congelado** en
+    `aegora-booking/docs/api-contract.md` (repo separado; en `aegora-platform`
+    solo va el pegamento de despliegue). 7 decisiones cerradas: políticas en
+    `services` (`minimum_notice_minutes`, `maximum_booking_days`,
+    `requires_confirmation`), `appointments.idempotency_key`, concurrencia por
+    advisory lock + recheck en TX (sin cambios en `appointment_resources`),
+    `book` siempre crea `scheduled` (bloquean `scheduled` y `confirmed`),
+    `BOOKING_API_TOKEN` por tenant, BD única `directus_<tenant>`
+    (`booking_<tenant>` se elimina — pendiente en provisioning), y el modelo
+    `primary`/`participant`. Delta de esquema ya aplicado en `demo` y en
+    `base.yaml`.
+- Siguiente: aplicar `base.yaml` + `booking-indexes.sql` en los tenants;
+  quitar `booking_<tenant>` del provisioning; reescribir `lib/booking/` de
+  `aegora-booking` contra el modelo nuevo (empezando por `GET /availability`).
 
 ## Estilo de trabajo esperado
 - PLAN antes de APPLY siempre. No inventar flags de script sin confirmar

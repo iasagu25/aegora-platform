@@ -607,9 +607,14 @@ fields:
       field: role
       group: null
       hidden: false
-      interface: input
+      interface: select-dropdown
       note: null
-      options: null
+      options:
+        choices:
+          - text: Primary
+            value: primary
+          - text: Participant
+            value: participant
       readonly: false
       required: false
       searchable: true
@@ -623,7 +628,7 @@ fields:
       name: role
       table: appointment_resources
       data_type: character varying
-      default_value: null
+      default_value: primary
       max_length: 255
       numeric_precision: null
       numeric_scale: null
@@ -1288,6 +1293,46 @@ fields:
       has_auto_increment: false
       foreign_key_table: locations
       foreign_key_column: id
+  - collection: appointments
+    field: idempotency_key
+    type: string
+    meta:
+      collection: appointments
+      conditions: null
+      display: null
+      display_options: null
+      field: idempotency_key
+      group: null
+      hidden: true
+      interface: input
+      note: Booking API idempotency key; unique when set
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 16
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: idempotency_key
+      table: appointments
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
   - collection: availability_exceptions
     field: id
     type: uuid
@@ -5794,6 +5839,129 @@ fields:
       numeric_precision: null
       numeric_scale: null
       is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: services
+    field: minimum_notice_minutes
+    type: integer
+    meta:
+      collection: services
+      conditions: null
+      display: null
+      display_options: null
+      field: minimum_notice_minutes
+      group: null
+      hidden: false
+      interface: input
+      note: Minimum lead time (minutes) before a slot can be booked
+      options:
+        min: 0
+      readonly: false
+      required: false
+      searchable: true
+      sort: 14
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: minimum_notice_minutes
+      table: services
+      data_type: integer
+      default_value: 0
+      max_length: null
+      numeric_precision: 32
+      numeric_scale: 0
+      is_nullable: false
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: services
+    field: maximum_booking_days
+    type: integer
+    meta:
+      collection: services
+      conditions: null
+      display: null
+      display_options: null
+      field: maximum_booking_days
+      group: null
+      hidden: false
+      interface: input
+      note: How many days ahead bookings are allowed
+      options:
+        min: 0
+      readonly: false
+      required: false
+      searchable: true
+      sort: 15
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: maximum_booking_days
+      table: services
+      data_type: integer
+      default_value: 60
+      max_length: null
+      numeric_precision: 32
+      numeric_scale: 0
+      is_nullable: false
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: services
+    field: requires_confirmation
+    type: boolean
+    meta:
+      collection: services
+      conditions: null
+      display: null
+      display_options: null
+      field: requires_confirmation
+      group: null
+      hidden: false
+      interface: boolean
+      note: Whether a booking needs explicit confirmation after creation
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 16
+      special:
+        - cast-boolean
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: requires_confirmation
+      table: services
+      data_type: boolean
+      default_value: false
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
       is_unique: false
       is_indexed: false
       is_primary_key: false

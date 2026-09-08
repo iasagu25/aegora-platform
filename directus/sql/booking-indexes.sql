@@ -38,6 +38,11 @@ CREATE INDEX IF NOT EXISTS idx_appointments_status      ON appointments (status)
 CREATE INDEX IF NOT EXISTS idx_appointments_status_start_end
     ON appointments (status, start_at, end_at);
 
+-- Idempotencia del Booking API: única cuando está informada (reintentos n8n).
+CREATE UNIQUE INDEX IF NOT EXISTS uq_appointments_idempotency_key
+    ON appointments (idempotency_key)
+    WHERE idempotency_key IS NOT NULL;
+
 -- -----------------------------------------------------------------------------
 -- appointment_resources  (junction AND: recursos comprometidos por una cita)
 -- -----------------------------------------------------------------------------
