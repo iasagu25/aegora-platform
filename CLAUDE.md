@@ -114,10 +114,16 @@ documentado sigue siendo cierto.
     (antes `timestamp` sin zona; ahora consistente con `appointments`).
     Cambio de tipo Directus no se puede por PATCH `/fields` en 12.2: se hizo
     con `ALTER … USING <col> AT TIME ZONE 'Europe/Madrid'` en `demo` + snapshot.
+  - `create-tenant.sh` + manifests: sin `booking_<tenant>` (DB/rol/data dir).
+    Booking V1 usa `directus_<tenant>`. Se conservan `BOOKING_CONTAINER` y
+    `BOOKING_HOST` en `tenant.env` (los leen `deploy-booking.sh` /
+    `publish-tenant.sh`). Los tenants ya creados (`demo`, `aegora-internal`)
+    conservan su `booking_<tenant>` vacío + refs en `config/tenant.env` y
+    `config/backup.manifest.json` hasta limpieza manual.
 - Pendiente P3:
-  - Quitar `booking_<tenant>` (DB + rol) de `create-tenant.sh` + `backup.manifest.json`
-    (customers + template). El `booking_<tenant>` vacío actual es peso muerto inofensivo.
-  - Aplicar `base.yaml` (68cd6f7) + `booking-indexes.sql` en `aegora-internal`.
+  - Aplicar `base.yaml` (2652c43) + `booking-indexes.sql` en `aegora-internal`.
+  - Limpieza opcional: `DROP DATABASE booking_demo` / `booking_aegora-internal`
+    (+ roles) y quitar sus refs de `config/tenant.env` + `config/backup.manifest.json`.
   - Migrar build A → imagen en GHCR (CI en `aegora-booking`).
   - Herramienta n8n *Appointment Availability* que consume el Booking API (P4).
 
