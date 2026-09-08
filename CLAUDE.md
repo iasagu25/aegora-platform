@@ -126,13 +126,16 @@ documentado sigue siendo cierto.
     nodos → la URL base va en un nodo `Config`.
   - P4: `APPOINTMENT_Availability.json` — sub-workflow que llama
     `GET /api/availability` y devuelve slots compactos. Probado en `demo`.
-  - P5 (parcial): `11 · Reschedule` → `POST /api/reschedule`; `05 · Update
-    Status` rama `cancelled` → `POST /api/cancel` (resto de estados sigue en
-    Directus). Probado end-to-end. **Pendiente**: `03 · Create` → `/api/book`
-    (necesita `service_id` + paso de disponibilidad ⇒ rehacer contrato de
-    `22 · TOOL`).
-  - **No** enganchado al agente principal todavía (handover §12.4: solo tras
-    tener disponibilidad + las 3 mutaciones con revalidación).
+  - P5: las 3 mutaciones pasan por el Booking API — `03 · Create` →
+    `POST /api/book` (contrato nuevo: `service_id`+`start_at`+`contact_id`,
+    sin `title`/`end_at`/`status`); `11 · Reschedule` → `POST /api/reschedule`;
+    `05 · Update Status` rama `cancelled` → `POST /api/cancel` (resto de
+    estados sigue en Directus). `22 · TOOL · Appointment Create` actualizado al
+    nuevo contrato. Probado end-to-end (reschedule+cancel; create pendiente de
+    prueba en VPS).
+  - **No** enganchado al agente principal todavía (handover §12.4). Al
+    engancharlo hay que actualizar el schema de la herramienta *Appointment
+    Create* en el agente (expone `service_id`, quita `title`/`end_at`).
 - Pendiente:
   - Aplicar `base.yaml` (2652c43) + `booking-indexes.sql` en `aegora-internal`.
   - `demo`/`aegora-internal`: crear credencial `Booking API` en n8n, importar el
