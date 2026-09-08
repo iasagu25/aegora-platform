@@ -31,10 +31,8 @@ COMMITTED=false
 CREATED_TENANT_ROOT=false
 CREATED_DIRECTUS_ROLE=false
 CREATED_N8N_ROLE=false
-CREATED_BOOKING_ROLE=false
 CREATED_DIRECTUS_DB=false
 CREATED_N8N_DB=false
-CREATED_BOOKING_DB=false
 CREATED_NETWORK=false
 POSTGRES_CONNECTED_TO_NETWORK=false
 
@@ -49,7 +47,6 @@ TENANT_COMPOSE_ROOT=""
 
 DIRECTUS_DATA_DIR=""
 N8N_DATA_DIR=""
-BOOKING_DATA_DIR=""
 
 TENANT_BACKEND_NETWORK=""
 
@@ -63,11 +60,9 @@ BOOKING_HOST=""
 
 POSTGRES_DIRECTUS_DB=""
 POSTGRES_N8N_DB=""
-POSTGRES_BOOKING_DB=""
 
 POSTGRES_DIRECTUS_USER=""
 POSTGRES_N8N_USER=""
-POSTGRES_BOOKING_USER=""
 
 BACKUP_HOST=""
 BACKUP_TAG_TENANT=""
@@ -80,7 +75,6 @@ N8N_ENCRYPTION_KEY=""
 
 POSTGRES_DIRECTUS_PASSWORD=""
 POSTGRES_N8N_PASSWORD=""
-POSTGRES_BOOKING_PASSWORD=""
 
 # =============================================================================
 # Utilidades
@@ -326,11 +320,6 @@ rollback() {
 
   if [[ -n "$admin_user" ]]; then
     drop_database_if_created \
-      "$POSTGRES_BOOKING_DB" \
-      "$admin_user" \
-      "$CREATED_BOOKING_DB"
-
-    drop_database_if_created \
       "$POSTGRES_N8N_DB" \
       "$admin_user" \
       "$CREATED_N8N_DB"
@@ -339,11 +328,6 @@ rollback() {
       "$POSTGRES_DIRECTUS_DB" \
       "$admin_user" \
       "$CREATED_DIRECTUS_DB"
-
-    drop_role_if_created \
-      "$POSTGRES_BOOKING_USER" \
-      "$admin_user" \
-      "$CREATED_BOOKING_ROLE"
 
     drop_role_if_created \
       "$POSTGRES_N8N_USER" \
@@ -506,7 +490,6 @@ TENANT_COMPOSE_ROOT="${TENANT_CONFIG_ROOT}/compose"
 
 DIRECTUS_DATA_DIR="${TENANT_DATA_ROOT}/directus"
 N8N_DATA_DIR="${TENANT_DATA_ROOT}/n8n"
-BOOKING_DATA_DIR="${TENANT_DATA_ROOT}/booking"
 
 TENANT_BACKEND_NETWORK="tenant_${TENANT_SQL_ID}_backend"
 
@@ -520,11 +503,12 @@ BOOKING_HOST="reservas.${BASE_DOMAIN}"
 
 POSTGRES_DIRECTUS_DB="directus_${TENANT_SQL_ID}"
 POSTGRES_N8N_DB="n8n_${TENANT_SQL_ID}"
-POSTGRES_BOOKING_DB="booking_${TENANT_SQL_ID}"
 
 POSTGRES_DIRECTUS_USER="directus_${TENANT_SQL_ID}"
 POSTGRES_N8N_USER="n8n_${TENANT_SQL_ID}"
-POSTGRES_BOOKING_USER="booking_${TENANT_SQL_ID}"
+
+# El Booking API (V1) no tiene BD propia: usa directus_<tenant>.
+# Ver aegora-booking/docs/api-contract.md §1, §6.
 
 BACKUP_HOST="${TENANT_ID}"
 BACKUP_TAG_TENANT="tenant=${TENANT_ID}"
@@ -561,8 +545,7 @@ PostgreSQL:
   n8n DB:           ${POSTGRES_N8N_DB}
   n8n user:         ${POSTGRES_N8N_USER}
 
-  Booking DB:       ${POSTGRES_BOOKING_DB}
-  Booking user:     ${POSTGRES_BOOKING_USER}
+  Booking:          sin BD propia (usa ${POSTGRES_DIRECTUS_DB})
 
 Docker:
   Directus:         ${DIRECTUS_CONTAINER}
@@ -619,8 +602,7 @@ docker_network_exists "$TENANT_BACKEND_NETWORK" &&
 
 for database in \
   "$POSTGRES_DIRECTUS_DB" \
-  "$POSTGRES_N8N_DB" \
-  "$POSTGRES_BOOKING_DB"; do
+  "$POSTGRES_N8N_DB"; do
 
   [[ "$(database_exists "$database" "$POSTGRES_ADMIN_USER")" != "1" ]] ||
     fail "Ya existe la base PostgreSQL: ${database}"
@@ -628,8 +610,7 @@ done
 
 for role in \
   "$POSTGRES_DIRECTUS_USER" \
-  "$POSTGRES_N8N_USER" \
-  "$POSTGRES_BOOKING_USER"; do
+  "$POSTGRES_N8N_USER"; do
 
   [[ "$(role_exists "$role" "$POSTGRES_ADMIN_USER")" != "1" ]] ||
     fail "Ya existe el rol PostgreSQL: ${role}"
@@ -649,7 +630,6 @@ N8N_ENCRYPTION_KEY="$(generate_hex 32)"
 
 POSTGRES_DIRECTUS_PASSWORD="$(generate_password)"
 POSTGRES_N8N_PASSWORD="$(generate_password)"
-POSTGRES_BOOKING_PASSWORD="$(generate_password)"
 
 # =============================================================================
 # Filesystem
@@ -662,7 +642,6 @@ mkdir -p \
   "${DIRECTUS_DATA_DIR}/extensions" \
   "${N8N_DATA_DIR}/storage" \
   "${N8N_DATA_DIR}/files" \
-  "$BOOKING_DATA_DIR" \
   "$TENANT_SECRETS_DIR" \
   "$TENANT_BACKUP_DIR" \
   "${TENANT_COMPOSE_ROOT}/directus" \
@@ -698,15 +677,6 @@ create_role \
 
 CREATED_N8N_ROLE=true
 
-log "Creando rol PostgreSQL Booking."
-
-create_role \
-  "$POSTGRES_BOOKING_USER" \
-  "$POSTGRES_BOOKING_PASSWORD" \
-  "$POSTGRES_ADMIN_USER"
-
-CREATED_BOOKING_ROLE=true
-
 log "Creando base PostgreSQL Directus."
 
 create_database \
@@ -724,15 +694,6 @@ create_database \
   "$POSTGRES_ADMIN_USER"
 
 CREATED_N8N_DB=true
-
-log "Creando base PostgreSQL Booking."
-
-create_database \
-  "$POSTGRES_BOOKING_DB" \
-  "$POSTGRES_BOOKING_USER" \
-  "$POSTGRES_ADMIN_USER"
-
-CREATED_BOOKING_DB=true
 
 # =============================================================================
 # Docker network
@@ -782,16 +743,12 @@ export \
   N8N_ENCRYPTION_KEY \
   BOOKING_CONTAINER \
   BOOKING_HOST \
-  BOOKING_DATA_DIR \
   POSTGRES_DIRECTUS_DB \
   POSTGRES_DIRECTUS_USER \
   POSTGRES_DIRECTUS_PASSWORD \
   POSTGRES_N8N_DB \
   POSTGRES_N8N_USER \
   POSTGRES_N8N_PASSWORD \
-  POSTGRES_BOOKING_DB \
-  POSTGRES_BOOKING_USER \
-  POSTGRES_BOOKING_PASSWORD \
   BACKUP_HOST \
   BACKUP_TAG_TENANT \
   BACKUP_TAG_ENVIRONMENT
@@ -863,13 +820,11 @@ write_env "$TENANT_ENV" "TENANT_SECRETS_DIR" "$TENANT_SECRETS_DIR"
 
 write_env "$TENANT_ENV" "DIRECTUS_DATA_DIR" "$DIRECTUS_DATA_DIR"
 write_env "$TENANT_ENV" "N8N_DATA_DIR" "$N8N_DATA_DIR"
-write_env "$TENANT_ENV" "BOOKING_DATA_DIR" "$BOOKING_DATA_DIR"
 
 write_env "$TENANT_ENV" "TENANT_BACKEND_NETWORK" "$TENANT_BACKEND_NETWORK"
 
 write_env "$TENANT_ENV" "POSTGRES_DIRECTUS_DB" "$POSTGRES_DIRECTUS_DB"
 write_env "$TENANT_ENV" "POSTGRES_N8N_DB" "$POSTGRES_N8N_DB"
-write_env "$TENANT_ENV" "POSTGRES_BOOKING_DB" "$POSTGRES_BOOKING_DB"
 
 write_env "$TENANT_ENV" "BACKUP_HOST" "$BACKUP_HOST"
 write_env "$TENANT_ENV" "BACKUP_TAG_TENANT" "$BACKUP_TAG_TENANT"
@@ -917,16 +872,6 @@ write_env \
   "$POSTGRES_N8N_PASSWORD"
 
 write_env \
-  "$POSTGRES_ENV" \
-  "POSTGRES_BOOKING_USER" \
-  "$POSTGRES_BOOKING_USER"
-
-write_env \
-  "$POSTGRES_ENV" \
-  "POSTGRES_BOOKING_PASSWORD" \
-  "$POSTGRES_BOOKING_PASSWORD"
-
-write_env \
   "$DIRECTUS_SECRET_ENV" \
   "DIRECTUS_KEY" \
   "$DIRECTUS_KEY"
@@ -971,8 +916,7 @@ cat > "${TENANT_CONFIG_ROOT}/backup.manifest.json" <<EOF
   "version": 1,
   "databases": [
     "${POSTGRES_DIRECTUS_DB}",
-    "${POSTGRES_N8N_DB}",
-    "${POSTGRES_BOOKING_DB}"
+    "${POSTGRES_N8N_DB}"
   ],
   "persistent_paths": [
     {
@@ -982,10 +926,6 @@ cat > "${TENANT_CONFIG_ROOT}/backup.manifest.json" <<EOF
     {
       "path": "${N8N_DATA_DIR}",
       "required": true
-    },
-    {
-      "path": "${BOOKING_DATA_DIR}",
-      "required": false
     }
   ],
   "configuration_files": [
@@ -1058,8 +998,7 @@ log "Validando ownership PostgreSQL."
 
 for spec in \
   "${POSTGRES_DIRECTUS_DB}:${POSTGRES_DIRECTUS_USER}" \
-  "${POSTGRES_N8N_DB}:${POSTGRES_N8N_USER}" \
-  "${POSTGRES_BOOKING_DB}:${POSTGRES_BOOKING_USER}"; do
+  "${POSTGRES_N8N_DB}:${POSTGRES_N8N_USER}"; do
 
   database="${spec%%:*}"
   expected_owner="${spec#*:}"
@@ -1117,7 +1056,6 @@ Red:
 Bases:
   ${POSTGRES_DIRECTUS_DB}
   ${POSTGRES_N8N_DB}
-  ${POSTGRES_BOOKING_DB}
 
 Versiones:
   Directus ${DIRECTUS_VERSION}

@@ -2,8 +2,7 @@
   "version": 1,
   "databases": [
     "${POSTGRES_DIRECTUS_DB}",
-    "${POSTGRES_N8N_DB}",
-    "${POSTGRES_BOOKING_DB}"
+    "${POSTGRES_N8N_DB}"
   ],
   "persistent_paths": [
     {
@@ -16,10 +15,6 @@
     },
     {
       "path": "${TENANT_DATA_ROOT}/caddy",
-      "required": false
-    },
-    {
-      "path": "${BOOKING_DATA_DIR}",
       "required": false
     }
   ],

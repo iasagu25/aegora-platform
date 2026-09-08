@@ -2,8 +2,7 @@
   "version": 1,
   "databases": [
     "${POSTGRES_DIRECTUS_DB}",
-    "${POSTGRES_N8N_DB}",
-    "${POSTGRES_BOOKING_DB}"
+    "${POSTGRES_N8N_DB}"
   ],
   "persistent_paths": [
     {
@@ -17,10 +16,6 @@
     {
       "path": "/opt/aegora/data/caddy",
       "required": true
-    },
-    {
-      "path": "${BOOKING_DATA_DIR}",
-      "required": false
     }
   ],
   "configuration_files": [
@@ -89,18 +84,6 @@
       "destination": "compose/caddy/Caddyfile",
       "required": true,
       "mode": "644"
-    },
-    {
-      "source": "${PLATFORM_ROOT}/compose/booking/compose.yml",
-      "destination": "compose/booking/compose.yml",
-      "required": false,
-      "mode": "644"
-    },
-    {
-      "source": "${PLATFORM_ROOT}/compose/booking/.env",
-      "destination": "compose/booking/.env",
-      "required": false,
-      "mode": "600"
     }
   ]
 }
