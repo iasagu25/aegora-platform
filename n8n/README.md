@@ -45,15 +45,23 @@ Descartados en el export: `My workflow` (scratch), un `05` con 0 nodos y un
 Al importar en otro tenant, n8n intenta re-mapear por **nombre**; crea las
 credenciales con el mismo nombre y re-selecciónalas en los nodos HTTP.
 
+## Migración a Booking API (handover §12.3)
+
+Objetivo: `create/reschedule/cancel` dejan de escribir en Directus y pasan
+por el Booking API (revalidación de disponibilidad + advisory lock).
+
+| workflow | estado |
+|---|---|
+| `11 · APPOINTMENT · Reschedule` | **→ `POST /api/reschedule`**. `end_at` se ignora (lo recalcula el API). Nodo `Config` + credencial `Booking API`. |
+| `05 · APPOINTMENT · Update Status` | Rama nueva: `status=cancelled` → **`POST /api/cancel`**; el resto de estados sigue con `PATCH` a Directus. |
+| `03 · APPOINTMENT · Create` | **Pendiente.** El `/api/book` necesita `service_id` y pasa por disponibilidad; hay que rehacer el contrato de `22 · TOOL` (input `service_id`, llamar antes a `APPOINTMENT_Availability`). |
+| `22 / 24 / 25` (wrappers) | Sin cambios: resuelven contacto (WF17) y validan pertenencia/estado; llaman a `03/11/05`. |
+
 ## Deuda conocida
 
 - **Host de Directus hardcodeado** (`http://demo-directus:8055/...`) en casi
   todos los workflows. Para multi-tenant hay que parametrizarlo (patrón nodo
-  `Config` como en `APPOINTMENT_Availability.json`). Pendiente.
-- `03 / 05 / 11` y sus wrappers `22 / 24 / 25` escriben directo en Directus
-  (`/items/appointments`). El plan (handover §12.3) es que llamen al
-  **Booking API** (`/api/book|reschedule|cancel`) para tener revalidación
-  autoritativa y control de concurrencia. **En curso.**
+  `Config` como en `APPOINTMENT_Availability.json` y ahora `11`/`05`). Pendiente.
 
 ## Importar / exportar
 
