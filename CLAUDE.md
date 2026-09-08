@@ -133,9 +133,14 @@ documentado sigue siendo cierto.
     estados sigue en Directus). `22 · TOOL · Appointment Create` actualizado al
     nuevo contrato. **Probado end-to-end en `demo`**: create + idempotencia +
     slot_conflict, reschedule, cancel.
-  - **No** enganchado al agente principal todavía (handover §12.4). Al
-    engancharlo hay que actualizar el schema de la herramienta *Appointment
-    Create* en el agente (expone `service_id`, quita `title`/`end_at`).
+  - Cerebro de Lucía reconstruido (Dirección A: LLM interpreta → router
+    determinista → `Execute Workflow` a los tools versionados):
+    `n8n/workflows/AGENT-Lucia-Core.json` (33 nodos) + `n8n/prompts/lucia-core.md`
+    + `26 · TOOL · Resolve Service` (`service_query` → `service_id` contra
+    Directus, single/multiple/not_found). El LLM nunca inventa UUIDs.
+    v1 cubre knowledge/list_availability/create_appointment/create_task;
+    reschedule/cancel stub (falta resolver `appointment_id` vía `23`).
+    Hand-authored, **sin probar** — validar al importar en `demo`.
 - Pendiente:
   - Aplicar `base.yaml` (2652c43) + `booking-indexes.sql` en `aegora-internal`.
   - `demo`/`aegora-internal`: crear credencial `Booking API` en n8n, importar el
