@@ -1,0 +1,50 @@
+name: aegora-booking
+
+# Referencia de plataforma. El stack real por tenant se renderiza desde
+# templates/tenant-stack/booking/ y lo despliega provisioning/tenant/deploy-booking.sh.
+#
+# Imagen: build local en el VPS (opción A). No hay registro externo en V1.
+#   provisioning/tenant/deploy-booking.sh construye  aegora-booking:<git-sha>
+#   desde un checkout de github.com/iasagu25/aegora-booking.
+#
+# El Booking API es stateless: sin volúmenes. Su único estado de negocio
+# vive en la BD Directus del tenant (directus_<tenant>).
+
+services:
+  booking:
+    image: aegora-booking:local
+    container_name: aegora-booking
+    restart: unless-stopped
+    init: true
+
+    env_file:
+      - .env
+
+    networks:
+      - aegora_backend
+      - aegora_proxy
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --spider -q http://127.0.0.1:3000/api/health || exit 1"
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+    security_opt:
+      - no-new-privileges:true
+
+    stop_grace_period: 20s
+
+networks:
+  aegora_backend:
+    external: true
+    name: aegora_backend
+
+  aegora_proxy:
+    external: true
+    name: aegora_proxy
