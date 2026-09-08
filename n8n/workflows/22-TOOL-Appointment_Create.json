@@ -6,39 +6,17 @@
       "parameters": {
         "workflowInputs": {
           "values": [
-            {
-              "name": "contact_id"
-            },
-            {
-              "name": "phone"
-            },
-            {
-              "name": "email"
-            },
-            {
-              "name": "query"
-            },
-            {
-              "name": "title"
-            },
-            {
-              "name": "start_at"
-            },
-            {
-              "name": "end_at"
-            },
-            {
-              "name": "notes"
-            },
-            {
-              "name": "source"
-            },
-            {
-              "name": "external_provider"
-            },
-            {
-              "name": "external_event_id"
-            }
+            { "name": "contact_id" },
+            { "name": "phone" },
+            { "name": "email" },
+            { "name": "query" },
+            { "name": "service_id" },
+            { "name": "start_at" },
+            { "name": "primary_resource_id" },
+            { "name": "title" },
+            { "name": "notes" },
+            { "name": "source" },
+            { "name": "idempotency_key" }
           ]
         }
       },
@@ -127,7 +105,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $json ?? {};\n\nif (\n  input.status !== 'created' ||\n  !input.appointment?.id\n) {\n  return [{\n    json: {\n      ok: false,\n      status: 'error',\n      message: 'La cita no pudo crearse correctamente.',\n      data: {\n        result: input,\n      },\n    },\n  }];\n}\n\nreturn [{\n  json: {\n    ok: true,\n    status: 'created',\n    message: 'Cita creada correctamente.',\n    data: {\n      appointment: input.appointment,\n    },\n  },\n}];"
+        "jsCode": "const input = $json ?? {};\n\nif (input.status !== 'created' || !input.appointment?.id) {\n  return [{\n    json: {\n      ok: false,\n      status: input.error || 'error',\n      message: input.message || 'La cita no pudo crearse correctamente.',\n      data: { result: input },\n    },\n  }];\n}\n\nreturn [{\n  json: {\n    ok: true,\n    status: 'created',\n    message: input.idempotent\n      ? 'La cita ya existía (idempotente).'\n      : 'Cita creada correctamente.',\n    data: { appointment: input.appointment },\n  },\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -140,7 +118,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $json ?? {};\n\nconst clean = (value) => {\n  if (value === undefined || value === null) {\n    return null;\n  }\n\n  const text = String(value).trim();\n  return text === '' ? null : text;\n};\n\n// --------------------------------------------------\n// Contact resolution\n// --------------------------------------------------\n\nconst contactId = clean(input.contact_id);\nconst phone = clean(input.phone);\nconst email = clean(input.email)?.toLowerCase() ?? null;\nconst query = clean(input.query);\n\n// --------------------------------------------------\n// Appointment\n// --------------------------------------------------\n\nconst title = clean(input.title);\nconst startAt = clean(input.start_at);\nconst endAt = clean(input.end_at);\nconst status = clean(input.status) ?? 'scheduled';\n\nconst notes = clean(input.notes);\nconst source = clean(input.source) ?? 'ai';\nconst externalProvider = clean(input.external_provider);\nconst externalEventId = clean(input.external_event_id);\n\nconst allowedStatuses = [\n  'scheduled',\n  'confirmed',\n  'cancelled',\n  'completed',\n  'no_show',\n];\n\n// --------------------------------------------------\n// Validation\n// --------------------------------------------------\n\nconst errors = [];\n\n// Contact identifier\nif (!contactId && !phone && !email && !query) {\n  errors.push(\n    'Es obligatorio indicar contact_id, phone, email o query para identificar al contacto.'\n  );\n}\n\n// Title\nif (!title) {\n  errors.push('El título de la cita es obligatorio.');\n}\n\n// Start\nif (!startAt) {\n  errors.push('La fecha/hora de inicio es obligatoria.');\n} else if (Number.isNaN(Date.parse(startAt))) {\n  errors.push('La fecha/hora de inicio no es válida.');\n}\n\n// End\nif (!endAt) {\n  errors.push('La fecha/hora de fin es obligatoria.');\n} else if (Number.isNaN(Date.parse(endAt))) {\n  errors.push('La fecha/hora de fin no es válida.');\n}\n\n// Chronological consistency\nif (\n  startAt &&\n  endAt &&\n  !Number.isNaN(Date.parse(startAt)) &&\n  !Number.isNaN(Date.parse(endAt)) &&\n  Date.parse(endAt) <= Date.parse(startAt)\n) {\n  errors.push(\n    'La fecha/hora de fin debe ser posterior al inicio.'\n  );\n}\n\n// Status\nif (!allowedStatuses.includes(status)) {\n  errors.push(\n    `El estado de la cita no es válido. Valores permitidos: ${allowedStatuses.join(', ')}.`\n  );\n}\n\n// --------------------------------------------------\n// Output\n// --------------------------------------------------\n\nreturn [{\n  json: {\n    valid: errors.length === 0,\n    validation_errors: errors,\n\n    contact_id: contactId,\n    phone,\n    email,\n    query,\n\n    title,\n    start_at: startAt,\n    end_at: endAt,\n    status,\n    notes,\n    source,\n    external_provider: externalProvider,\n    external_event_id: externalEventId,\n  },\n}];"
+        "jsCode": "const input = $json ?? {};\nconst clean = v => (v === undefined || v === null) ? null : (String(v).trim() || null);\nconst uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\n\n// Contacto\nconst contactId = clean(input.contact_id);\nconst phone = clean(input.phone);\nconst email = clean(input.email)?.toLowerCase() ?? null;\nconst query = clean(input.query);\n\n// Cita (contrato Booking API: service_id + start_at; el API calcula end_at)\nconst serviceId = clean(input.service_id);\nconst startAt = clean(input.start_at);\nconst primaryResourceId = clean(input.primary_resource_id);\nconst title = clean(input.title);\nconst notes = clean(input.notes);\nconst source = clean(input.source) ?? 'ai';\nconst idempotencyKey = clean(input.idempotency_key);\n\nconst errors = [];\nif (!contactId && !phone && !email && !query) {\n  errors.push('Es obligatorio indicar contact_id, phone, email o query para identificar al contacto.');\n}\nif (!serviceId) errors.push('El servicio (service_id) es obligatorio.');\nelse if (!uuid.test(serviceId)) errors.push('service_id no es un UUID válido.');\nif (!startAt) errors.push('La fecha/hora de inicio es obligatoria.');\nelse if (Number.isNaN(Date.parse(startAt))) errors.push('La fecha/hora de inicio no es válida.');\nif (primaryResourceId && !uuid.test(primaryResourceId)) errors.push('primary_resource_id no es un UUID válido.');\n\nreturn [{\n  json: {\n    valid: errors.length === 0,\n    validation_errors: errors,\n\n    contact_id: contactId,\n    phone,\n    email,\n    query,\n\n    service_id: serviceId,\n    start_at: startAt,\n    primary_resource_id: primaryResourceId,\n    title,\n    notes,\n    source,\n    idempotency_key: idempotencyKey,\n  },\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -313,107 +291,24 @@
           "mappingMode": "defineBelow",
           "value": {
             "contact_id": "={{ $json.contact_id }}",
-            "title": "={{ $('Code · Normalize Input').item.json.title }}",
-            "source": "={{ $('Code · Normalize Input').item.json.source }}",
+            "service_id": "={{ $('Code · Normalize Input').item.json.service_id }}",
             "start_at": "={{ $('Code · Normalize Input').item.json.start_at }}",
-            "end_at": "={{ $('Code · Normalize Input').item.json.end_at }}",
+            "primary_resource_id": "={{ $('Code · Normalize Input').item.json.primary_resource_id }}",
+            "title": "={{ $('Code · Normalize Input').item.json.title }}",
             "notes": "={{ $('Code · Normalize Input').item.json.notes }}",
-            "external_provider": "={{ $('Code · Normalize Input').item.json.external_provider }}",
-            "external_event_id": "={{ $('Code · Normalize Input').item.json.external_event_id }}",
-            "status": "={{ $('Code · Normalize Input').item.json.status }}"
+            "source": "={{ $('Code · Normalize Input').item.json.source }}",
+            "idempotency_key": "={{ $('Code · Normalize Input').item.json.idempotency_key }}"
           },
           "matchingColumns": [],
           "schema": [
-            {
-              "id": "contact_id",
-              "displayName": "contact_id",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string",
-              "removed": false
-            },
-            {
-              "id": "title",
-              "displayName": "title",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string",
-              "removed": false
-            },
-            {
-              "id": "start_at",
-              "displayName": "start_at",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string",
-              "removed": false
-            },
-            {
-              "id": "end_at",
-              "displayName": "end_at",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string",
-              "removed": false
-            },
-            {
-              "id": "notes",
-              "displayName": "notes",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string",
-              "removed": false
-            },
-            {
-              "id": "status",
-              "displayName": "status",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string",
-              "removed": false
-            },
-            {
-              "id": "source",
-              "displayName": "source",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string",
-              "removed": false
-            },
-            {
-              "id": "external_provider",
-              "displayName": "external_provider",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string",
-              "removed": false
-            },
-            {
-              "id": "external_event_id",
-              "displayName": "external_event_id",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string",
-              "removed": false
-            }
+            { "id": "contact_id", "displayName": "contact_id", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string", "removed": false },
+            { "id": "service_id", "displayName": "service_id", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string", "removed": false },
+            { "id": "start_at", "displayName": "start_at", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string", "removed": false },
+            { "id": "primary_resource_id", "displayName": "primary_resource_id", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string", "removed": false },
+            { "id": "title", "displayName": "title", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string", "removed": false },
+            { "id": "notes", "displayName": "notes", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string", "removed": false },
+            { "id": "source", "displayName": "source", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string", "removed": false },
+            { "id": "idempotency_key", "displayName": "idempotency_key", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string", "removed": false }
           ],
           "attemptToConvertTypes": false,
           "convertFieldsToString": true

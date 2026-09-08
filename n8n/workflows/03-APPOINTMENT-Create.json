@@ -6,131 +6,104 @@
       "parameters": {
         "workflowInputs": {
           "values": [
-            {
-              "name": "contact_id"
-            },
-            {
-              "name": "title"
-            },
-            {
-              "name": "start_at"
-            },
-            {
-              "name": "end_at"
-            },
-            {
-              "name": "notes"
-            },
-            {
-              "name": "status"
-            },
-            {
-              "name": "source"
-            },
-            {
-              "name": "external_provider"
-            },
-            {
-              "name": "external_event_id"
-            }
+            { "name": "contact_id" },
+            { "name": "service_id" },
+            { "name": "start_at" },
+            { "name": "primary_resource_id" },
+            { "name": "location_id" },
+            { "name": "calendar_id" },
+            { "name": "title" },
+            { "name": "notes" },
+            { "name": "source" },
+            { "name": "idempotency_key" },
+            { "name": "booking_base_url" }
           ]
         }
       },
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.2,
-      "position": [
-        -656,
-        -16
-      ],
-      "id": "f411c30c-ff52-492a-a90d-705a7ee99258",
+      "position": [0, 0],
+      "id": "6f2b1a00-0000-4000-8000-000000000031",
       "name": "When Executed by Another Workflow"
     },
     {
       "parameters": {
-        "jsCode": "const input = $json;\n\nconst clean = (value) => {\n  if (value === undefined || value === null) {\n    return null;\n  }\n\n  const result = String(value).trim();\n\n  return result === ''\n    ? null\n    : result;\n};\n\nconst contactId = clean(input.contact_id);\nconst title = clean(input.title);\nconst startAtRaw = clean(input.start_at);\nconst endAtRaw = clean(input.end_at);\n\nif (!title) {\n  throw new Error('title es obligatorio');\n}\n\nif (!startAtRaw) {\n  throw new Error('start_at es obligatorio');\n}\n\nif (!endAtRaw) {\n  throw new Error('end_at es obligatorio');\n}\n\nconst startAt = new Date(startAtRaw);\nconst endAt = new Date(endAtRaw);\n\nif (Number.isNaN(startAt.getTime())) {\n  throw new Error(\n    `start_at no es una fecha válida: ${startAtRaw}`\n  );\n}\n\nif (Number.isNaN(endAt.getTime())) {\n  throw new Error(\n    `end_at no es una fecha válida: ${endAtRaw}`\n  );\n}\n\nif (endAt.getTime() <= startAt.getTime()) {\n  throw new Error(\n    'end_at debe ser posterior a start_at'\n  );\n}\n\nconst allowedStatuses = [\n  'scheduled',\n  'confirmed',\n  'cancelled',\n  'completed',\n  'no_show'\n];\n\nconst status =\n  clean(input.status) ?? 'scheduled';\n\nif (!allowedStatuses.includes(status)) {\n  throw new Error(\n    `status inválido: ${status}`\n  );\n}\n\nconst allowedSources = [\n  'manual',\n  'ai',\n  'system'\n];\n\nconst source =\n  clean(input.source) ?? 'ai';\n\nif (!allowedSources.includes(source)) {\n  throw new Error(\n    `source inválido: ${source}`\n  );\n}\n\nreturn [\n  {\n    json: {\n      appointment: {\n        contact_id: contactId,\n        title,\n\n        start_at: startAt.toISOString(),\n        end_at: endAt.toISOString(),\n\n        status,\n\n        notes: clean(input.notes),\n\n        source,\n\n        external_provider:\n          clean(input.external_provider),\n\n        external_event_id:\n          clean(input.external_event_id)\n      }\n    }\n  }\n];"
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg-base-url",
+              "name": "booking_base_url",
+              "type": "string",
+              "value": "={{ ($json.booking_base_url && $json.booking_base_url.toString().trim()) || 'http://demo-booking:3000' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [200, 0],
+      "id": "6f2b1a00-0000-4000-8000-000000000032",
+      "name": "Config (editar por tenant)",
+      "notes": "Cambia el fallback por http://<tenant>-booking:3000. El caller puede pasar booking_base_url."
+    },
+    {
+      "parameters": {
+        "jsCode": "const i = $json ?? {};\nconst clean = v => (v === undefined || v === null) ? null : (String(v).trim() || null);\nconst uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\n\nconst base = (clean(i.booking_base_url) || '').replace(/\\/$/, '');\nconst contactId = clean(i.contact_id);\nconst serviceId = clean(i.service_id);\nconst startAt = clean(i.start_at);\n\nif (!base) throw new Error('booking_base_url no configurado (nodo Config)');\nif (!serviceId || !uuid.test(serviceId)) throw new Error('service_id no es un UUID válido');\nif (!contactId || !uuid.test(contactId)) throw new Error('contact_id no es un UUID válido');\nif (!startAt || Number.isNaN(Date.parse(startAt))) throw new Error(`start_at no es una fecha válida: ${startAt}`);\n\nconst src = clean(i.source);\nconst body = {\n  service_id: serviceId,\n  start_at: startAt,\n  contact_id: contactId,\n  source: ['ai', 'manual', 'system'].includes(src) ? src : 'ai',\n};\nconst opt = {\n  title: clean(i.title),\n  notes: clean(i.notes),\n  primary_resource_id: clean(i.primary_resource_id),\n  location_id: clean(i.location_id),\n  calendar_id: clean(i.calendar_id),\n  idempotency_key: clean(i.idempotency_key),\n};\nfor (const [k, v] of Object.entries(opt)) if (v) body[k] = v;\n\nreturn [{ json: { _url: base + '/api/book', _body: body } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        -448,
-        -16
-      ],
-      "id": "fb46ce54-0df9-4622-a542-95d6cdb69fee",
+      "position": [416, 0],
+      "id": "6f2b1a00-0000-4000-8000-000000000033",
       "name": "Code · Validate Input"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "http://demo-directus:8055/items/appointments",
+        "url": "={{ $json._url }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $json.appointment }}",
-        "options": {}
+        "jsonBody": "={{ JSON.stringify($json._body) }}",
+        "options": {
+          "response": { "response": { "neverError": true, "fullResponse": true } }
+        }
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
-      "position": [
-        -240,
-        -16
-      ],
-      "id": "f55b9343-2596-4a02-a0e1-fb1ca3448b03",
-      "name": "HTTP · Create Appointment",
+      "position": [632, 0],
+      "id": "6f2b1a00-0000-4000-8000-000000000034",
+      "name": "HTTP · Booking API book",
       "credentials": {
-        "httpHeaderAuth": {
-          "id": "CFY5g7INvQxRg8EB",
-          "name": "Directus · demo"
-        }
+        "httpHeaderAuth": { "id": "REPLACE_WITH_CREDENTIAL_ID", "name": "Booking API" }
       }
     },
     {
       "parameters": {
-        "jsCode": "const appointment = $json.data;\n\nif (!appointment?.id) {\n  throw new Error(\n    'Directus no devolvió appointment.id'\n  );\n}\n\nreturn [\n  {\n    json: {\n      status: 'created',\n      appointment\n    }\n  }\n];"
+        "jsCode": "const r = $json ?? {};\nconst status = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\n\nif (body.ok === true) {\n  return [{ json: {\n    status: 'created',\n    appointment: {\n      id: body.appointment_id,\n      status: body.status,\n      start_at: body.start_at,\n      end_at: body.end_at,\n      primary_resource_id: body.primary_resource_id,\n      participant_resource_ids: body.participant_resource_ids ?? [],\n    },\n    idempotent: body.idempotent === true,\n  } }];\n}\n\nreturn [{ json: {\n  status: 'error',\n  error: body.error || ('http_' + status),\n  message: body.detail || 'El Booking API rechazó la creación',\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        -32,
-        -16
-      ],
-      "id": "b8cad565-19e5-417b-b83d-f0e71058310b",
+      "position": [848, 0],
+      "id": "6f2b1a00-0000-4000-8000-000000000035",
       "name": "Code · Return Result"
     }
   ],
   "connections": {
     "When Executed by Another Workflow": {
-      "main": [
-        [
-          {
-            "node": "Code · Validate Input",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Config (editar por tenant)", "type": "main", "index": 0 }]]
+    },
+    "Config (editar por tenant)": {
+      "main": [[{ "node": "Code · Validate Input", "type": "main", "index": 0 }]]
     },
     "Code · Validate Input": {
-      "main": [
-        [
-          {
-            "node": "HTTP · Create Appointment",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "HTTP · Booking API book", "type": "main", "index": 0 }]]
     },
-    "HTTP · Create Appointment": {
-      "main": [
-        [
-          {
-            "node": "Code · Return Result",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "HTTP · Booking API book": {
+      "main": [[{ "node": "Code · Return Result", "type": "main", "index": 0 }]]
     }
   },
   "settings": {

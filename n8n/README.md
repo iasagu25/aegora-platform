@@ -52,10 +52,11 @@ por el Booking API (revalidación de disponibilidad + advisory lock).
 
 | workflow | estado |
 |---|---|
-| `11 · APPOINTMENT · Reschedule` | **→ `POST /api/reschedule`**. `end_at` se ignora (lo recalcula el API). Nodo `Config` + credencial `Booking API`. |
+| `03 · APPOINTMENT · Create` | **→ `POST /api/book`**. Inputs nuevos: `service_id`✔ + `start_at`✔ + `contact_id`✔ (+ `primary_resource_id`, `location_id`, `calendar_id`, `title`, `notes`, `source`, `idempotency_key`). Se van `title` obligatorio, `end_at`, `status`, `external_provider/event_id`: el API calcula `end_at` desde `service.duration_minutes`, crea siempre `scheduled` y valida disponibilidad + advisory lock. |
 | `05 · APPOINTMENT · Update Status` | Rama nueva: `status=cancelled` → **`POST /api/cancel`**; el resto de estados sigue con `PATCH` a Directus. |
-| `03 · APPOINTMENT · Create` | **Pendiente.** El `/api/book` necesita `service_id` y pasa por disponibilidad; hay que rehacer el contrato de `22 · TOOL` (input `service_id`, llamar antes a `APPOINTMENT_Availability`). |
-| `22 / 24 / 25` (wrappers) | Sin cambios: resuelven contacto (WF17) y validan pertenencia/estado; llaman a `03/11/05`. |
+| `11 · APPOINTMENT · Reschedule` | **→ `POST /api/reschedule`**. `end_at` se ignora (lo recalcula el API). Nodo `Config` + credencial `Booking API`. |
+| `22 · TOOL · Appointment Create` | Contrato nuevo: `service_id`✔ + `start_at`✔ + identificador de contacto; sin `title`/`end_at`/`status`. Sigue resolviendo contacto (WF17). **El schema de la herramienta en el agente hay que actualizarlo.** |
+| `24 / 25` (wrappers) | Sin cambios: resuelven contacto (WF17) y validan pertenencia/estado; llaman a `11/05`. |
 
 ## Deuda conocida
 
