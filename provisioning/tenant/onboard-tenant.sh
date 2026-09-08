@@ -10,6 +10,8 @@ readonly CREATE_SCRIPT="${PLATFORM_ROOT}/provisioning/tenant/create-tenant.sh"
 readonly DEPLOY_SCRIPT="${PLATFORM_ROOT}/provisioning/tenant/deploy-tenant.sh"
 
 readonly APPLY_SCHEMA_SCRIPT="${PLATFORM_ROOT}/directus/apply-schema.sh"
+readonly BOOKING_ACCESS_SCRIPT="${PLATFORM_ROOT}/provisioning/tenant/provision-booking-access.sh"
+readonly BOOKING_DEPLOY_SCRIPT="${PLATFORM_ROOT}/provisioning/tenant/deploy-booking.sh"
 readonly DIRECTUS_ACCESS_SCRIPT="${PLATFORM_ROOT}/directus/provision-directus-access.sh"
 readonly DIRECTUS_UI_SCRIPT="${PLATFORM_ROOT}/directus/configure-directus-ui.sh"
 readonly SPANISH_UI_SCRIPT="${PLATFORM_ROOT}/directus/configure-spanish-ui.sh"
@@ -352,6 +354,8 @@ for required_script in \
   "$CREATE_SCRIPT" \
   "$DEPLOY_SCRIPT" \
   "$APPLY_SCHEMA_SCRIPT" \
+  "$BOOKING_ACCESS_SCRIPT" \
+  "$BOOKING_DEPLOY_SCRIPT" \
   "$DIRECTUS_ACCESS_SCRIPT" \
   "$DIRECTUS_UI_SCRIPT" \
   "$SPANISH_UI_SCRIPT" \
@@ -441,7 +445,7 @@ if [[ "$STAGE" == "prepare" ||
       "PLAN: el tenant aún no existe."
 
     log \
-      "Los pasos deploy/schema/restart/directus-access/ui/spanish-ui/backup/operations se ejecutarán después de create en modo APPLY."
+      "Los pasos deploy/schema/restart/booking-token/booking-deploy/directus-access/ui/spanish-ui/backup/operations se ejecutarán después de create en modo APPLY."
 
     [[ "$STAGE" != "prepare" ]] ||
       exit 0
@@ -488,6 +492,32 @@ if [[ "$STAGE" == "prepare" ||
       log \
         "PLAN: Directus se reiniciará después del schema en modo APPLY."
     fi
+
+    booking_access_args=(
+      /usr/bin/bash
+      "$BOOKING_ACCESS_SCRIPT"
+      --tenant "$TENANT"
+    )
+
+    [[ "$APPLY" != true ]] ||
+      booking_access_args+=(--apply)
+
+    run_script \
+      "PROVISION BOOKING API TOKEN" \
+      "${booking_access_args[@]}"
+
+    booking_deploy_args=(
+      /usr/bin/bash
+      "$BOOKING_DEPLOY_SCRIPT"
+      --tenant "$TENANT"
+    )
+
+    [[ "$APPLY" != true ]] ||
+      booking_deploy_args+=(--apply)
+
+    run_script \
+      "DEPLOY BOOKING API" \
+      "${booking_deploy_args[@]}"
 
     directus_access_args=(
       /usr/bin/bash

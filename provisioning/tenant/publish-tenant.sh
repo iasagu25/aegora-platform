@@ -354,11 +354,21 @@ set +a
 : "${DIRECTUS_CONTAINER:?Falta DIRECTUS_CONTAINER}"
 : "${N8N_CONTAINER:?Falta N8N_CONTAINER}"
 
+# Booking es opcional: solo se publica si el tenant lo tiene desplegado.
+BOOKING_HOST="${BOOKING_HOST:-}"
+BOOKING_CONTAINER="${BOOKING_CONTAINER:-}"
+BOOKING_PUBLISH=false
+if [[ -n "$BOOKING_HOST" && -n "$BOOKING_CONTAINER" ]] &&
+   container_exists "$BOOKING_CONTAINER"; then
+  BOOKING_PUBLISH=true
+fi
+
 [[ "$TENANT_ID" == "$TENANT" ]] ||
   fail "TENANT_ID no coincide con --tenant."
 
 validate_hostname "$DIRECTUS_HOST"
 validate_hostname "$N8N_HOST"
+[[ "$BOOKING_PUBLISH" != true ]] || validate_hostname "$BOOKING_HOST"
 
 # =============================================================================
 # Política de dominios
@@ -372,6 +382,11 @@ if [[ "$ALLOW_CUSTOM_DOMAIN" != true ]]; then
   is_managed_hostname "$N8N_HOST" ||
     fail \
       "N8N_HOST no pertenece a ${MANAGED_DOMAIN}: ${N8N_HOST}"
+
+  [[ "$BOOKING_PUBLISH" != true ]] ||
+    is_managed_hostname "$BOOKING_HOST" ||
+    fail \
+      "BOOKING_HOST no pertenece a ${MANAGED_DOMAIN}: ${BOOKING_HOST}"
 fi
 
 # =============================================================================
@@ -397,11 +412,32 @@ validate_service \
   "n8n" \
   "$N8N_CONTAINER"
 
+if [[ "$BOOKING_PUBLISH" == true ]]; then
+  validate_service \
+    "Booking" \
+    "$BOOKING_CONTAINER"
+fi
+
 # =============================================================================
 # Fragmento
 # =============================================================================
 
 SITE_FILE="${CADDY_RUNTIME_SITES_HOST}/${TENANT}.caddy"
+
+if [[ "$BOOKING_PUBLISH" == true ]]; then
+  BOOKING_PLAN_BLOCK="
+Booking:
+  https://${BOOKING_HOST}
+  -> ${BOOKING_CONTAINER}:3000"
+  BOOKING_SUMMARY_BLOCK="
+Booking:
+  https://${BOOKING_HOST}"
+else
+  BOOKING_PLAN_BLOCK="
+Booking:
+  (no desplegado; se omite su ruta)"
+  BOOKING_SUMMARY_BLOCK=""
+fi
 
 cat <<EOF
 
@@ -419,6 +455,7 @@ Directus:
 n8n:
   https://${N8N_HOST}
   -> ${N8N_CONTAINER}:5678
+${BOOKING_PLAN_BLOCK}
 
 Fragmento:
   ${SITE_FILE}
@@ -518,6 +555,29 @@ ${N8N_HOST} {
 }
 EOF
 
+if [[ "$BOOKING_PUBLISH" == true ]]; then
+  cat >> "$candidate" <<EOF
+
+${BOOKING_HOST} {
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	reverse_proxy ${BOOKING_CONTAINER}:3000
+
+	log {
+		output stdout
+		format console
+	}
+}
+EOF
+fi
+
 chmod 644 "$candidate"
 
 mv \
@@ -598,7 +658,7 @@ Directus:
 
 n8n:
   https://${N8N_HOST}
-
+${BOOKING_SUMMARY_BLOCK}
 Caddy:
   VALIDADO
   RELOAD OK
