@@ -157,11 +157,18 @@ documentado sigue siendo cierto.
     `/api/reschedule|cancel`), + caminos de ambigüedad y sin-contacto.
     `create_task` validado (Core → `19` → tarea en `tasks`, `priority` enum
     `low|normal|high|urgent`, prefijo de tipo en el título).
-    `knowledge`: rama cableada pero **la KB pgvector `documentos_lucia` no
-    existe** post-reconstrucción (ni en `directus_demo` ni `n8n_demo`) —
-    montarla (tabla + contenido + ingesta de embeddings) es sub-proyecto aparte.
+    `knowledge` (**KB V1, sin RAG**): fuera pgvector/embeddings. Colección
+    Directus `knowledge` (`title`, `body` markdown, `active`, `sort`) — creada
+    en `demo` y en `base.yaml` (commit 19af460). La rama la lee entera vía
+    `HTTP · Directus knowledge` (filtro `active`, sort `sort`) → `Code · Preparar
+    KB` (concat `## title\nbody`) → `AI Agent - Conocimiento` (KB en el system
+    message, context-stuffing). Permiso `read` para la policy n8n `c42ccf84`
+    añadido por SQL (`directus_permissions` id 20, `permissions` NULL). RAG solo
+    si una KB crece de verdad (~>30k tokens). **Pendiente probar end-to-end**
+    (reimportar `AGENT-Lucia-Core.json` en `demo-n8n` + fila KB de ejemplo).
 - Pendiente:
-  - Aplicar `base.yaml` (2652c43) + `booking-indexes.sql` en `aegora-internal`.
+  - Probar la rama `knowledge` en `demo` (reimport del brain + fila en `knowledge`).
+  - Aplicar `base.yaml` (19af460) + `booking-indexes.sql` en `aegora-internal`.
   - `demo`/`aegora-internal`: crear credencial `Booking API` en n8n, importar el
     workflow, ajustar el nodo `Config` a `http://<tenant>-booking:3000`.
   - Limpieza opcional: `DROP DATABASE booking_demo` / `booking_aegora-internal`
