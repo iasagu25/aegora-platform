@@ -1087,7 +1087,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const c = $json ?? {};\nreturn [{ json: {\n  ok: true, intent: c.intent ?? null,\n  needs_user_reply: c.needs_user_reply ?? true,\n  reply_to_user: c.reply_to_user || 'Hola, ¿en qué puedo ayudarte?',\n  flujo_activo: c.intent,\n} }];"
+        "jsCode": "const c = $json ?? {};\nreturn [{ json: {\n  ok: true, intent: c.intent ?? null,\n  needs_user_reply: c.needs_user_reply ?? true,\n  reply_to_user: c.reply_to_user || 'Hola, ¿en qué puedo ayudarte?',\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1505,6 +1505,19 @@
       ],
       "id": "lucia-260039710387",
       "name": "Code · Preparar KB"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normaliza TODA salida del Core al contrato congelado (n8n/CONTRACT-lucia-core.md).\nconst s = $json ?? {};\nconst ok = s.ok !== false;\nconst intent = (s.intent === undefined || s.intent === 'null') ? null : (s.intent ?? null);\nconst needs = s.needs_user_reply === true;\n// Regla ÚNICA de ciclo de vida de flujo_activo:\n//   null   si la operación terminó (needs_user_reply=false) o no hay intent\n//   intent en cualquier otro caso (seguimos dentro de la operación)\nconst flujo_activo = (!needs || !intent) ? null : intent;\nconst contact_id = s.contact_id\n  ?? (s.appointment && s.appointment.contact_id)\n  ?? (s.task && s.task.contact_id)\n  ?? null;\nconst result = s.appointment ?? s.task ?? s.result ?? null;\nreturn [{ json: { ok, intent, reply_to_user: s.reply_to_user || '', needs_user_reply: needs, flujo_activo, contact_id, result } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2980,
+        240
+      ],
+      "id": "lucia-normalizar-0001",
+      "name": "Salida · normalizar"
     }
   ],
   "connections": {
@@ -1942,6 +1955,127 @@
         [
           {
             "node": "AI Agent - Conocimiento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salida · conocimiento": {
+      "main": [
+        [
+          {
+            "node": "Salida · normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salida · lista horarios": {
+      "main": [
+        [
+          {
+            "node": "Salida · normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salida · falta servicio (lista)": {
+      "main": [
+        [
+          {
+            "node": "Salida · normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salida · reserva": {
+      "main": [
+        [
+          {
+            "node": "Salida · normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salida · pedir datos reserva": {
+      "main": [
+        [
+          {
+            "node": "Salida · normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salida · tarea": {
+      "main": [
+        [
+          {
+            "node": "Salida · normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salida · respuesta directa": {
+      "main": [
+        [
+          {
+            "node": "Salida · normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salida · reprogramar": {
+      "main": [
+        [
+          {
+            "node": "Salida · normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salida · pedir nuevo hueco": {
+      "main": [
+        [
+          {
+            "node": "Salida · normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salida · cancelar": {
+      "main": [
+        [
+          {
+            "node": "Salida · normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salida · localizar cita": {
+      "main": [
+        [
+          {
+            "node": "Salida · normalizar",
             "type": "main",
             "index": 0
           }

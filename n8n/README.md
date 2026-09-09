@@ -81,6 +81,11 @@ not_found), el `contact_id` lo resuelven los propios tools (WF17).
   Directus; `appointment_id` sale de las citas próximas del contacto (WF23).
 - El Core distingue `appointment_date`/`appointment_time` (localizar la cita
   a tocar) de `date`/`time` (nuevo hueco al reprogramar).
+- **Contrato de entrada/salida congelado**: `n8n/CONTRACT-lucia-core.md`. Todas
+  las ramas terminan en `Salida · normalizar`, que fija la forma exacta de la
+  respuesta (`ok`, `intent`, `reply_to_user`, `needs_user_reply`, `flujo_activo`,
+  `contact_id`, `result`) y aplica la regla única de `flujo_activo`. Lo consume
+  el futuro `AGENT-Lucia-Entry` (capa omnicanal — webchat primero).
 
 ### Requisitos en el tenant
 

@@ -157,6 +157,11 @@ documentado sigue siendo cierto.
     `/api/reschedule|cancel`), + caminos de ambigüedad y sin-contacto.
     `create_task` validado (Core → `19` → tarea en `tasks`, `priority` enum
     `low|normal|high|urgent`, prefijo de tipo en el título).
+    **Contrato del Core congelado** (`n8n/CONTRACT-lucia-core.md`): entrada
+    Entry→Core y salida Core→Entry. Todas las ramas terminan en
+    `Salida · normalizar` (regla única de `flujo_activo`, `contact_id`
+    best-effort, `result` opcional). Es la base sobre la que se construye
+    `AGENT-Lucia-Entry` (capa omnicanal — webchat primero, ver "Omnicanal").
     `knowledge` (**KB V1, sin RAG**): fuera pgvector/embeddings. Colección
     Directus `knowledge` (`title`, `body` markdown, `active`, `sort`) — creada
     en `demo` y en `base.yaml` (commit 19af460). La rama la lee entera vía
@@ -166,7 +171,28 @@ documentado sigue siendo cierto.
     añadido por SQL (`directus_permissions` id 20, `permissions` NULL). RAG solo
     si una KB crece de verdad (~>30k tokens). **Probado en `demo`** end-to-end
     (Core → `knowledge` → colección `knowledge` → respuesta del dato correcto).
+### Omnicanal (capa de entrada del cerebro) — decidido, en construcción
+- Patrón: **adaptador fino por canal → `AGENT-Lucia-Entry` compartido → Core**.
+  El adaptador normaliza el payload del canal a un contrato fijo y hace el
+  dispatch de la respuesta; Entry carga/guarda estado de sesión y llama al Core.
+- **V1 = solo webchat.** WhatsApp (WABA Cloud API + Embedded Signup, NO Evolution
+  para tenants de pago) y otros canales, después, sin tocar Core ni Entry.
+- Estado entre turnos: colección Directus `conversation_sessions`
+  (`session_key` único, `canal`, `contact_id`, `flujo_activo`, `state` json,
+  `updated_at`). Deliberadamente mínima: la conversación vive en `Simple Memory`
+  del Core; aquí solo estado operativo. `state` = `{}` en V1 salvo rate-limit.
+- **Entry es dueño de `canal` + `session_key`**; `sessionID` que llega al Core
+  `=== session_key` (si no, se pierde la memoria).
+- webchat no resuelve contacto por teléfono: `contact_id` sale de la sesión o
+  es `null`; Lucía pide los datos cuando la operación lo exige.
+- Orden: (1) contrato Core congelado ✅ + `Salida · normalizar` ✅ →
+  (2) colección `conversation_sessions` (crear en demo → snapshot → `base.yaml`) →
+  (3) `AGENT-Lucia-Entry.json` → (4) `WEBCHAT-Adapter.json` (webhook `POST
+  /webchat`, allowlist `Origin` + rate-limit por `session_key`) →
+  (5) widget `n8n/webchat/` (HTML/JS mínimo, embed `<script>`) →
+  (6) `SESSION-Cleanup.json` (schedule diario, purga sesiones > 24 h).
 - Pendiente:
+  - Omnicanal pasos 2-6 (ver arriba).
   - Aplicar `base.yaml` (19af460) + `booking-indexes.sql` en `aegora-internal`.
   - `demo`/`aegora-internal`: crear credencial `Booking API` en n8n, importar el
     workflow, ajustar el nodo `Config` a `http://<tenant>-booking:3000`.
