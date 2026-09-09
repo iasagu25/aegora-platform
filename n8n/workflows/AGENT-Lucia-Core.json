@@ -1082,7 +1082,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const r = $json ?? {};\nreturn [{ json: { ok: r.ok !== false, intent: 'create_task', needs_user_reply: false,\n  reply_to_user: (r.ok !== false) ? 'Anotado, me encargo de ello.' : (r.message || 'No he podido anotar la tarea.'),\n  task: r.data ?? r } }];"
+        "jsCode": "const r = $json ?? {};\nconst failed = r.ok === false || Array.isArray(r.errors) || !!r.error;\nif (failed) {\n  const errs = Array.isArray(r.errors) ? r.errors.join(' ') : (r.message || r.error || '');\n  const needsContact = /contact_id|phone|email|query|identificar al contacto/i.test(errs);\n  return [{ json: {\n    ok: false, intent: 'create_task', needs_user_reply: true,\n    reply_to_user: needsContact\n      ? '¿Me dices tu nombre y teléfono para dejar la nota?'\n      : 'No he podido anotar la tarea. ¿Lo intentamos de otra forma?',\n  } }];\n}\nreturn [{ json: { ok: true, intent: 'create_task', needs_user_reply: false,\n  reply_to_user: 'Anotado, me encargo de ello.', task: r.data ?? r } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
