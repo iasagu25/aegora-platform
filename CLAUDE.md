@@ -164,10 +164,9 @@ documentado sigue siendo cierto.
     KB` (concat `## title\nbody`) → `AI Agent - Conocimiento` (KB en el system
     message, context-stuffing). Permiso `read` para la policy n8n `c42ccf84`
     añadido por SQL (`directus_permissions` id 20, `permissions` NULL). RAG solo
-    si una KB crece de verdad (~>30k tokens). **Pendiente probar end-to-end**
-    (reimportar `AGENT-Lucia-Core.json` en `demo-n8n` + fila KB de ejemplo).
+    si una KB crece de verdad (~>30k tokens). **Probado en `demo`** end-to-end
+    (Core → `knowledge` → colección `knowledge` → respuesta del dato correcto).
 - Pendiente:
-  - Probar la rama `knowledge` en `demo` (reimport del brain + fila en `knowledge`).
   - Aplicar `base.yaml` (19af460) + `booking-indexes.sql` en `aegora-internal`.
   - `demo`/`aegora-internal`: crear credencial `Booking API` en n8n, importar el
     workflow, ajustar el nodo `Config` a `http://<tenant>-booking:3000`.
