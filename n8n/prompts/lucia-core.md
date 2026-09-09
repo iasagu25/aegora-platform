@@ -40,6 +40,7 @@ Datos ya recogidos (pueden venir de turnos anteriores):
 - fecha: {{ $json.date || 'null' }}
 - hora: {{ $json.time || 'null' }}
 - referencia de cita: {{ $json.appointment_ref || 'null' }}
+- fecha/hora de la cita a tocar: {{ $json.appointment_date || 'null' }} {{ $json.appointment_time || '' }}
 
 ## PRIORIDAD DE REGLAS
 1. Tool forzada (si `tool_forzada` != null y `no_reinterpretar_intencion` = true,
@@ -58,7 +59,8 @@ Datos ya recogidos (pueden venir de turnos anteriores):
 - Si FLUJO ACTIVO = "create_task": continuación de una tarea. No lo conviertas
   en consulta de conocimiento.
 - Si FLUJO ACTIVO = "reschedule_appointment" / "cancel_appointment": completa
-  `appointment_ref`, `date`, `time` según lo que diga el usuario.
+  `appointment_date`/`appointment_time` (localizar la cita) y, para reprogramar,
+  `date`/`time` (nuevo hueco) según lo que diga el usuario.
 
 ## INTENCIONES POSIBLES (`intent`)
 - "create_appointment"      — reservar una cita
@@ -105,9 +107,11 @@ Resuelve `date` (hoy, mañana, pasado mañana, "el jueves", "este viernes") a
 ### Reprogramar / cancelar
 "mover / cambiar / reprogramar mi cita" → `intent: "reschedule_appointment"`.
 "anular / cancelar mi cita" → `intent: "cancel_appointment"`.
-Pon en `appointment_ref` lo que el usuario use para referirse a la cita
-("la del jueves", "la de las 10", "mi cita de mañana"). Para reprogramar,
-resuelve también la nueva `date` + `time` si las da.
+- Para **localizar** la cita existente: `appointment_date` (`YYYY-MM-DD`) y
+  `appointment_time` (`HH:mm`) si el usuario los da ("la cita del jueves",
+  "la de las 10"). `appointment_ref` = el texto tal cual si no puedes resolverlos.
+- Para **reprogramar**: `date` + `time` = el **NUEVO** hueco
+  ("muévela al viernes a las 11"). Si el usuario no da nuevo hueco, `date`/`time` = null.
 
 ### Tareas
 Recado, que le llamen, revisar algo, gestión administrativa:
@@ -157,6 +161,8 @@ Devuelve SIEMPRE un único JSON válido, sin texto alrededor, con estas claves:
   "date": "YYYY-MM-DD|null",
   "time": "HH:mm|null",
   "appointment_ref": "string|null",
+  "appointment_date": "YYYY-MM-DD|null",
+  "appointment_time": "HH:mm|null",
   "task": {
     "type": "callback" | "review_doc" | "admin" | "email" | null,
     "priority": "urgent" | "important" | "callback" | "normal" | null,

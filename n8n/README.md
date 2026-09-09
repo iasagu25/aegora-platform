@@ -56,7 +56,7 @@ por el Booking API (revalidación de disponibilidad + advisory lock).
 | `05 · APPOINTMENT · Update Status` | Rama nueva: `status=cancelled` → **`POST /api/cancel`**; el resto de estados sigue con `PATCH` a Directus. |
 | `11 · APPOINTMENT · Reschedule` | **→ `POST /api/reschedule`**. `end_at` se ignora (lo recalcula el API). Nodo `Config` + credencial `Booking API`. |
 | `22 · TOOL · Appointment Create` | Contrato nuevo: `service_id`✔ + `start_at`✔ + identificador de contacto; sin `title`/`end_at`/`status`. Sigue resolviendo contacto (WF17). **El schema de la herramienta en el agente hay que actualizarlo.** |
-| `24 / 25` (wrappers) | Sin cambios: resuelven contacto (WF17) y validan pertenencia/estado; llaman a `11/05`. |
+| `24 / 25` (wrappers) | Sin cambios; el cerebro ya los llama tras resolver el `appointment_id` vía `23`. |
 
 ## Cerebro de Lucía — `AGENT-Lucia-Core.json` + `26 · TOOL · Resolve Service`
 
@@ -71,12 +71,16 @@ not_found), el `contact_id` lo resuelven los propios tools (WF17).
   de servicios y el conocimiento son del tenant).
 - `26 · TOOL · Resolve Service`: `service_query` (texto) → `service_id`. Sin
   query y un solo servicio activo → ese; varios → preguntar.
-- Ramas del router en v1: `knowledge` (RAG pgvector), `list_availability`
-  (→ `APPOINTMENT_Availability` → `Redacta horarios`), `create_appointment`
-  (→ `26` → `22`), `create_task` (→ `19`), `null`/genérico (respuesta directa).
-- **Pendiente**: `reschedule_appointment` / `cancel_appointment` — hoy devuelven
-  un stub. Necesitan resolver el `appointment_id` vía `23 · Appointment List` +
-  match determinista sobre `appointment_ref`/fecha antes de llamar a `24`/`25`.
+- Ramas del router: `knowledge` (RAG pgvector), `list_availability`
+  (→ `26` → `APPOINTMENT_Availability` → `Redacta horarios`), `create_appointment`
+  (→ `26` → `Construir start_at` → `22`), `create_task` (→ `19`),
+  `reschedule_appointment` / `cancel_appointment` (→ `23` → `Emparejar cita` por
+  `appointment_date`/`appointment_time` → `24` / `25`), `null`/genérico
+  (respuesta directa).
+- `26`/`Emparejar cita` nunca inventan IDs: `service_id` sale del catálogo
+  Directus; `appointment_id` sale de las citas próximas del contacto (WF23).
+- El Core distingue `appointment_date`/`appointment_time` (localizar la cita
+  a tocar) de `date`/`time` (nuevo hueco al reprogramar).
 
 ### Requisitos en el tenant
 

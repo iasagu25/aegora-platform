@@ -59,6 +59,12 @@
             },
             {
               "name": "tenant_timezone"
+            },
+            {
+              "name": "appointment_date"
+            },
+            {
+              "name": "appointment_time"
             }
           ]
         }
@@ -115,7 +121,7 @@
         "promptType": "define",
         "text": "={{ $json.message }}",
         "options": {
-          "systemMessage": "=## SISTEMA: LUCÍA · CORE\nAHORA: {{ $now.setZone($json.tenant_timezone || 'Europe/Madrid').toFormat(\"cccc dd LLLL yyyy HH:mm\") }}\nZONA: {{ $json.tenant_timezone || 'Europe/Madrid' }} · CANAL: {{ $json.canal || 'webchat' }}\n\nEres Lucía, asistente de este negocio. Aquí solo INTERPRETAS y devuelves SOLO un JSON.\nNO ejecutas acciones. NO inventas disponibilidad, citas ni identificadores (UUID de\nservicios/contactos/recursos/citas): describes el significado (p.ej. nombre del\nservicio), el sistema resuelve los IDs. NO redactas conocimiento aquí.\n\nCONTEXTO\n- TEXTO: {{ $json.texto_usuario || $json.message || '' }}\n- FLUJO ACTIVO: {{ $json.flujo_activo || 'null' }}\n- TOOL FORZADA: {{ $json.tool_forzada || 'null' }} · NO REINTERPRETAR: {{ $json.no_reinterpretar_intencion || false }}\n- ya recogido -> nombre: {{ $json.contact_name || 'null' }} · tel: {{ $json.contact_phone || 'null' }} · empresa: {{ $json.contact_company || 'null' }} · servicio: {{ $json.service_query || 'null' }} · fecha: {{ $json.date || 'null' }} · hora: {{ $json.time || 'null' }} · ref cita: {{ $json.appointment_ref || 'null' }}\n\nPRIORIDAD: 1) tool forzada  2) continuidad de flujo  3) extracción  4) intención  5) pregunta mínima.\n\nCONTINUIDAD: si FLUJO ACTIVO indica una operación en curso, el siguiente mensaje la\ncontinúa; completa los datos que aporte el usuario y no reclasifiques salvo cambio\nexplícito.\n\nINTENCIONES (intent):\n- create_appointment / reschedule_appointment / cancel_appointment\n- list_availability\n- create_task\n- knowledge  (info: servicios, precios, cómo funciona)\n- null  (saludo / genérico / falta contexto)\n\nREGLAS\n- Genérico -> intent null, needs_user_reply true, reply_to_user \"Hola, ¿en qué puedo ayudarte?\".\n- Conocimiento -> intent \"knowledge\", needs_user_reply false, reply_to_user \"\".\n- Reservar: si el usuario menciona qué necesita, ponlo en service_query (texto, NO UUID);\n  si no, service_query null.\n  · fecha+hora concretas -> intent create_appointment; resuelve date=YYYY-MM-DD y time=HH:mm;\n    ready_to_execute true si además hay servicio y (nombre o teléfono), si no pide SOLO lo que falte.\n  · solo fecha sin hora -> intent list_availability; resuelve date; ready_to_execute true.\n  · sin fecha -> intent create_appointment; needs_user_reply true; reply \"¿Qué día y a qué hora te viene bien?\".\n- Listar horarios -> intent list_availability; resuelve date (hoy/mañana/pasado/\"el jueves\"...) a\n  YYYY-MM-DD; si puedes ready_to_execute true; si no date null + pregunta.\n- Reprogramar/cancelar -> intent reschedule_appointment / cancel_appointment; pon en\n  appointment_ref lo que use el usuario (\"la del jueves\"); para reprogramar resuelve la nueva date+time.\n- Tareas -> intent create_task; task.type callback|review_doc|admin|email|null;\n  task.priority urgent|important|callback|normal|null; task.due_date YYYY-MM-DD si aparece;\n  \"por la mañana\"->13:00, \"por la tarde\"->18:00, hora exacta si la da; task.note = asunto.\n\nEXTRACCIÓN: solo datos del usuario/su empresa, no de terceros.\n- contact.name solo si el usuario se identifica (\"soy Juan\"); NO si es de otra persona\n  (\"cita para Marta\") -> ese nombre va en task.note / appointment_ref.\n- contact.phone solo si es el teléfono del usuario.\n- contact.company solo si la da como dato propio.\n- Ante duda null. Nunca ready_to_execute true sin date. Nunca time si el usuario no la dio.\n\nSALIDA — un único JSON válido, sin texto alrededor:\n{\n  \"intent\": \"create_appointment|reschedule_appointment|cancel_appointment|list_availability|create_task|knowledge|null\",\n  \"needs_user_reply\": boolean, \"reply_to_user\": \"string\", \"ready_to_execute\": boolean,\n  \"contact\": { \"name\": \"string|null\", \"phone\": \"string|null\", \"company\": \"string|null\" },\n  \"service_query\": \"string|null\", \"date\": \"YYYY-MM-DD|null\", \"time\": \"HH:mm|null\",\n  \"appointment_ref\": \"string|null\",\n  \"task\": { \"type\": \"callback|review_doc|admin|email|null\", \"priority\": \"urgent|important|callback|normal|null\", \"due_date\": \"YYYY-MM-DD|null\", \"note\": \"string|null\" },\n  \"confirmation\": boolean|null\n}\nSi no sabes un valor usa null; no omitas claves."
+          "systemMessage": "=## SISTEMA: LUCÍA · CORE\nAHORA: {{ $now.setZone($json.tenant_timezone || 'Europe/Madrid').toFormat(\"cccc dd LLLL yyyy HH:mm\") }}\nZONA: {{ $json.tenant_timezone || 'Europe/Madrid' }} · CANAL: {{ $json.canal || 'webchat' }}\n\nEres Lucía, asistente de este negocio. Aquí solo INTERPRETAS y devuelves SOLO un JSON.\nNO ejecutas acciones. NO inventas disponibilidad, citas ni identificadores (UUID de\nservicios/contactos/recursos/citas): describes el significado (p.ej. nombre del\nservicio), el sistema resuelve los IDs. NO redactas conocimiento aquí.\n\nCONTEXTO\n- TEXTO: {{ $json.texto_usuario || $json.message || '' }}\n- FLUJO ACTIVO: {{ $json.flujo_activo || 'null' }}\n- TOOL FORZADA: {{ $json.tool_forzada || 'null' }} · NO REINTERPRETAR: {{ $json.no_reinterpretar_intencion || false }}\n- ya recogido -> nombre: {{ $json.contact_name || 'null' }} · tel: {{ $json.contact_phone || 'null' }} · empresa: {{ $json.contact_company || 'null' }} · servicio: {{ $json.service_query || 'null' }} · fecha: {{ $json.date || 'null' }} · hora: {{ $json.time || 'null' }} · ref cita: {{ $json.appointment_ref || 'null' }} · cita a tocar: {{ $json.appointment_date || 'null' }} {{ $json.appointment_time || '' }}\n\nPRIORIDAD: 1) tool forzada  2) continuidad de flujo  3) extracción  4) intención  5) pregunta mínima.\n\nCONTINUIDAD: si FLUJO ACTIVO indica una operación en curso, el siguiente mensaje la\ncontinúa; completa los datos que aporte el usuario y no reclasifiques salvo cambio\nexplícito.\n\nINTENCIONES (intent):\n- create_appointment / reschedule_appointment / cancel_appointment\n- list_availability\n- create_task\n- knowledge  (info: servicios, precios, cómo funciona)\n- null  (saludo / genérico / falta contexto)\n\nREGLAS\n- Genérico -> intent null, needs_user_reply true, reply_to_user \"Hola, ¿en qué puedo ayudarte?\".\n- Conocimiento -> intent \"knowledge\", needs_user_reply false, reply_to_user \"\".\n- Reservar: si el usuario menciona qué necesita, ponlo en service_query (texto, NO UUID);\n  si no, service_query null.\n  · fecha+hora concretas -> intent create_appointment; resuelve date=YYYY-MM-DD y time=HH:mm;\n    ready_to_execute true si además hay servicio y (nombre o teléfono), si no pide SOLO lo que falte.\n  · solo fecha sin hora -> intent list_availability; resuelve date; ready_to_execute true.\n  · sin fecha -> intent create_appointment; needs_user_reply true; reply \"¿Qué día y a qué hora te viene bien?\".\n- Listar horarios -> intent list_availability; resuelve date (hoy/mañana/pasado/\"el jueves\"...) a\n  YYYY-MM-DD; si puedes ready_to_execute true; si no date null + pregunta.\n- Reprogramar/cancelar -> intent reschedule_appointment / cancel_appointment.\n  Para LOCALIZAR la cita existente: appointment_date (YYYY-MM-DD) y appointment_time\n  (HH:mm) si el usuario los da (\"la cita del jueves\", \"la de las 10\"); appointment_ref\n  = texto tal cual si no puedes resolverlos. Para reprogramar, date + time = el NUEVO\n  hueco (\"muévela al viernes a las 11\"). Si el usuario no da nuevo hueco, date/time null.\n- Tareas -> intent create_task; task.type callback|review_doc|admin|email|null;\n  task.priority urgent|important|callback|normal|null; task.due_date YYYY-MM-DD si aparece;\n  \"por la mañana\"->13:00, \"por la tarde\"->18:00, hora exacta si la da; task.note = asunto.\n\nEXTRACCIÓN: solo datos del usuario/su empresa, no de terceros.\n- contact.name solo si el usuario se identifica (\"soy Juan\"); NO si es de otra persona\n  (\"cita para Marta\") -> ese nombre va en task.note / appointment_ref.\n- contact.phone solo si es el teléfono del usuario.\n- contact.company solo si la da como dato propio.\n- Ante duda null. Nunca ready_to_execute true sin date. Nunca time si el usuario no la dio.\n\nSALIDA — un único JSON válido, sin texto alrededor:\n{\n  \"intent\": \"create_appointment|reschedule_appointment|cancel_appointment|list_availability|create_task|knowledge|null\",\n  \"needs_user_reply\": boolean, \"reply_to_user\": \"string\", \"ready_to_execute\": boolean,\n  \"contact\": { \"name\": \"string|null\", \"phone\": \"string|null\", \"company\": \"string|null\" },\n  \"service_query\": \"string|null\", \"date\": \"YYYY-MM-DD|null\", \"time\": \"HH:mm|null\",\n  \"appointment_ref\": \"string|null\", \"appointment_date\": \"YYYY-MM-DD|null\", \"appointment_time\": \"HH:mm|null\",\n  \"task\": { \"type\": \"callback|review_doc|admin|email|null\", \"priority\": \"urgent|important|callback|normal|null\", \"due_date\": \"YYYY-MM-DD|null\", \"note\": \"string|null\" },\n  \"confirmation\": boolean|null\n}\nSi no sabes un valor usa null; no omitas claves."
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -1138,19 +1144,6 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: { ok: false, intent: $json.intent, needs_user_reply: true,\n  reply_to_user: 'Para cambiar o anular una cita todavía te tengo que pasar con el equipo. Enseguida lo activamos.' } }];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1180,
-        560
-      ],
-      "id": "lucia-750622275251",
-      "name": "Salida · mutación cita (pendiente)"
-    },
-    {
-      "parameters": {
         "jsCode": "const c = $json ?? {};\nreturn [{ json: {\n  ok: true, intent: c.intent ?? null,\n  needs_user_reply: c.needs_user_reply ?? true,\n  reply_to_user: c.reply_to_user || 'Hola, ¿en qué puedo ayudarte?',\n  flujo_activo: c.intent,\n} }];"
       },
       "type": "n8n-nodes-base.code",
@@ -1161,6 +1154,368 @@
       ],
       "id": "lucia-034121738790",
       "name": "Salida · respuesta directa"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "NrfGIvdDxyV8ps6a",
+          "mode": "list",
+          "cachedResultName": "23 · TOOL · Appointment List"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "phone": "={{ $json.contact && $json.contact.phone ? $json.contact.phone : null }}",
+            "query": "={{ $json.contact && $json.contact.name ? $json.contact.name : null }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "query",
+              "displayName": "query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1180,
+        560
+      ],
+      "id": "lucia-906948445428",
+      "name": "Call · 23 Appointment List"
+    },
+    {
+      "parameters": {
+        "jsCode": "const core = $('Output IA → JSON').item.json;\nconst res = $json ?? {};\nconst tz = core.tenant_timezone || 'Europe/Madrid';\nconst phone = core.contact && core.contact.phone ? core.contact.phone : null;\nconst query = core.contact && core.contact.name ? core.contact.name : null;\nconst base = { intent: core.intent, phone, query };\n\nif (!res.ok) {\n  return [{ json: { ...base, _found: false, _reason: res.status === 'multiple' ? 'varios_contactos' : 'sin_contacto' } }];\n}\nconst appts = Array.isArray(res.data && res.data.appointments) ? res.data.appointments : [];\nif (!appts.length) return [{ json: { ...base, _found: false, _reason: 'sin_citas' } }];\n\nlet cands = appts.slice();\nconst ad = core.appointment_date || null;\nconst at = core.appointment_time || null;\nif (ad) {\n  const f = cands.filter(a => DateTime.fromISO(a.start_at).setZone(tz).toISODate() === ad);\n  if (f.length) cands = f;\n}\nif (cands.length > 1 && at) {\n  const f = cands.filter(a => DateTime.fromISO(a.start_at).setZone(tz).toFormat('HH:mm') === at);\n  if (f.length) cands = f;\n}\nif (cands.length === 1) return [{ json: { ...base, _found: true, appointment_id: cands[0].id } }];\nreturn [{ json: { ...base, _found: false, _reason: 'ambigua',\n  opciones: cands.map(a => ({ id: a.id, cuando: DateTime.fromISO(a.start_at).setZone(tz).setLocale('es').toFormat(\"cccc d 'de' LLLL HH:mm\") })) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        560
+      ],
+      "id": "lucia-171852341297",
+      "name": "Code · Emparejar cita"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c",
+              "leftValue": "={{ $json._found }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1620,
+        560
+      ],
+      "id": "lucia-564402935390",
+      "name": "¿Cita localizada?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c",
+              "leftValue": "={{ $json.intent }}",
+              "rightValue": "reschedule_appointment",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        480
+      ],
+      "id": "lucia-230421050421",
+      "name": "¿Reprogramar?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const m = $json ?? {};\nconst core = $('Output IA → JSON').item.json;\nconst tz = core.tenant_timezone || 'Europe/Madrid';\nif (!core.date || !core.time) return [{ json: { ...m, _no_new_slot: true } }];\nconst s = DateTime.fromISO(`${core.date}T${core.time}`, { zone: tz });\nif (!s.isValid) return [{ json: { ...m, _no_new_slot: true } }];\nreturn [{ json: { ...m, start_at: s.toISO() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2060,
+        420
+      ],
+      "id": "lucia-463798579549",
+      "name": "Code · Nuevo start_at"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c",
+              "leftValue": "={{ $json._no_new_slot }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2280,
+        420
+      ],
+      "id": "lucia-702130680210",
+      "name": "¿Hay nuevo hueco?"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "2ehpGE2LwB7jhGAv",
+          "mode": "list",
+          "cachedResultName": "24 · TOOL · Appointment Reschedule"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "appointment_id": "={{ $json.appointment_id }}",
+            "start_at": "={{ $json.start_at }}",
+            "phone": "={{ $json.phone }}",
+            "query": "={{ $json.query }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "appointment_id",
+              "displayName": "appointment_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "start_at",
+              "displayName": "start_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "query",
+              "displayName": "query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        2500,
+        360
+      ],
+      "id": "lucia-721603764642",
+      "name": "Call · 24 Reschedule"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json ?? {};\nconst tz = $('Output IA → JSON').item.json.tenant_timezone || 'Europe/Madrid';\nif (r.ok === true) {\n  const a = (r.data && r.data.appointment) || {};\n  const cuando = a.start_at ? DateTime.fromISO(a.start_at).setZone(tz).setLocale('es').toFormat(\"cccc d 'de' LLLL 'a las' HH:mm\") : '';\n  return [{ json: { ok: true, intent: 'reschedule_appointment', needs_user_reply: false, reply_to_user: `Hecho, tu cita queda para el ${cuando}.`, appointment: a } }];\n}\nconst st = (r.data && r.data.result && r.data.result.status) || r.status;\nif (st === 'slot_conflict') return [{ json: { ok:false, intent:'reschedule_appointment', needs_user_reply:true, reply_to_user:'Ese horario no está disponible ese día. ¿Te digo los huecos libres?' } }];\nif (st === 'slot_taken')   return [{ json: { ok:false, intent:'reschedule_appointment', needs_user_reply:true, reply_to_user:'Ese horario acaba de ocuparse. ¿Quieres otro?' } }];\nreturn [{ json: { ok:false, intent:'reschedule_appointment', needs_user_reply:true, reply_to_user: r.message || 'No he podido reprogramar la cita.' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2720,
+        360
+      ],
+      "id": "lucia-825015424519",
+      "name": "Salida · reprogramar"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ok: true, intent: 'reschedule_appointment', needs_user_reply: true, reply_to_user: '¿A qué día y hora quieres moverla?' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2500,
+        500
+      ],
+      "id": "lucia-258454859745",
+      "name": "Salida · pedir nuevo hueco"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "7Es2hFFXRHKuxtYk",
+          "mode": "list",
+          "cachedResultName": "25 · TOOL · Appointment Cancel"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "appointment_id": "={{ $json.appointment_id }}",
+            "phone": "={{ $json.phone }}",
+            "query": "={{ $json.query }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "appointment_id",
+              "displayName": "appointment_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "query",
+              "displayName": "query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        2060,
+        640
+      ],
+      "id": "lucia-426257826308",
+      "name": "Call · 25 Cancel"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json ?? {};\nif (r.ok === true) return [{ json: { ok: true, intent: 'cancel_appointment', needs_user_reply: false, reply_to_user: 'Tu cita queda cancelada.', appointment: (r.data && r.data.appointment) } }];\nreturn [{ json: { ok: false, intent: 'cancel_appointment', needs_user_reply: true, reply_to_user: r.message || 'No he podido cancelar la cita.' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2280,
+        640
+      ],
+      "id": "lucia-924573550467",
+      "name": "Salida · cancelar"
+    },
+    {
+      "parameters": {
+        "jsCode": "const m = $json ?? {};\nconst accion = m.intent === 'cancel_appointment' ? 'cancelar' : 'cambiar';\nconst map = {\n  varios_contactos: 'Necesito confirmar quién eres. ¿Me das tu teléfono?',\n  sin_contacto: 'No encuentro tus datos. ¿Me dices tu nombre y teléfono?',\n  sin_citas: 'No veo ninguna cita próxima a tu nombre.',\n  ambigua: 'Tienes varias citas próximas: ' + (m.opciones || []).map(o => o.cuando).join('; ') + '. ¿Cuál quieres ' + accion + '?',\n};\nreturn [{ json: { ok: false, intent: m.intent, needs_user_reply: true, reply_to_user: map[m._reason] || 'No he podido localizar la cita.' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        660
+      ],
+      "id": "lucia-362615124961",
+      "name": "Salida · localizar cita"
     }
   ],
   "connections": {
@@ -1262,7 +1617,7 @@
         ],
         [
           {
-            "node": "Salida · mutación cita (pendiente)",
+            "node": "Call · 23 Appointment List",
             "type": "main",
             "index": 0
           }
@@ -1489,6 +1844,115 @@
         [
           {
             "node": "Salida · tarea",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call · 23 Appointment List": {
+      "main": [
+        [
+          {
+            "node": "Code · Emparejar cita",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Emparejar cita": {
+      "main": [
+        [
+          {
+            "node": "¿Cita localizada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Cita localizada?": {
+      "main": [
+        [
+          {
+            "node": "¿Reprogramar?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Salida · localizar cita",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Reprogramar?": {
+      "main": [
+        [
+          {
+            "node": "Code · Nuevo start_at",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call · 25 Cancel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Nuevo start_at": {
+      "main": [
+        [
+          {
+            "node": "¿Hay nuevo hueco?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay nuevo hueco?": {
+      "main": [
+        [
+          {
+            "node": "Call · 24 Reschedule",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Salida · pedir nuevo hueco",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call · 24 Reschedule": {
+      "main": [
+        [
+          {
+            "node": "Salida · reprogramar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call · 25 Cancel": {
+      "main": [
+        [
+          {
+            "node": "Salida · cancelar",
             "type": "main",
             "index": 0
           }
