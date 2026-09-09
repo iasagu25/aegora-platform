@@ -149,7 +149,11 @@ documentado sigue siendo cierto.
     Directus, single/multiple/not_found). El LLM nunca inventa UUIDs.
     v1 cubre knowledge/list_availability/create_appointment/create_task;
     reschedule/cancel stub (falta resolver `appointment_id` vía `23`).
-    Hand-authored, **sin probar** — validar al importar en `demo`.
+    **Probado en `demo`**: `null` (saludo), `list_availability` y
+    `create_appointment` end-to-end (Core NLU → `26` → `Construir start_at` →
+    `22` → `/api/book` → cita, contacto resuelto por WF17, recurso asignado).
+    Sin probar todavía: `knowledge` (tabla `documentos_lucia`), `create_task`,
+    reschedule/cancel.
 - Pendiente:
   - Aplicar `base.yaml` (2652c43) + `booking-indexes.sql` en `aegora-internal`.
   - `demo`/`aegora-internal`: crear credencial `Booking API` en n8n, importar el
