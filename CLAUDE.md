@@ -155,7 +155,11 @@ documentado sigue siendo cierto.
     `reschedule`/`cancel` también validados end-to-end (Core → `23` →
     `Emparejar cita` por `appointment_date`/`appointment_time` → `24`/`25` →
     `/api/reschedule|cancel`), + caminos de ambigüedad y sin-contacto.
-    Sin probar todavía: `knowledge` (tabla `documentos_lucia`), `create_task`.
+    `create_task` validado (Core → `19` → tarea en `tasks`, `priority` enum
+    `low|normal|high|urgent`, prefijo de tipo en el título).
+    `knowledge`: rama cableada pero **la KB pgvector `documentos_lucia` no
+    existe** post-reconstrucción (ni en `directus_demo` ni `n8n_demo`) —
+    montarla (tabla + contenido + ingesta de embeddings) es sub-proyecto aparte.
 - Pendiente:
   - Aplicar `base.yaml` (2652c43) + `booking-indexes.sql` en `aegora-internal`.
   - `demo`/`aegora-internal`: crear credencial `Booking API` en n8n, importar el

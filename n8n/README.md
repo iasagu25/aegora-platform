@@ -88,7 +88,10 @@ not_found), el `contact_id` lo resuelven los propios tools (WF17).
    Auth), `OpenAi account`, `Postgres account`.
 2. Nodo `Config` del Core: ajustar `booking_base_url` / `directus_base_url` /
    `tenant_timezone`. Reenvía `booking_base_url` a los tools.
-3. Tabla pgvector `documentos_lucia` (rama de conocimiento).
+3. Tabla pgvector `documentos_lucia` (rama de conocimiento) — **no existe
+   post-reconstrucción**; hay que montarla (esquema pgvector + contenido +
+   ingesta de embeddings con `client_id` en metadata). Hasta entonces la rama
+   `knowledge` responde "no tengo información".
 4. Tras importar: en cada nodo HTTP/`Execute Workflow`/agente, re-seleccionar la
    credencial correspondiente (los `id` del JSON son placeholders o del export
    de demo).
