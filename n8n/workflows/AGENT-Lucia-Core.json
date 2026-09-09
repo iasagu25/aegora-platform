@@ -1660,6 +1660,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Salida · respuesta directa",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -1741,6 +1748,13 @@
         [
           {
             "node": "Call · 26 Resolve Service (reserva)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Salida · respuesta directa",
             "type": "main",
             "index": 0
           }
