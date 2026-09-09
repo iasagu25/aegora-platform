@@ -416,6 +416,9 @@ const permissionModel = {
   availability_exceptions: ['read'],
   calendars: ['read'],
   locations: ['read'],
+  // Base de conocimiento del negocio (colección editable por el gestor).
+  // La rama `knowledge` del cerebro la lee entera (context-stuffing, sin RAG).
+  knowledge: ['read'],
 };
 
 async function rawRequest(method, path, body = undefined, token = adminToken) {

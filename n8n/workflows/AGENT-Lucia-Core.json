@@ -343,63 +343,6 @@
     },
     {
       "parameters": {
-        "mode": "retrieve-as-tool",
-        "toolDescription": "Base de conocimiento del negocio: servicios, precios, funcionamiento.",
-        "tableName": "documentos_lucia",
-        "topK": 50,
-        "options": {
-          "columnNames": {
-            "values": {
-              "contentColumnName": "content"
-            }
-          },
-          "metadata": {
-            "metadataValues": [
-              {
-                "name": "client_id",
-                "value": "={{ $json.client_id }}"
-              }
-            ]
-          }
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
-      "typeVersion": 1.3,
-      "position": [
-        1180,
-        360
-      ],
-      "id": "lucia-829753831898",
-      "name": "consultar_conocimiento",
-      "credentials": {
-        "postgres": {
-          "id": "kyc8Qow5Zz0zaMOh",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "model": "text-embedding-ada-002",
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
-      "typeVersion": 1.2,
-      "position": [
-        1180,
-        520
-      ],
-      "id": "lucia-608997448012",
-      "name": "Embeddings OpenAI",
-      "credentials": {
-        "openAiApi": {
-          "id": "fxKaYIovKoE9cnsk",
-          "name": "OpenAi account"
-        }
-      }
-    },
-    {
-      "parameters": {
         "model": {
           "__rl": true,
           "value": "gpt-4o",
@@ -434,7 +377,7 @@
         "promptType": "define",
         "text": "={{ $json.message }}",
         "options": {
-          "systemMessage": "=Eres Lucía. Responde la consulta del usuario usando SOLO el contexto recuperado con la tool 'consultar_conocimiento'. No inventes. Si no basta, dilo. Español de España, claro y breve. No hables de herramientas. Devuelve SOLO JSON: { \"response\": \"string\" }"
+          "systemMessage": "=Eres Lucía, asistente de este negocio. Responde la consulta del usuario usando EXCLUSIVAMENTE la BASE DE CONOCIMIENTO de abajo. No inventes nada. Si la respuesta no está en la base, dilo con honestidad (\"no tengo esa información, puedo tomar nota y que te contacten\"). Español de España, claro y breve. No menciones \"base de conocimiento\" ni herramientas ni sistemas. Devuelve SOLO JSON: { \"response\": \"string\" }\n\nBASE DE CONOCIMIENTO:\n{{ $json.kb }}"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -1516,6 +1459,52 @@
       ],
       "id": "lucia-362615124961",
       "name": "Salida · localizar cita"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.directus_base_url }}/items/knowledge",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ 'filter[active][_eq]': 'true', fields: 'title,body', sort: 'sort', limit: -1 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1180,
+        180
+      ],
+      "id": "lucia-406538423572",
+      "name": "HTTP · Directus knowledge",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 300 || (body && body.errors)) {\n  throw new Error('Directus /items/knowledge devolvió ' + code + ': ' + JSON.stringify(body.errors || body));\n}\nconst rows = Array.isArray(body.data) ? body.data : [];\nconst kb = rows.map(x => `## ${x.title}\\n${(x.body || '').trim()}`).join('\\n\\n').trim();\nreturn [{ json: {\n  message: $('Output IA → JSON').item.json.message,\n  kb: kb || '(este negocio todavía no tiene información en su base de conocimiento)',\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        180
+      ],
+      "id": "lucia-260039710387",
+      "name": "Code · Preparar KB"
     }
   ],
   "connections": {
@@ -1589,7 +1578,7 @@
       "main": [
         [
           {
-            "node": "AI Agent - Conocimiento",
+            "node": "HTTP · Directus knowledge",
             "type": "main",
             "index": 0
           }
@@ -1637,28 +1626,6 @@
           {
             "node": "AI Agent - Conocimiento",
             "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "consultar_conocimiento": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent - Conocimiento",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Embeddings OpenAI": {
-      "ai_embedding": [
-        [
-          {
-            "node": "consultar_conocimiento",
-            "type": "ai_embedding",
             "index": 0
           }
         ]
@@ -1953,6 +1920,28 @@
         [
           {
             "node": "Salida · cancelar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Directus knowledge": {
+      "main": [
+        [
+          {
+            "node": "Code · Preparar KB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Preparar KB": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Conocimiento",
             "type": "main",
             "index": 0
           }

@@ -85,20 +85,22 @@ not_found), el `contact_id` lo resuelven los propios tools (WF17).
 ### Requisitos en el tenant
 
 1. Credenciales n8n: `Booking API` (Header Auth), `Directus · demo` (Header
-   Auth), `OpenAi account`, `Postgres account`.
+   Auth), `OpenAi account`. (Ya no hace falta `Postgres account`: la KB
+   se lee vía HTTP a Directus, sin pgvector.)
 2. Nodo `Config` del Core: ajustar `booking_base_url` / `directus_base_url` /
    `tenant_timezone`. Reenvía `booking_base_url` a los tools.
-3. Tabla pgvector `documentos_lucia` (rama de conocimiento) — **no existe
-   post-reconstrucción**; hay que montarla (esquema pgvector + contenido +
-   ingesta de embeddings con `client_id` en metadata). Hasta entonces la rama
-   `knowledge` responde "no tengo información".
+3. Colección Directus `knowledge` (`title`, `body` markdown, `active`, `sort`)
+   con contenido del negocio. La rama `knowledge` la lee entera
+   (context-stuffing, **sin RAG/embeddings**) y la inyecta al agente de
+   conocimiento. Si está vacía, responde "todavía no tiene información".
+   RAG (pgvector) solo si una KB crece de verdad — ver fases más abajo.
 4. Tras importar: en cada nodo HTTP/`Execute Workflow`/agente, re-seleccionar la
    credencial correspondiente (los `id` del JSON son placeholders o del export
    de demo).
 
 ### A validar en el VPS (hand-authored, no probado en local)
 
-- Schemas de nodos langchain (`agent` v3, `lmChatOpenAi` v1.3, `vectorStorePGVector`).
+- Schemas de nodos langchain (`agent` v3, `lmChatOpenAi` v1.3).
 - Expresiones con optional chaining (`$json.contact && $json.contact.phone`).
 - Índices de salida del `Switch` (fallback = última salida).
 - `DateTime` (luxon) disponible en los Code node de este n8n.
