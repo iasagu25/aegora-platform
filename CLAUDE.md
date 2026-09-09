@@ -54,6 +54,15 @@ documentado sigue siendo cierto.
 - Directus fijado en 12.2.0 a propósito (no actualizar a 12.3.x todavía,
   hasta estabilizar provisioning).
 - Health check: usar `/server/ping`, NO `/server/health` (devuelve 403 en 12.2.0).
+- Permisos (12.2): modelo Role → Policies → Permissions. Un permiso `read` con
+  `permissions: {}` (filtro vacío, lo que escribe la UI si no tocas el filtro)
+  se evalúa como "no matchea nada" → 403 "no tienes permiso o no existe". Usar
+  `permissions: null`. Editar `directus_permissions` por API puede dar 403
+  incluso con token admin; se arregla por SQL (`UPDATE ... SET permissions =
+  NULL`) + reiniciar el contenedor (caché de permisos). El rol n8n
+  (`Aegora · n8n Service`, policy `c42ccf84-…` en demo) tiene ahora `read` sobre
+  `services/resources/service_resources/availability_rules/availability_exceptions/calendars/locations`;
+  `configure-n8n-service.sh` los declara en `permissionModel`.
 
 ## Modelo de booking en Directus — decisiones ya tomadas
 - Semántica V1 simple: `service_resources` = pool OR de recursos alternativos

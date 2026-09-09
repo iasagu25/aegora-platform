@@ -405,6 +405,17 @@ const permissionModel = {
   contact_phones: ['create', 'read', 'update'],
   tasks: ['create', 'read', 'update'],
   appointments: ['create', 'read', 'update'],
+  // Config de booking: solo lectura. La capa n8n (workflows / cerebro) la
+  // necesita para resolver service_id, recursos, horarios, etc. El Booking API
+  // es quien escribe. NOTA: crear siempre con permissions=null, NUNCA {} —
+  // Directus 12.2 evalúa un filtro {} como "no matchea nada" y da 403.
+  services: ['read'],
+  resources: ['read'],
+  service_resources: ['read'],
+  availability_rules: ['read'],
+  availability_exceptions: ['read'],
+  calendars: ['read'],
+  locations: ['read'],
 };
 
 async function rawRequest(method, path, body = undefined, token = adminToken) {
