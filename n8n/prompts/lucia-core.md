@@ -117,7 +117,8 @@ Resuelve `date` (hoy, mañana, pasado mañana, "el jueves", "este viernes") a
 Recado, que le llamen, revisar algo, gestión administrativa:
 `intent: "create_task"`.
 - `task.type`: "callback" | "review_doc" | "admin" | "email" | null
-- `task.priority`: "urgent" | "important" | "callback" | "normal" | null
+- `task.priority`: "low" | "normal" | "high" | "urgent" | null
+  · "urgente" → urgent; "importante" o "que me llame cuanto antes" → high; por defecto normal
 - `task.due_date`: `YYYY-MM-DD` si aparece
 - si dice "por la mañana" usa hora 13:00; "por la tarde" 18:00; hora exacta si la da
 - `task.note`: el asunto de la gestión (incluye nombres de terceros si son parte del contexto)
@@ -165,7 +166,7 @@ Devuelve SIEMPRE un único JSON válido, sin texto alrededor, con estas claves:
   "appointment_time": "HH:mm|null",
   "task": {
     "type": "callback" | "review_doc" | "admin" | "email" | null,
-    "priority": "urgent" | "important" | "callback" | "normal" | null,
+    "priority": "low" | "normal" | "high" | "urgent" | null,
     "due_date": "YYYY-MM-DD|null",
     "note": "string|null"
   },
