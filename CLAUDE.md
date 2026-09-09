@@ -179,7 +179,7 @@ documentado sigue siendo cierto.
   para tenants de pago) y otros canales, después, sin tocar Core ni Entry.
 - Estado entre turnos: colección Directus `conversation_sessions`
   (`session_key` único, `canal`, `contact_id`, `flujo_activo`, `state` json,
-  `updated_at`). Deliberadamente mínima: la conversación vive en `Simple Memory`
+  `updated_at`). Deliberadamente mínima: la conversación vive en `Postgres Chat Memory`
   del Core; aquí solo estado operativo. `state` = `{}` en V1 salvo rate-limit.
 - **Entry es dueño de `canal` + `session_key`**; `sessionID` que llega al Core
   `=== session_key` (si no, se pierde la memoria).

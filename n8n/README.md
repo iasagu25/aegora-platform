@@ -90,8 +90,9 @@ not_found), el `contact_id` lo resuelven los propios tools (WF17).
 ### Requisitos en el tenant
 
 1. Credenciales n8n: `Booking API` (Header Auth), `Directus · demo` (Header
-   Auth), `OpenAi account`. (Ya no hace falta `Postgres account`: la KB
-   se lee vía HTTP a Directus, sin pgvector.)
+   Auth), `OpenAi account`, `Postgres account` (BD `n8n_<tenant>` — la usa
+   `Postgres Chat Memory` del Core para el historial conversacional; la KB
+   `knowledge` NO usa pgvector, va por HTTP a Directus).
 2. Nodo `Config` del Core: ajustar `booking_base_url` / `directus_base_url` /
    `tenant_timezone`. Reenvía `booking_base_url` a los tools.
 3. Colección Directus `knowledge` (`title`, `body` markdown, `active`, `sort`)

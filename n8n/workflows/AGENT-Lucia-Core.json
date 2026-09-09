@@ -168,16 +168,24 @@
       "parameters": {
         "sessionIdType": "customKey",
         "sessionKey": "={{ $json.sessionID }}",
+        "tableName": "n8n_chat_histories",
         "contextWindowLength": 10
       },
-      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
       "typeVersion": 1.3,
       "position": [
         520,
         220
       ],
       "id": "lucia-057693012162",
-      "name": "Simple Memory"
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_POSTGRES_CRED",
+          "name": "Postgres account"
+        }
+      },
+      "notes": "Credencial Postgres del tenant -> BD n8n_<tenant>. La tabla n8n_chat_histories se crea sola. Re-seleccionar la credencial al importar."
     },
     {
       "parameters": {
@@ -1554,17 +1562,6 @@
         ]
       ]
     },
-    "Simple Memory": {
-      "ai_memory": [
-        [
-          {
-            "node": "AI Agent - Core",
-            "type": "ai_memory",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "AI Agent - Core": {
       "main": [
         [
@@ -2077,6 +2074,17 @@
           {
             "node": "Salida · normalizar",
             "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent - Core",
+            "type": "ai_memory",
             "index": 0
           }
         ]

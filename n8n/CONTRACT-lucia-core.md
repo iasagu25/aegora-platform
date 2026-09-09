@@ -9,7 +9,7 @@ la capa de canal/entrada y el cerebro. **No se cambia sin actualizar Entry.**
 | campo | tipo | V1 |
 |---|---|---|
 | `message` | string | **req.** texto crudo del usuario en este turno |
-| `sessionID` | string | **req.** `=== session_key`. Estable entre turnos. **Lo fija Entry**, nunca el LLM. Es la clave de `Simple Memory`. |
+| `sessionID` | string | **req.** `=== session_key`. Estable entre turnos. **Lo fija Entry**, nunca el LLM. Es la clave de `Postgres Chat Memory`. |
 | `client_id` | string | tenant (`"demo"`) |
 | `canal` | string | `"webchat"` \| `"whatsapp"` |
 | `flujo_activo` | string\|null | de `conversation_sessions`; pista de reanudación para el router |
@@ -21,7 +21,7 @@ la capa de canal/entrada y el cerebro. **No se cambia sin actualizar Entry.**
 | `tenant_timezone` | string | IANA (`"Europe/Madrid"`) |
 | `tool_forzada` | string\|null | reservado; V1 siempre `null` |
 | `no_reinterpretar_intencion` | bool | reservado; V1 siempre `false` |
-| `service_query`, `date`, `time`, `appointment_ref`, `appointment_date`, `appointment_time` | string\|null | **V1: Entry NO los envía.** La continuidad de slots la da `Simple Memory` + la regla CONTINUIDAD del prompt del Core. Se mantienen como inputs del trigger para paso explícito de slots en el futuro. |
+| `service_query`, `date`, `time`, `appointment_ref`, `appointment_date`, `appointment_time` | string\|null | **V1: Entry NO los envía.** La continuidad de slots la da `Postgres Chat Memory` + la regla CONTINUIDAD del prompt del Core. Se mantienen como inputs del trigger para paso explícito de slots en el futuro. |
 | `texto_usuario` | string\|null | alias legacy de `message`; el prompt usa `texto_usuario || message`. |
 
 ## Salida (Core → Entry) — un único item
@@ -63,10 +63,11 @@ conversation_sessions.updated_at   = now()
 
 ## Notas / deuda conocida
 
-- **`Simple Memory` (memoryBufferWindow)** guarda el historial en el *static
-  data* del workflow. Se **borra al reimportar el workflow** y tiene ventana
-  finita (`contextWindowLength: 10`). Aceptable para V1/dev. Si molesta:
-  migrar a `memoryPostgresChat` sobre `n8n_<tenant>` (misma `sessionKey`).
+- **Memoria conversacional**: `Postgres Chat Memory` (`memoryPostgresChat`)
+  sobre la BD `n8n_<tenant>`, tabla `n8n_chat_histories` (se crea sola),
+  `sessionKey = sessionID`, `contextWindowLength: 10`. Sobrevive a reimports
+  del workflow. Requiere la credencial `Postgres account` del tenant
+  (re-seleccionar al importar; el `id` del JSON es un placeholder).
 - `contact_id` en la salida es best-effort en V1 (los tools `19/22/23` aún no
   lo devuelven de forma consistente). Mientras tanto, Entry se apoya en el
   `contact.phone` que el Core re-extrae de memoria cada turno y los tools
