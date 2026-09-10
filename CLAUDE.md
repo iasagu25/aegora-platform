@@ -186,13 +186,16 @@ documentado sigue siendo cierto.
 - webchat no resuelve contacto por teléfono: `contact_id` sale de la sesión o
   es `null`; Lucía pide los datos cuando la operación lo exige.
 - Orden: (1) contrato Core congelado ✅ + `Salida · normalizar` ✅ →
-  (2) colección `conversation_sessions` (crear en demo → snapshot → `base.yaml`) →
+  (2) colección `conversation_sessions` ✅ (creada en `demo` + en `base.yaml`;
+  `contact_id` uuid plano sin relación en V1, `state` json `{}`, `updated_at`
+  special `date-updated`; permisos n8n `read`/`create`/`update` para la policy
+  `c42ccf84` por SQL — `directus_permissions` id 21/22/23) →
   (3) `AGENT-Lucia-Entry.json` → (4) `WEBCHAT-Adapter.json` (webhook `POST
   /webchat`, allowlist `Origin` + rate-limit por `session_key`) →
   (5) widget `n8n/webchat/` (HTML/JS mínimo, embed `<script>`) →
   (6) `SESSION-Cleanup.json` (schedule diario, purga sesiones > 24 h).
 - Pendiente:
-  - Omnicanal pasos 2-6 (ver arriba).
+  - Omnicanal pasos 3-6 (ver arriba).
   - Aplicar `base.yaml` (19af460) + `booking-indexes.sql` en `aegora-internal`.
   - `demo`/`aegora-internal`: crear credencial `Booking API` en n8n, importar el
     workflow, ajustar el nodo `Config` a `http://<tenant>-booking:3000`.
