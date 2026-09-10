@@ -156,7 +156,7 @@
               "defaultMatch": false,
               "display": true,
               "canBeUsedToMatch": true,
-              "type": "string",
+              "type": "object",
               "removed": false
             },
             {
@@ -176,7 +176,7 @@
               "defaultMatch": false,
               "display": true,
               "canBeUsedToMatch": true,
-              "type": "string",
+              "type": "object",
               "removed": false
             }
           ],
