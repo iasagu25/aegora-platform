@@ -1730,7 +1730,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Normaliza TODA salida del Core al contrato congelado (n8n/CONTRACT-lucia-core.md).\nconst s = $json ?? {};\nconst ok = s.ok !== false;\nconst intent = (s.intent === undefined || s.intent === 'null') ? null : (s.intent ?? null);\nconst needs = s.needs_user_reply === true;\n// Regla ÚNICA de ciclo de vida de flujo_activo:\n//   null   si la operación terminó (needs_user_reply=false) o no hay intent\n//   intent en cualquier otro caso (seguimos dentro de la operación)\nconst flujo_activo = (!needs || !intent) ? null : intent;\n// WF19 devuelve la tarea con doble wrap (task.task); lo desanidamos.\nconst taskObj = (s.task && s.task.task) ? s.task.task : (s.task || null);\nconst contact_id = s.contact_id\n  ?? (s.appointment && s.appointment.contact_id)\n  ?? (taskObj && taskObj.contact_id)\n  ?? null;\nconst result = s.appointment ?? taskObj ?? s.result ?? null;\nreturn [{ json: { ok, intent, reply_to_user: s.reply_to_user || '', needs_user_reply: needs, flujo_activo, contact_id, result } }];"
+        "jsCode": "// Estructura viene del outcome determinista; la prosa la pone el Redactor (si falla, borrador).\nconst s = $('Código · outcome').item.json ?? {};\nconst prose = ($json && $json.output ? $json.output : '').toString().trim();\nconst ok = s.ok !== false;\nconst intent = (s.intent === undefined || s.intent === 'null') ? null : (s.intent ?? null);\nconst needs = s.needs_user_reply === true;\nconst flujo_activo = (!needs || !intent) ? null : intent;\nconst taskObj = (s.task && s.task.task) ? s.task.task : (s.task || null);\nconst contact_id = s.contact_id\n  ?? (s.appointment && s.appointment.contact_id)\n  ?? (taskObj && taskObj.contact_id)\n  ?? null;\nconst result = s.appointment ?? taskObj ?? s.result ?? null;\nreturn [{ json: {\n  ok, intent,\n  reply_to_user: prose || s.reply_to_user || '',\n  needs_user_reply: needs, flujo_activo, contact_id, result,\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1834,6 +1834,63 @@
       ],
       "id": "lucia-misc-fmt",
       "name": "Salida · mis citas"
+    },
+    {
+      "parameters": {
+        "jsCode": "const s = $json ?? {};\nreturn [{ json: { ...s, reply_to_user: (s.reply_to_user || '').toString() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2980,
+        240
+      ],
+      "id": "lucia-outcome-0001",
+      "name": "Código · outcome"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.reply_to_user }}",
+        "options": {
+          "systemMessage": "Eres Lucía, la recepcionista de un negocio en España. Te doy un BORRADOR de respuesta cuyos DATOS ya son correctos. Reescríbelo para que suene natural, cálido y humano, en español de España, con una longitud parecida a la del borrador.\n\nREGLAS ESTRICTAS:\n- NO cambies ningún dato: horas, fechas, días de la semana, nombres, teléfonos, servicios, números y la pregunta final se mantienen EXACTOS.\n- NO añadas información que no esté en el borrador. No inventes ni supongas.\n- Sin saludos ni despedidas salvo que el borrador los lleve.\n- Si el borrador ya suena bien, cambios mínimos.\n- Devuelve SOLO el texto final, sin comillas ni etiquetas.\n\nBORRADOR:\n{{ $json.reply_to_user }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        3200,
+        240
+      ],
+      "id": "lucia-redactor-0001",
+      "name": "Redactor",
+      "onError": "continueRegularOutput",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        3200,
+        440
+      ],
+      "id": "lucia-redactor-llm",
+      "name": "OpenAI · Redactor",
+      "credentials": {
+        "openAiApi": {
+          "id": "EFrzfrCY52epDU2a",
+          "name": "OpenAI account"
+        }
+      }
     }
   ],
   "connections": {
@@ -2291,7 +2348,7 @@
       "main": [
         [
           {
-            "node": "Salida · normalizar",
+            "node": "Código · outcome",
             "type": "main",
             "index": 0
           }
@@ -2302,7 +2359,7 @@
       "main": [
         [
           {
-            "node": "Salida · normalizar",
+            "node": "Código · outcome",
             "type": "main",
             "index": 0
           }
@@ -2313,7 +2370,7 @@
       "main": [
         [
           {
-            "node": "Salida · normalizar",
+            "node": "Código · outcome",
             "type": "main",
             "index": 0
           }
@@ -2324,7 +2381,7 @@
       "main": [
         [
           {
-            "node": "Salida · normalizar",
+            "node": "Código · outcome",
             "type": "main",
             "index": 0
           }
@@ -2335,7 +2392,7 @@
       "main": [
         [
           {
-            "node": "Salida · normalizar",
+            "node": "Código · outcome",
             "type": "main",
             "index": 0
           }
@@ -2346,7 +2403,7 @@
       "main": [
         [
           {
-            "node": "Salida · normalizar",
+            "node": "Código · outcome",
             "type": "main",
             "index": 0
           }
@@ -2357,7 +2414,7 @@
       "main": [
         [
           {
-            "node": "Salida · normalizar",
+            "node": "Código · outcome",
             "type": "main",
             "index": 0
           }
@@ -2368,7 +2425,7 @@
       "main": [
         [
           {
-            "node": "Salida · normalizar",
+            "node": "Código · outcome",
             "type": "main",
             "index": 0
           }
@@ -2379,7 +2436,7 @@
       "main": [
         [
           {
-            "node": "Salida · normalizar",
+            "node": "Código · outcome",
             "type": "main",
             "index": 0
           }
@@ -2390,7 +2447,7 @@
       "main": [
         [
           {
-            "node": "Salida · normalizar",
+            "node": "Código · outcome",
             "type": "main",
             "index": 0
           }
@@ -2401,7 +2458,7 @@
       "main": [
         [
           {
-            "node": "Salida · normalizar",
+            "node": "Código · outcome",
             "type": "main",
             "index": 0
           }
@@ -2425,6 +2482,50 @@
           {
             "node": "Salida · mis citas",
             "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salida · mis citas": {
+      "main": [
+        [
+          {
+            "node": "Código · outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Código · outcome": {
+      "main": [
+        [
+          {
+            "node": "Redactor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redactor": {
+      "main": [
+        [
+          {
+            "node": "Salida · normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI · Redactor": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Redactor",
+            "type": "ai_languageModel",
             "index": 0
           }
         ]

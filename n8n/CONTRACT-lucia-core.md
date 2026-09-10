@@ -26,8 +26,10 @@ la capa de canal/entrada y el cerebro. **No se cambia sin actualizar Entry.**
 
 ## Salida (Core → Entry) — un único item
 
-Todas las ramas terminan en el nodo **`Salida · normalizar`**, que garantiza
-esta forma exacta:
+Todas las ramas producen un borrador determinista y pasan por
+`Código · outcome` → **`Redactor`** (LLM `gpt-4o-mini` que solo reescribe el
+borrador con tono natural, sin tocar datos; `onError` → borrador) →
+**`Salida · normalizar`**, que garantiza esta forma exacta:
 
 | campo | tipo | significado |
 |---|---|---|

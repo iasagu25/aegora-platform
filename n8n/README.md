@@ -86,8 +86,9 @@ not_found), el `contact_id` lo resuelven los propios tools (WF17).
 - El Core distingue `appointment_date`/`appointment_time` (localizar la cita
   a tocar) de `date`/`time` (nuevo hueco al reprogramar).
 - **Contrato de entrada/salida congelado**: `n8n/CONTRACT-lucia-core.md`. Todas
-  las ramas terminan en `Salida · normalizar`, que fija la forma exacta de la
-  respuesta (`ok`, `intent`, `reply_to_user`, `needs_user_reply`, `flujo_activo`,
+  las ramas pasan por `Código · outcome` → `Redactor` (LLM `gpt-4o-mini` que
+  solo reescribe el borrador determinista con tono natural, sin cambiar datos;
+  cae al borrador si falla) → `Salida · normalizar`, que fija la forma exacta (`ok`, `intent`, `reply_to_user`, `needs_user_reply`, `flujo_activo`,
   `contact_id`, `result`) y aplica la regla única de `flujo_activo`.
 
 ## Capa omnicanal — `AGENT-Lucia-Entry` + adapters por canal
