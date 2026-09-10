@@ -201,14 +201,18 @@ documentado sigue siendo cierto.
   (6) `SESSION-Cleanup.json` ✅ (id `aegoraSessionCleanup`; schedule diario
   04:00, purga por `updated_at`/`created_at` < cutoff; necesita permiso
   `delete` para la policy n8n).
-- Todo el set omnicanal está **hand-authored, sin probar la cadena completa
-  webhook→widget en `demo`**. Entry aislado sí probado (sesión crea/persiste
-  `flujo_activo`, multi-turno OK).
+- **Cadena validada end-to-end en `demo`** vía `POST /webhook/webchat`:
+  webhook → `WEBCHAT · Adapter` → `AGENT · Lucía · Entry` (carga sesión +
+  rate-limit `state.rl`) → `AGENT · Lucía · Core` → tools → Booking API →
+  respuesta. Multi-turno OK (`session_key` estable, `flujo_activo` persiste
+  entre turnos, el Core retoma el flujo). `WEBCHAT · Adapter` activo en `demo`
+  (el webhook de producción responde → está activo).
 - Pendiente:
-  - Permiso `delete` en `conversation_sessions` para la policy n8n `c42ccf84`.
-  - Importar `WEBCHAT-Adapter` + `SESSION-Cleanup`, activar el Adapter,
-    probar la cadena con el widget (`demo.html`).
-  - Reimportar Entry con rate-limit (commit nuevo).
+  - `SESSION · Cleanup`: conceder `delete` en `conversation_sessions` a la
+    policy n8n `c42ccf84` (SQL) y probarlo/activarlo.
+  - Probar el widget (`n8n/webchat/demo.html`) en navegador contra el host
+    público del n8n de `demo`.
+  - Limpiar filas de prueba en `conversation_sessions`.
   - Aplicar `base.yaml` (19af460) + `booking-indexes.sql` en `aegora-internal`.
   - `demo`/`aegora-internal`: crear credencial `Booking API` en n8n, importar el
     workflow, ajustar el nodo `Config` a `http://<tenant>-booking:3000`.
