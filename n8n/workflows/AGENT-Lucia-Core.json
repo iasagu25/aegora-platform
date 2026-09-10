@@ -1377,7 +1377,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const m = $json ?? {};\nconst core = $('Output IA → JSON').item.json;\nconst tz = core.tenant_timezone || 'Europe/Madrid';\nif (!core.date || !core.time) return [{ json: { ...m, _no_new_slot: true } }];\nconst s = DateTime.fromISO(`${core.date}T${core.time}`, { zone: tz });\nif (!s.isValid) return [{ json: { ...m, _no_new_slot: true } }];\nreturn [{ json: { ...m, start_at: s.toISO() } }];"
+        "jsCode": "const m = $json ?? {};\nconst core = $('Output IA → JSON').item.json;\nconst tz = core.tenant_timezone || 'Europe/Madrid';\nif (!core.date) return [{ json: { ...m, _no_new_slot: true, _have_date: false } }];\nif (!core.time) return [{ json: { ...m, _no_new_slot: true, _have_date: true, _new_date: core.date } }];\nconst s = DateTime.fromISO(`${core.date}T${core.time}`, { zone: tz });\nif (!s.isValid) return [{ json: { ...m, _no_new_slot: true, _have_date: true, _new_date: core.date } }];\nreturn [{ json: { ...m, start_at: s.toISO() } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1539,7 +1539,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: { ok: true, intent: 'reschedule_appointment', needs_user_reply: true, reply_to_user: '¿A qué día y hora quieres moverla?' } }];"
+        "jsCode": "const r = $json ?? {};\nif (r._have_date) {\n  const dia = r._new_date\n    ? DateTime.fromISO(r._new_date).setLocale('es').toFormat(\"cccc d 'de' LLLL\")\n    : 'ese día';\n  return [{ json: { ok: true, intent: 'reschedule_appointment', needs_user_reply: true,\n    reply_to_user: `¿A qué hora en concreto el ${dia}? (por ejemplo, \"a las 10:30\")` } }];\n}\nreturn [{ json: { ok: true, intent: 'reschedule_appointment', needs_user_reply: true,\n  reply_to_user: '¿A qué día y hora quieres moverla?' } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
