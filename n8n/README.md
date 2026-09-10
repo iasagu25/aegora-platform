@@ -37,13 +37,17 @@ Descartados en el export: `My workflow` (scratch), un `05` con 0 nodos y un
 
 ## Credenciales (n8n, por tenant — NO en Git)
 
-| tipo | nombre | uso |
-|---|---|---|
-| Header Auth | `Directus · demo` | `Authorization: Bearer <token Directus>` |
-| Header Auth | `Booking API` | `Authorization: Bearer <BOOKING_API_TOKEN>` (`secrets/booking.env`) |
+| tipo | nombre | id (demo) | uso |
+|---|---|---|---|
+| Header Auth | `Directus · demo` | `CFY5g7INvQxRg8EB` | `Authorization: Bearer <token Directus>` |
+| Header Auth | `Booking API` | `au21q2D0g1ZQLV6E` | `Authorization: Bearer <BOOKING_API_TOKEN>` (`secrets/booking.env`) |
+| OpenAI | `OpenAI account` | `EFrzfrCY52epDU2a` | modelos del Core |
+| Postgres | `Postgres account` | `IAtHlC09QTN4mgc2` | `Postgres Chat Memory` del Core (BD `n8n_demo`) |
 
-Al importar en otro tenant, n8n intenta re-mapear por **nombre**; crea las
-credenciales con el mismo nombre y re-selecciónalas en los nodos HTTP.
+Los `id` de arriba son los de **demo** y van fijados en los JSON, así que en
+demo el import no pide reseleccionar nada. En **otro tenant** los `id` serán
+distintos: crea las credenciales con el **mismo nombre** y n8n re-mapea por
+nombre; si algún nodo queda en blanco, reselecciónalo una vez.
 
 ## Migración a Booking API (handover §12.3)
 
