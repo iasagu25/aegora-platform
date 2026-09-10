@@ -190,12 +190,17 @@ documentado sigue siendo cierto.
   `contact_id` uuid plano sin relación en V1, `state` json `{}`, `updated_at`
   special `date-updated`; permisos n8n `read`/`create`/`update` para la policy
   `c42ccf84` por SQL — `directus_permissions` id 21/22/23) →
-  (3) `AGENT-Lucia-Entry.json` → (4) `WEBCHAT-Adapter.json` (webhook `POST
-  /webchat`, allowlist `Origin` + rate-limit por `session_key`) →
+  (3) `AGENT-Lucia-Entry.json` ✅ (id `aegoraAgentLuciaEntry`: Config → Validar
+  → Cargar sesión → Preparar contexto → Execute Core → Fusionar → ¿Sesión
+  existe? → Actualizar/Crear sesión → Salida Entry; 3 nodos HTTP con credencial
+  `Directus · demo`; **sin probar en demo todavía**) →
+  (4) `WEBCHAT-Adapter.json` (webhook `POST /webchat`, allowlist `Origin` +
+  rate-limit por `session_key`) →
   (5) widget `n8n/webchat/` (HTML/JS mínimo, embed `<script>`) →
   (6) `SESSION-Cleanup.json` (schedule diario, purga sesiones > 24 h).
 - Pendiente:
-  - Omnicanal pasos 3-6 (ver arriba).
+  - Probar Entry en `demo` (import + Execute con contrato de adapter simulado).
+  - Omnicanal pasos 4-6 (ver arriba).
   - Aplicar `base.yaml` (19af460) + `booking-indexes.sql` en `aegora-internal`.
   - `demo`/`aegora-internal`: crear credencial `Booking API` en n8n, importar el
     workflow, ajustar el nodo `Config` a `http://<tenant>-booking:3000`.

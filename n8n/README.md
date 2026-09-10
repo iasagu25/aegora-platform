@@ -84,8 +84,28 @@ not_found), el `contact_id` lo resuelven los propios tools (WF17).
 - **Contrato de entrada/salida congelado**: `n8n/CONTRACT-lucia-core.md`. Todas
   las ramas terminan en `Salida · normalizar`, que fija la forma exacta de la
   respuesta (`ok`, `intent`, `reply_to_user`, `needs_user_reply`, `flujo_activo`,
-  `contact_id`, `result`) y aplica la regla única de `flujo_activo`. Lo consume
-  el futuro `AGENT-Lucia-Entry` (capa omnicanal — webchat primero).
+  `contact_id`, `result`) y aplica la regla única de `flujo_activo`.
+
+## Capa omnicanal — `AGENT-Lucia-Entry` + adapters por canal
+
+`adapter de canal → AGENT-Lucia-Entry → AGENT-Lucia-Core`. El adapter
+normaliza el payload del canal a un contrato fijo y hace el dispatch de la
+respuesta; Entry gestiona el estado de sesión y llama al Core.
+
+- **`AGENT-Lucia-Entry.json`** (id `aegoraAgentLuciaEntry`): trigger
+  `Executed by Another Workflow` con `canal`, `session_key`, `message`,
+  `from` {phone,name,handle}, `tenant`, `reply_to`. Flujo: `Config` →
+  `Validar entrada` → `HTTP · Cargar sesión` (GET `conversation_sessions`
+  por `session_key`) → `Preparar contexto` (arma el input del Core;
+  `sessionID = session_key`, `flujo_activo` de la sesión) →
+  `Execute · AGENT-Lucia-Core` → `Fusionar resultado` → `¿Sesión existe?`
+  → `HTTP · Actualizar / Crear sesión` (persiste `flujo_activo` + `contact_id`)
+  → `Salida Entry` `{ ok, intent, reply, needs_user_reply, session_key, canal, to }`.
+- **Entry es dueño de `canal` + `session_key`**; nunca el LLM.
+- Estado en `conversation_sessions` (Directus): sólo operativo. La conversación
+  vive en `Postgres Chat Memory` del Core.
+- Rate-limit / allowlist `Origin`: en el adapter (paso 4), no en Entry.
+- Credencial: `Directus · demo` (Header Auth) en los 3 nodos HTTP.
 
 ### Requisitos en el tenant
 

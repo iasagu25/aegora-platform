@@ -1,0 +1,527 @@
+{
+  "id": "aegoraAgentLuciaEntry",
+  "name": "AGENT · Lucía · Entry",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "canal"
+            },
+            {
+              "name": "session_key"
+            },
+            {
+              "name": "message"
+            },
+            {
+              "name": "from",
+              "type": "object"
+            },
+            {
+              "name": "tenant"
+            },
+            {
+              "name": "reply_to",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "entry-0001",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1",
+              "name": "booking_base_url",
+              "type": "string",
+              "value": "={{ ($json.booking_base_url && $json.booking_base_url.toString().trim()) || 'http://demo-booking:3000' }}"
+            },
+            {
+              "id": "e2",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "={{ ($json.directus_base_url && $json.directus_base_url.toString().trim()) || 'http://demo-directus:8055' }}"
+            },
+            {
+              "id": "e3",
+              "name": "tenant_timezone",
+              "type": "string",
+              "value": "={{ ($json.tenant_timezone && $json.tenant_timezone.toString().trim()) || 'Europe/Madrid' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "id": "entry-0002",
+      "name": "Config (editar por tenant)",
+      "notes": "Ajusta los 3 fallbacks a http://<tenant>-booking:3000 / http://<tenant>-directus:8055 / zona del negocio."
+    },
+    {
+      "parameters": {
+        "jsCode": "const t = $('When Executed by Another Workflow').item.json;\nconst cfg = $json;\nconst clean = v => (v === undefined || v === null) ? null : (String(v).trim() || null);\nconst parseObj = v => { if (!v) return {}; if (typeof v === 'string') { try { return JSON.parse(v); } catch (e) { return {}; } } return v; };\nconst session_key = clean(t.session_key);\nconst message = clean(t.message);\nif (!session_key) throw new Error('Entry: falta session_key');\nif (!message) throw new Error('Entry: falta message');\nconst canal = clean(t.canal) || (session_key.includes(':') ? session_key.split(':')[0] : 'webchat');\nconst from = parseObj(t.from);\nreturn [{ json: {\n  session_key, message, canal,\n  tenant: clean(t.tenant) || 'demo',\n  from_phone: clean(from.phone), from_name: clean(from.name),\n  reply_to: parseObj(t.reply_to),\n  booking_base_url: cfg.booking_base_url, directus_base_url: cfg.directus_base_url,\n  tenant_timezone: cfg.tenant_timezone,\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "id": "entry-0003",
+      "name": "Code · Validar entrada"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.directus_base_url }}/items/conversation_sessions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ 'filter[session_key][_eq]': $json.session_key, limit: 1, fields: 'id,session_key,canal,contact_id,flujo_activo,state' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        660,
+        0
+      ],
+      "id": "entry-0004",
+      "name": "HTTP · Cargar sesión",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const inp = $('Code · Validar entrada').item.json;\nconst r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 300 || (body && body.errors)) {\n  throw new Error('Directus /items/conversation_sessions ' + code + ': ' + JSON.stringify(body.errors || body));\n}\nconst row = Array.isArray(body.data) && body.data.length ? body.data[0] : null;\nreturn [{ json: {\n  ...inp,\n  _session_id: row ? row.id : null,\n  _prev_contact_id: row ? (row.contact_id || null) : null,\n  core_in: {\n    message: inp.message,\n    sessionID: inp.session_key,\n    client_id: inp.tenant,\n    canal: inp.canal,\n    flujo_activo: row ? (row.flujo_activo || null) : null,\n    contact_phone: inp.from_phone,\n    contact_name: inp.from_name,\n    booking_base_url: inp.booking_base_url,\n    directus_base_url: inp.directus_base_url,\n    tenant_timezone: inp.tenant_timezone,\n  },\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "id": "entry-0005",
+      "name": "Code · Preparar contexto"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraAgentLuciaCore",
+          "mode": "list",
+          "cachedResultName": "AGENT · Lucía · Core"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "message": "={{ $json.core_in.message }}",
+            "sessionID": "={{ $json.core_in.sessionID }}",
+            "client_id": "={{ $json.core_in.client_id }}",
+            "canal": "={{ $json.core_in.canal }}",
+            "flujo_activo": "={{ $json.core_in.flujo_activo }}",
+            "contact_name": "={{ $json.core_in.contact_name }}",
+            "contact_phone": "={{ $json.core_in.contact_phone }}",
+            "booking_base_url": "={{ $json.core_in.booking_base_url }}",
+            "directus_base_url": "={{ $json.core_in.directus_base_url }}",
+            "tenant_timezone": "={{ $json.core_in.tenant_timezone }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "sessionID",
+              "displayName": "sessionID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "client_id",
+              "displayName": "client_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "canal",
+              "displayName": "canal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "flujo_activo",
+              "displayName": "flujo_activo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "contact_name",
+              "displayName": "contact_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "contact_phone",
+              "displayName": "contact_phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "booking_base_url",
+              "displayName": "booking_base_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "directus_base_url",
+              "displayName": "directus_base_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "tenant_timezone",
+              "displayName": "tenant_timezone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1100,
+        0
+      ],
+      "id": "entry-0006",
+      "name": "Execute · AGENT-Lucia-Core"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Code · Preparar contexto').item.json;\nconst inp = $('Code · Validar entrada').item.json;\nconst out = $json ?? {};\n// contact_id: el nuevo que resuelva el Core, si no el que ya tenía la sesión\nconst contact_id = out.contact_id || ctx._prev_contact_id || null;\nreturn [{ json: {\n  _session_id: ctx._session_id,\n  session_key: inp.session_key,\n  canal: inp.canal,\n  reply_to: inp.reply_to,\n  directus_base_url: inp.directus_base_url,\n  save: { session_key: inp.session_key, canal: inp.canal,\n          contact_id, flujo_activo: (out.flujo_activo ?? null) },\n  ok: out.ok !== false,\n  intent: out.intent ?? null,\n  reply_to_user: out.reply_to_user || '',\n  needs_user_reply: out.needs_user_reply === true,\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        0
+      ],
+      "id": "entry-0007",
+      "name": "Code · Fusionar resultado"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "s",
+              "leftValue": "={{ $json._session_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        0
+      ],
+      "id": "entry-0008",
+      "name": "¿Sesión existe?"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $json.directus_base_url }}/items/conversation_sessions/{{ $json._session_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contact_id: $json.save.contact_id, flujo_activo: $json.save.flujo_activo }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1780,
+        -120
+      ],
+      "id": "entry-0009",
+      "name": "HTTP · Actualizar sesión",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.directus_base_url }}/items/conversation_sessions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.save) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1780,
+        120
+      ],
+      "id": "entry-0010",
+      "name": "HTTP · Crear sesión",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const f = $('Code · Fusionar resultado').item.json;\nconst r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 300 || (body && body.errors)) {\n  // el guardado de sesión falló: seguimos devolviendo la respuesta al usuario, pero lo marcamos\n  console.log('Entry: fallo al guardar conversation_sessions ' + code + ': ' + JSON.stringify(body.errors || body));\n}\nreturn [{ json: {\n  ok: f.ok,\n  intent: f.intent,\n  reply: f.reply_to_user,\n  needs_user_reply: f.needs_user_reply,\n  session_key: f.session_key,\n  canal: f.canal,\n  to: f.reply_to || {},\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2020,
+        0
+      ],
+      "id": "entry-0011",
+      "name": "Code · Salida Entry"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "Code · Validar entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Validar entrada": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Cargar sesión",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Cargar sesión": {
+      "main": [
+        [
+          {
+            "node": "Code · Preparar contexto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Preparar contexto": {
+      "main": [
+        [
+          {
+            "node": "Execute · AGENT-Lucia-Core",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · AGENT-Lucia-Core": {
+      "main": [
+        [
+          {
+            "node": "Code · Fusionar resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Fusionar resultado": {
+      "main": [
+        [
+          {
+            "node": "¿Sesión existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Sesión existe?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Actualizar sesión",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP · Crear sesión",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Actualizar sesión": {
+      "main": [
+        [
+          {
+            "node": "Code · Salida Entry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Crear sesión": {
+      "main": [
+        [
+          {
+            "node": "Code · Salida Entry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}
