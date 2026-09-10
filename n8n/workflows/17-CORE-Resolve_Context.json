@@ -344,6 +344,19 @@
       ],
       "id": "6603e81b-b7d2-4f56-b932-ce3be065ceda",
       "name": "Set · Multiple"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json ?? {};\nconst results = Array.isArray(r.results) ? r.results : [];\nconst trg = $('Code in JavaScript').item.json;\nconst phone = trg.phone;\nconst email = (trg.email || '').toString().toLowerCase();\n\n// Solo intervenimos si la búsqueda por nombre dio varios y además hay teléfono/email.\nif (r.status !== 'multiple' || (!phone && !email)) {\n  return [{ json: r }];\n}\n\nconst digits = v => (v || '').toString().replace(/\\D/g, '');\nconst strip = v => digits(v).replace(/^(0034|34)/, '');\nconst pin = strip(phone);\n\nconst phoneList = c => {\n  const l = [];\n  if (c.primary_phone) l.push(c.primary_phone);\n  if (Array.isArray(c.phones)) l.push(...c.phones);\n  return l;\n};\nconst matchPhone = c => phoneList(c).some(p => {\n  const pn = strip(p.phone_normalized || p.phone_number);\n  return pn && pin && (pn === pin || pn.endsWith(pin) || pin.endsWith(pn));\n});\nconst matchEmail = c => email && ((c.contact && c.contact.email) || '').toLowerCase() === email;\n\nlet filtered = results;\nif (pin) {\n  const byPhone = results.filter(matchPhone);\n  if (byPhone.length) filtered = byPhone;\n}\nif (filtered.length !== 1 && email) {\n  const byEmail = filtered.filter(matchEmail);\n  if (byEmail.length === 1) filtered = byEmail;\n}\n\nif (filtered.length === 1) {\n  return [{ json: { ...r, status: 'single', count: 1, results: filtered } }];\n}\nreturn [{ json: { ...r, results: filtered, count: filtered.length } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        130
+      ],
+      "id": "wf17-disambig-phone",
+      "name": "Code · Desambiguar por teléfono/email"
     }
   ],
   "connections": {
@@ -391,7 +404,7 @@
       "main": [
         [
           {
-            "node": "Switch",
+            "node": "Code · Desambiguar por teléfono/email",
             "type": "main",
             "index": 0
           }
@@ -453,6 +466,17 @@
     "Set · Multiple": {
       "main": [
         []
+      ]
+    },
+    "Code · Desambiguar por teléfono/email": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
