@@ -1095,7 +1095,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const c = $json ?? {};\nreturn [{ json: {\n  ok: true, intent: c.intent ?? null,\n  needs_user_reply: c.needs_user_reply ?? true,\n  reply_to_user: c.reply_to_user || 'Hola, ¿en qué puedo ayudarte?',\n} }];"
+        "jsCode": "const c = $json ?? {};\nconst intent = (c.intent === 'null' || c.intent === undefined) ? null : (c.intent ?? null);\nlet reply = (c.reply_to_user || '').toString().trim();\nlet needs = c.needs_user_reply === true;\nif (!reply) {\n  // El Core no redactó nada: preguntamos por lo que falte según el flujo.\n  if (intent === 'create_appointment') {\n    if (!c.service_query) reply = '¿Para qué servicio quieres la cita?';\n    else if (!c.date) reply = '¿Qué día te viene bien?';\n    else if (!c.time) reply = '¿A qué hora en concreto?';\n    else reply = '¿Me dices tu nombre y teléfono para la reserva?';\n  } else if (intent === 'list_availability') {\n    reply = '¿Qué día quieres que mire?';\n  } else if (intent === 'reschedule_appointment' || intent === 'cancel_appointment') {\n    reply = '¿De qué cita se trata? Dime el día y la hora.';\n  } else if (intent === 'create_task') {\n    reply = '¿Qué necesitas exactamente?';\n  } else {\n    reply = 'Hola, ¿en qué puedo ayudarte?';\n  }\n  needs = true;\n}\nreturn [{ json: { ok: true, intent, needs_user_reply: needs, reply_to_user: reply } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
