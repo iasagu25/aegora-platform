@@ -104,8 +104,28 @@ respuesta; Entry gestiona el estado de sesión y llama al Core.
 - **Entry es dueño de `canal` + `session_key`**; nunca el LLM.
 - Estado en `conversation_sessions` (Directus): sólo operativo. La conversación
   vive en `Postgres Chat Memory` del Core.
-- Rate-limit / allowlist `Origin`: en el adapter (paso 4), no en Entry.
-- Credencial: `Directus · demo` (Header Auth) en los 3 nodos HTTP.
+- Rate-limit por `session_key` (`state.rl`, `rl_max`/`rl_window_ms` en Config):
+  **dentro de Entry**, tras cargar la sesión, antes de gastar OpenAI.
+- Allowlist de `Origin`: en el adapter (es puramente HTTP).
+- Credencial: `Directus · demo` (Header Auth) en los nodos HTTP de Entry.
+
+### `WEBCHAT-Adapter.json` (id `aegoraWebchatAdapter`)
+
+Webhook `POST /webchat` (`responseMode: responseNode`, CORS `allowedOrigins: '*'`
+en V1) → `Config` (`allowed_origins`, `tenant`) → `Code · Normalizar` (check
+`Origin`, compone `session_key = webchat:<id>`, mintea id si falta) →
+`¿Origin permitido?` → `Execute · AGENT-Lucia-Entry` → `Code · Respuesta` →
+`Responder 200` `{ reply, needs_user_reply, session_key, client_session_id }`
+(rama denegada → `Responder 403`). Activar el workflow para el webhook de
+producción. Widget en `n8n/webchat/` (ver su README).
+
+### `SESSION-Cleanup.json` (id `aegoraSessionCleanup`)
+
+Schedule diario 04:00 → purga `conversation_sessions` sin actividad desde hace
+`max_age_hours` (24). Filtro `_or`: `updated_at <= cutoff` **o**
+(`updated_at` null **y** `created_at <= cutoff`) — cubre las filas recién
+creadas por POST, donde el special `date-updated` aún no ha disparado.
+Necesita permiso `delete` para la policy n8n sobre `conversation_sessions`.
 
 ### Requisitos en el tenant
 

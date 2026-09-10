@@ -61,6 +61,18 @@
               "name": "tenant_timezone",
               "type": "string",
               "value": "={{ ($json.tenant_timezone && $json.tenant_timezone.toString().trim()) || 'Europe/Madrid' }}"
+            },
+            {
+              "id": "e4",
+              "name": "rl_window_ms",
+              "type": "number",
+              "value": 300000
+            },
+            {
+              "id": "e5",
+              "name": "rl_max",
+              "type": "number",
+              "value": 20
             }
           ]
         },
@@ -74,11 +86,11 @@
       ],
       "id": "entry-0002",
       "name": "Config (editar por tenant)",
-      "notes": "Ajusta los 3 fallbacks a http://<tenant>-booking:3000 / http://<tenant>-directus:8055 / zona del negocio."
+      "notes": "Fallbacks por tenant + rate-limit (rl_max mensajes por rl_window_ms, por session_key)."
     },
     {
       "parameters": {
-        "jsCode": "const t = $('When Executed by Another Workflow').item.json;\nconst cfg = $json;\nconst clean = v => (v === undefined || v === null) ? null : (String(v).trim() || null);\nconst parseObj = v => { if (!v) return {}; if (typeof v === 'string') { try { return JSON.parse(v); } catch (e) { return {}; } } return v; };\nconst session_key = clean(t.session_key);\nconst message = clean(t.message);\nif (!session_key) throw new Error('Entry: falta session_key');\nif (!message) throw new Error('Entry: falta message');\nconst canal = clean(t.canal) || (session_key.includes(':') ? session_key.split(':')[0] : 'webchat');\nconst from = parseObj(t.from);\nreturn [{ json: {\n  session_key, message, canal,\n  tenant: clean(t.tenant) || 'demo',\n  from_phone: clean(from.phone), from_name: clean(from.name),\n  reply_to: parseObj(t.reply_to),\n  booking_base_url: cfg.booking_base_url, directus_base_url: cfg.directus_base_url,\n  tenant_timezone: cfg.tenant_timezone,\n} }];"
+        "jsCode": "const t = $('When Executed by Another Workflow').item.json;\nconst cfg = $json;\nconst clean = v => (v === undefined || v === null) ? null : (String(v).trim() || null);\nconst parseObj = v => { if (!v) return {}; if (typeof v === 'string') { try { return JSON.parse(v); } catch (e) { return {}; } } return v; };\nconst session_key = clean(t.session_key);\nconst message = clean(t.message);\nif (!session_key) throw new Error('Entry: falta session_key');\nif (!message) throw new Error('Entry: falta message');\nconst canal = clean(t.canal) || (session_key.includes(':') ? session_key.split(':')[0] : 'webchat');\nconst from = parseObj(t.from);\nreturn [{ json: {\n  session_key, message, canal,\n  tenant: clean(t.tenant) || 'demo',\n  from_phone: clean(from.phone), from_name: clean(from.name),\n  reply_to: parseObj(t.reply_to),\n  booking_base_url: cfg.booking_base_url, directus_base_url: cfg.directus_base_url,\n  tenant_timezone: cfg.tenant_timezone,\n  rl_window_ms: cfg.rl_window_ms, rl_max: cfg.rl_max,\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -124,7 +136,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const inp = $('Code · Validar entrada').item.json;\nconst r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 300 || (body && body.errors)) {\n  throw new Error('Directus /items/conversation_sessions ' + code + ': ' + JSON.stringify(body.errors || body));\n}\nconst row = Array.isArray(body.data) && body.data.length ? body.data[0] : null;\nreturn [{ json: {\n  ...inp,\n  _session_id: row ? row.id : null,\n  _prev_contact_id: row ? (row.contact_id || null) : null,\n  core_in: {\n    message: inp.message,\n    sessionID: inp.session_key,\n    client_id: inp.tenant,\n    canal: inp.canal,\n    flujo_activo: row ? (row.flujo_activo || null) : null,\n    contact_phone: inp.from_phone,\n    contact_name: inp.from_name,\n    booking_base_url: inp.booking_base_url,\n    directus_base_url: inp.directus_base_url,\n    tenant_timezone: inp.tenant_timezone,\n  },\n} }];"
+        "jsCode": "const inp = $('Code · Validar entrada').item.json;\nconst r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 300 || (body && body.errors)) {\n  throw new Error('Directus /items/conversation_sessions ' + code + ': ' + JSON.stringify(body.errors || body));\n}\nconst row = Array.isArray(body.data) && body.data.length ? body.data[0] : null;\n// rate-limit por session_key (state.rl)\nconst now = Date.now();\nconst prevState = (row && row.state && typeof row.state === 'object') ? row.state : {};\nlet rl = (prevState.rl && typeof prevState.rl === 'object') ? { ...prevState.rl } : { count: 0, window_start: now };\nif (now - (rl.window_start || 0) > (inp.rl_window_ms || 300000)) rl = { count: 0, window_start: now };\nrl.count = (rl.count || 0) + 1;\nconst _rate_limited = rl.count > (inp.rl_max || 20);\nconst state_next = { ...prevState, rl };\nreturn [{ json: {\n  ...inp,\n  _session_id: row ? row.id : null,\n  _prev_contact_id: row ? (row.contact_id || null) : null,\n  _prev_flujo_activo: row ? (row.flujo_activo || null) : null,\n  _rate_limited, state_next,\n  core_in: {\n    message: inp.message, sessionID: inp.session_key, client_id: inp.tenant, canal: inp.canal,\n    flujo_activo: row ? (row.flujo_activo || null) : null,\n    contact_phone: inp.from_phone, contact_name: inp.from_name,\n    booking_base_url: inp.booking_base_url, directus_base_url: inp.directus_base_url,\n    tenant_timezone: inp.tenant_timezone,\n  },\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -134,6 +146,52 @@
       ],
       "id": "entry-0005",
       "name": "Code · Preparar contexto"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "rl",
+              "leftValue": "={{ $json._rate_limited }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ],
+      "id": "entry-0006",
+      "name": "¿Rate limit?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const c = $json;\nreturn [{ json: {\n  _session_id: c._session_id, session_key: c.session_key, canal: c.canal,\n  reply_to: c.reply_to, directus_base_url: c.directus_base_url,\n  save: { session_key: c.session_key, canal: c.canal, contact_id: c._prev_contact_id,\n          flujo_activo: c._prev_flujo_activo, state: c.state_next },\n  ok: false, intent: c._prev_flujo_activo || null,\n  reply_to_user: 'Estás enviando mensajes muy seguidos. Espera unos minutos y sigo contigo.',\n  needs_user_reply: true,\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        200
+      ],
+      "id": "entry-0007",
+      "name": "Code · Salida rate limit"
     },
     {
       "parameters": {
@@ -268,23 +326,23 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        1100,
-        0
+        1320,
+        -40
       ],
-      "id": "entry-0006",
+      "id": "entry-0008",
       "name": "Execute · AGENT-Lucia-Core"
     },
     {
       "parameters": {
-        "jsCode": "const ctx = $('Code · Preparar contexto').item.json;\nconst inp = $('Code · Validar entrada').item.json;\nconst out = $json ?? {};\n// contact_id: el nuevo que resuelva el Core, si no el que ya tenía la sesión\nconst contact_id = out.contact_id || ctx._prev_contact_id || null;\nreturn [{ json: {\n  _session_id: ctx._session_id,\n  session_key: inp.session_key,\n  canal: inp.canal,\n  reply_to: inp.reply_to,\n  directus_base_url: inp.directus_base_url,\n  save: { session_key: inp.session_key, canal: inp.canal,\n          contact_id, flujo_activo: (out.flujo_activo ?? null) },\n  ok: out.ok !== false,\n  intent: out.intent ?? null,\n  reply_to_user: out.reply_to_user || '',\n  needs_user_reply: out.needs_user_reply === true,\n} }];"
+        "jsCode": "const ctx = $('Code · Preparar contexto').item.json;\nconst inp = $('Code · Validar entrada').item.json;\nconst out = $json ?? {};\nconst contact_id = out.contact_id || ctx._prev_contact_id || null;\nreturn [{ json: {\n  _session_id: ctx._session_id, session_key: inp.session_key, canal: inp.canal,\n  reply_to: inp.reply_to, directus_base_url: inp.directus_base_url,\n  save: { session_key: inp.session_key, canal: inp.canal, contact_id,\n          flujo_activo: (out.flujo_activo ?? null), state: ctx.state_next },\n  ok: out.ok !== false, intent: out.intent ?? null,\n  reply_to_user: out.reply_to_user || '', needs_user_reply: out.needs_user_reply === true,\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1320,
-        0
+        1540,
+        -40
       ],
-      "id": "entry-0007",
+      "id": "entry-0009",
       "name": "Code · Fusionar resultado"
     },
     {
@@ -314,10 +372,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1540,
+        1760,
         0
       ],
-      "id": "entry-0008",
+      "id": "entry-0010",
       "name": "¿Sesión existe?"
     },
     {
@@ -328,7 +386,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ contact_id: $json.save.contact_id, flujo_activo: $json.save.flujo_activo }) }}",
+        "jsonBody": "={{ JSON.stringify({ contact_id: $json.save.contact_id, flujo_activo: $json.save.flujo_activo, state: $json.save.state }) }}",
         "options": {
           "response": {
             "response": {
@@ -341,10 +399,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        1780,
+        1980,
         -120
       ],
-      "id": "entry-0009",
+      "id": "entry-0011",
       "name": "HTTP · Actualizar sesión",
       "credentials": {
         "httpHeaderAuth": {
@@ -374,10 +432,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        1780,
+        1980,
         120
       ],
-      "id": "entry-0010",
+      "id": "entry-0012",
       "name": "HTTP · Crear sesión",
       "credentials": {
         "httpHeaderAuth": {
@@ -388,15 +446,15 @@
     },
     {
       "parameters": {
-        "jsCode": "const f = $('Code · Fusionar resultado').item.json;\nconst r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 300 || (body && body.errors)) {\n  // el guardado de sesión falló: seguimos devolviendo la respuesta al usuario, pero lo marcamos\n  console.log('Entry: fallo al guardar conversation_sessions ' + code + ': ' + JSON.stringify(body.errors || body));\n}\nreturn [{ json: {\n  ok: f.ok,\n  intent: f.intent,\n  reply: f.reply_to_user,\n  needs_user_reply: f.needs_user_reply,\n  session_key: f.session_key,\n  canal: f.canal,\n  to: f.reply_to || {},\n} }];"
+        "jsCode": "const f = $('Code · Fusionar resultado').isExecuted ? $('Code · Fusionar resultado').item.json : $('Code · Salida rate limit').item.json;\nconst r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 300 || (body && body.errors)) {\n  console.log('Entry: fallo al guardar conversation_sessions ' + code + ': ' + JSON.stringify(body.errors || body));\n}\nreturn [{ json: {\n  ok: f.ok, intent: f.intent, reply: f.reply_to_user, needs_user_reply: f.needs_user_reply,\n  session_key: f.session_key, canal: f.canal, to: f.reply_to || {},\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2020,
+        2200,
         0
       ],
-      "id": "entry-0011",
+      "id": "entry-0013",
       "name": "Code · Salida Entry"
     }
   ],
@@ -449,6 +507,24 @@
       "main": [
         [
           {
+            "node": "¿Rate limit?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Rate limit?": {
+      "main": [
+        [
+          {
+            "node": "Code · Salida rate limit",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Execute · AGENT-Lucia-Core",
             "type": "main",
             "index": 0
@@ -468,6 +544,17 @@
       ]
     },
     "Code · Fusionar resultado": {
+      "main": [
+        [
+          {
+            "node": "¿Sesión existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Salida rate limit": {
       "main": [
         [
           {

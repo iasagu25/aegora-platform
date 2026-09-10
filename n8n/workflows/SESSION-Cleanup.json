@@ -1,0 +1,299 @@
+{
+  "id": "aegoraSessionCleanup",
+  "name": "SESSION · Cleanup",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 4
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "cln-0001",
+      "name": "Cada día 04:00"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "s1",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "={{ ($json.directus_base_url && $json.directus_base_url.toString().trim()) || 'http://demo-directus:8055' }}"
+            },
+            {
+              "id": "s2",
+              "name": "max_age_hours",
+              "type": "number",
+              "value": 24
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "id": "cln-0002",
+      "name": "Config (editar por tenant)",
+      "notes": "Purga conversation_sessions sin actividad desde hace max_age_hours."
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $json;\nconst h = Number(cfg.max_age_hours) || 24;\nconst cutoff = new Date(Date.now() - h * 3600 * 1000).toISOString();\nreturn [{ json: { directus_base_url: cfg.directus_base_url, cutoff } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "id": "cln-0003",
+      "name": "Code · Cutoff"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.directus_base_url }}/items/conversation_sessions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ 'filter[_or][0][updated_at][_lte]': $json.cutoff, 'filter[_or][1][_and][0][updated_at][_null]': true, 'filter[_or][1][_and][1][created_at][_lte]': $json.cutoff, fields: 'id', limit: -1 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        660,
+        0
+      ],
+      "id": "cln-0004",
+      "name": "HTTP · Sesiones caducadas",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 300 || (body && body.errors)) {\n  throw new Error('Directus GET conversation_sessions ' + code + ': ' + JSON.stringify(body.errors || body));\n}\nconst ids = (Array.isArray(body.data) ? body.data : []).map(x => x.id).filter(Boolean);\nreturn [{ json: { ids, count: ids.length, directus_base_url: $('Code · Cutoff').item.json.directus_base_url } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "id": "cln-0005",
+      "name": "Code · IDs"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c",
+              "leftValue": "={{ $json.count }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ],
+      "id": "cln-0006",
+      "name": "¿Hay caducadas?"
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "={{ $json.directus_base_url }}/items/conversation_sessions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.ids) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1320,
+        -80
+      ],
+      "id": "cln-0007",
+      "name": "HTTP · Borrar sesiones",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ids = $('Code · IDs').item.json;\nconst r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nconst okDelete = !(code >= 300 || (body && body.errors));\nreturn [{ json: { deleted: okDelete ? ids.count : 0, ids: ids.ids,\n  error: okDelete ? null : JSON.stringify(body.errors || body) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        -80
+      ],
+      "id": "cln-0008",
+      "name": "Code · Resumen"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { deleted: 0, note: 'sin sesiones caducadas' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        120
+      ],
+      "id": "cln-0009",
+      "name": "Code · Nada que borrar"
+    }
+  ],
+  "connections": {
+    "Cada día 04:00": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "Code · Cutoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Cutoff": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Sesiones caducadas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Sesiones caducadas": {
+      "main": [
+        [
+          {
+            "node": "Code · IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · IDs": {
+      "main": [
+        [
+          {
+            "node": "¿Hay caducadas?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay caducadas?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Borrar sesiones",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Nada que borrar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Borrar sesiones": {
+      "main": [
+        [
+          {
+            "node": "Code · Resumen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}

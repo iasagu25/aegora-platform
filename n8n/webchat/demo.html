@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aegora webchat — página de prueba</title>
+  <style>
+    body { font: 16px/1.5 system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; color: #24292f; }
+    code { background: #f6f8fa; padding: 2px 5px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Página de prueba del webchat</h1>
+  <p>El botón 💬 abajo a la derecha abre el widget. Cambia <code>data-endpoint</code>
+     por la URL real del webhook de n8n (<code>/webhook/webchat</code> en producción,
+     <code>/webhook-test/webchat</code> con el workflow abierto en modo test).</p>
+  <p>El id de hilo se guarda en <code>localStorage["aegora_webchat_sid"]</code>;
+     bórralo para empezar una conversación nueva.</p>
+
+  <!-- Ajusta data-endpoint -->
+  <script
+    src="./widget.js"
+    data-endpoint="http://localhost:5678/webhook-test/webchat"
+    data-title="Lucía"
+    data-greeting="¡Hola! Soy Lucía. ¿En qué puedo ayudarte?"></script>
+</body>
+</html>

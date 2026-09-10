@@ -1,0 +1,323 @@
+{
+  "id": "aegoraWebchatAdapter",
+  "name": "WEBCHAT · Adapter",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webchat",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "wca-0001",
+      "name": "Webhook · POST /webchat",
+      "webhookId": "aegora-webchat-demo"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "w1",
+              "name": "allowed_origins",
+              "type": "string",
+              "value": "*"
+            },
+            {
+              "id": "w2",
+              "name": "tenant",
+              "type": "string",
+              "value": "demo"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "id": "wca-0002",
+      "name": "Config (editar por tenant)",
+      "notes": "allowed_origins: '*' o lista separada por comas de dominios del negocio. tenant: id del tenant."
+    },
+    {
+      "parameters": {
+        "jsCode": "const hook = $('Webhook · POST /webchat').item.json;\nconst cfg = $json;\nconst body = hook.body || {};\nconst headers = hook.headers || {};\nconst clean = v => (v === undefined || v === null) ? null : (String(v).trim() || null);\n// allowlist de Origin\nconst origin = clean(headers.origin);\nconst allow = clean(cfg.allowed_origins) || '*';\nlet _forbidden = false;\nif (allow !== '*') {\n  const list = allow.split(',').map(s => s.trim()).filter(Boolean);\n  _forbidden = !origin || !list.includes(origin);\n}\n// id de hilo: lo genera y guarda el widget; si falta, minteamos uno (se devuelve para que lo persista)\nlet sid = clean(body.session_key) || clean(body.client_session_id) || clean(body.sid);\nlet _minted = false;\nif (!sid) { sid = 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); _minted = true; }\nconst session_key = sid.startsWith('webchat:') ? sid : ('webchat:' + sid);\nconst message = clean(body.message);\nreturn [{ json: {\n  _forbidden, _minted,\n  entry: {\n    canal: 'webchat', session_key, message: message || '',\n    from: {}, tenant: clean(cfg.tenant) || 'demo', reply_to: {},\n  },\n  client_session_id: session_key.replace(/^webchat:/, ''),\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "id": "wca-0003",
+      "name": "Code · Normalizar"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "f",
+              "leftValue": "={{ $json._forbidden }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "id": "wca-0004",
+      "name": "¿Origin permitido?"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraAgentLuciaEntry",
+          "mode": "list",
+          "cachedResultName": "AGENT · Lucía · Entry"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "canal": "={{ $json.entry.canal }}",
+            "session_key": "={{ $json.entry.session_key }}",
+            "message": "={{ $json.entry.message }}",
+            "from": "={{ $json.entry.from }}",
+            "tenant": "={{ $json.entry.tenant }}",
+            "reply_to": "={{ $json.entry.reply_to }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "canal",
+              "displayName": "canal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "session_key",
+              "displayName": "session_key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "from",
+              "displayName": "from",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "tenant",
+              "displayName": "tenant",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "reply_to",
+              "displayName": "reply_to",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        900,
+        -80
+      ],
+      "id": "wca-0005",
+      "name": "Execute · AGENT-Lucia-Entry"
+    },
+    {
+      "parameters": {
+        "jsCode": "const e = $json ?? {};\nconst norm = $('Code · Normalizar').item.json;\nreturn [{ json: {\n  reply: e.reply || '',\n  needs_user_reply: e.needs_user_reply === true,\n  session_key: e.session_key || norm.entry.session_key,\n  client_session_id: norm.client_session_id,\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        -80
+      ],
+      "id": "wca-0006",
+      "name": "Code · Respuesta"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1340,
+        -80
+      ],
+      "id": "wca-0007",
+      "name": "Responder 200"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { error: 'origin_not_allowed' } }}",
+        "options": {
+          "responseCode": 403
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        900,
+        140
+      ],
+      "id": "wca-0008",
+      "name": "Responder 403"
+    }
+  ],
+  "connections": {
+    "Webhook · POST /webchat": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "Code · Normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Normalizar": {
+      "main": [
+        [
+          {
+            "node": "¿Origin permitido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Origin permitido?": {
+      "main": [
+        [
+          {
+            "node": "Execute · AGENT-Lucia-Entry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 403",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · AGENT-Lucia-Entry": {
+      "main": [
+        [
+          {
+            "node": "Code · Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Respuesta": {
+      "main": [
+        [
+          {
+            "node": "Responder 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}

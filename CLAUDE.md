@@ -194,13 +194,21 @@ documentado sigue siendo cierto.
   → Cargar sesión → Preparar contexto → Execute Core → Fusionar → ¿Sesión
   existe? → Actualizar/Crear sesión → Salida Entry; 3 nodos HTTP con credencial
   `Directus · demo`; **sin probar en demo todavía**) →
-  (4) `WEBCHAT-Adapter.json` (webhook `POST /webchat`, allowlist `Origin` +
-  rate-limit por `session_key`) →
-  (5) widget `n8n/webchat/` (HTML/JS mínimo, embed `<script>`) →
-  (6) `SESSION-Cleanup.json` (schedule diario, purga sesiones > 24 h).
+  (4) `WEBCHAT-Adapter.json` ✅ (id `aegoraWebchatAdapter`; webhook `POST
+  /webchat`, allowlist `Origin` en el adapter, rate-limit por `session_key`
+  movido **dentro de Entry** con `state.rl`) →
+  (5) widget `n8n/webchat/` ✅ (`widget.js` sin deps + `demo.html` + README) →
+  (6) `SESSION-Cleanup.json` ✅ (id `aegoraSessionCleanup`; schedule diario
+  04:00, purga por `updated_at`/`created_at` < cutoff; necesita permiso
+  `delete` para la policy n8n).
+- Todo el set omnicanal está **hand-authored, sin probar la cadena completa
+  webhook→widget en `demo`**. Entry aislado sí probado (sesión crea/persiste
+  `flujo_activo`, multi-turno OK).
 - Pendiente:
-  - Probar Entry en `demo` (import + Execute con contrato de adapter simulado).
-  - Omnicanal pasos 4-6 (ver arriba).
+  - Permiso `delete` en `conversation_sessions` para la policy n8n `c42ccf84`.
+  - Importar `WEBCHAT-Adapter` + `SESSION-Cleanup`, activar el Adapter,
+    probar la cadena con el widget (`demo.html`).
+  - Reimportar Entry con rate-limit (commit nuevo).
   - Aplicar `base.yaml` (19af460) + `booking-indexes.sql` en `aegora-internal`.
   - `demo`/`aegora-internal`: crear credencial `Booking API` en n8n, importar el
     workflow, ajustar el nodo `Config` a `http://<tenant>-booking:3000`.
