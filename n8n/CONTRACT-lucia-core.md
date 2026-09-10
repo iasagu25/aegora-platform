@@ -38,7 +38,8 @@ borrador con tono natural, sin tocar datos; `onError` → borrador) →
 | `reply_to_user` | string | texto a enviar al usuario (siempre presente; puede ser `""`) |
 | `needs_user_reply` | boolean | `true` = esperando al usuario → la conversación sigue abierta |
 | `flujo_activo` | string\|null | regla ÚNICA (abajo) |
-| `contact_id` | string\|null | presente si un tool resolvió/creó contacto este turno; V1 **best-effort** (a menudo `null`) |
+| `contact_id` | string\|null | presente si un tool resolvió/creó contacto este turno; V1 **best-effort** |
+| `contact_phone` | string\|null | teléfono que el Core extrajo del usuario este turno; Entry lo guarda en `state.contact_phone` y lo re-inyecta como `contact_phone` en turnos siguientes (así la identidad persiste entre intenciones) |
 | `result` | object\|null | payload estructurado opcional (`appointment` / `task`) para logging |
 
 ### Regla única de `flujo_activo`
