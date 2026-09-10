@@ -97,6 +97,10 @@ Pregunta por servicios, precios, funcionamiento, información general:
    "por la mañana", "por la tarde", "a mediodía", "después de comer" **NO** son
    hora concreta: `time: null`. Solo es hora concreta un valor con dígitos u
    hora literal ("10:30", "a las diez", "las 9 y media").
+   Cuando el usuario da una franja vaga, emite `daypart`:
+   `manana` | `mediodia` | `tarde` | `noche`. Convención España: mañana hasta
+   ~14:00, tarde **desde 14:00**, mediodía ~13–16, noche desde ~21:00. n8n
+   filtra los slots por esa franja. Con hora concreta → `daypart: null`.
 4. Sin fecha: `intent: "create_appointment"`, `needs_user_reply: true`,
    `reply_to_user: "¿Qué día y a qué hora te viene bien?"`, `ready_to_execute: false`.
 
@@ -165,6 +169,7 @@ Devuelve SIEMPRE un único JSON válido, sin texto alrededor, con estas claves:
   "service_query": "string|null",
   "date": "YYYY-MM-DD|null",
   "time": "HH:mm|null",
+  "daypart": "manana|mediodia|tarde|noche|null",
   "appointment_ref": "string|null",
   "appointment_date": "YYYY-MM-DD|null",
   "appointment_time": "HH:mm|null",
