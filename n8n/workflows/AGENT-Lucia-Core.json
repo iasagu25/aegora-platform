@@ -159,8 +159,8 @@
       "name": "OpenAI Chat Model",
       "credentials": {
         "openAiApi": {
-          "id": "fxKaYIovKoE9cnsk",
-          "name": "OpenAi account"
+          "id": "EFrzfrCY52epDU2a",
+          "name": "OpenAI account"
         }
       }
     },
@@ -375,8 +375,8 @@
       "name": "OpenAI Chat Model · Conocimiento",
       "credentials": {
         "openAiApi": {
-          "id": "fxKaYIovKoE9cnsk",
-          "name": "OpenAi account"
+          "id": "EFrzfrCY52epDU2a",
+          "name": "OpenAI account"
         }
       }
     },
@@ -672,8 +672,8 @@
       "name": "OpenAI Chat Model · Redacta",
       "credentials": {
         "openAiApi": {
-          "id": "fxKaYIovKoE9cnsk",
-          "name": "OpenAi account"
+          "id": "EFrzfrCY52epDU2a",
+          "name": "OpenAI account"
         }
       }
     },
