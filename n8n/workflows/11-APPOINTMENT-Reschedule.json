@@ -71,7 +71,7 @@
       "id": "b7d7b40f-9c36-423e-8894-dadecd9cc9fa",
       "name": "HTTP · Booking API reschedule",
       "credentials": {
-        "httpHeaderAuth": { "id": "REPLACE_WITH_CREDENTIAL_ID", "name": "Booking API" }
+        "httpHeaderAuth": { "id": "au21q2D0g1ZQLV6E", "name": "Booking API" }
       }
     },
     {

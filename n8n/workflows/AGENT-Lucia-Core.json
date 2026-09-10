@@ -181,7 +181,7 @@
       "name": "Postgres Chat Memory",
       "credentials": {
         "postgres": {
-          "id": "REPLACE_POSTGRES_CRED",
+          "id": "IAtHlC09QTN4mgc2",
           "name": "Postgres account"
         }
       },

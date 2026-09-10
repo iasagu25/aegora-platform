@@ -92,7 +92,7 @@
       "id": "d1e2f3a4-0000-4000-8000-000000000052",
       "name": "HTTP · Booking API cancel",
       "credentials": {
-        "httpHeaderAuth": { "id": "REPLACE_WITH_CREDENTIAL_ID", "name": "Booking API" }
+        "httpHeaderAuth": { "id": "au21q2D0g1ZQLV6E", "name": "Booking API" }
       }
     },
     {

@@ -78,7 +78,7 @@
       "id": "6f2b1a00-0000-4000-8000-000000000034",
       "name": "HTTP · Booking API book",
       "credentials": {
-        "httpHeaderAuth": { "id": "REPLACE_WITH_CREDENTIAL_ID", "name": "Booking API" }
+        "httpHeaderAuth": { "id": "au21q2D0g1ZQLV6E", "name": "Booking API" }
       }
     },
     {
