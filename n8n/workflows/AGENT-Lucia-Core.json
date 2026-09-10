@@ -798,7 +798,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const core = $('Output IA → JSON').item.json;\nconst svc = $json;  // salida de Resolve Service (single)\nconst tz = core.tenant_timezone || 'Europe/Madrid';\nif (!core.date || !core.time) {\n  return [{ json: { _no_datetime: true, service_id: svc.service_id } }];\n}\nconst start = DateTime.fromISO(`${core.date}T${core.time}`, { zone: tz });\nif (!start.isValid) return [{ json: { _no_datetime: true, service_id: svc.service_id } }];\nreturn [{ json: {\n  service_id: svc.service_id,\n  start_at: start.toISO(),\n  contact_id: null,\n  phone: core.contact?.phone || null,\n  query: core.contact?.name || null,\n  source: 'ai',\n  idempotency_key: `${core.sessionID || core.canal || 'lucia'}-${start.toISO()}`,\n} }];"
+        "jsCode": "const core = $('Output IA → JSON').item.json;\nconst svc = $json;  // salida de Resolve Service (single)\nconst tz = core.tenant_timezone || 'Europe/Madrid';\nif (!core.date || !core.time) {\n  return [{ json: { _incompleto: true, _reason: 'datetime', service_id: svc.service_id } }];\n}\nconst start = DateTime.fromISO(`${core.date}T${core.time}`, { zone: tz });\nif (!start.isValid) return [{ json: { _incompleto: true, _reason: 'datetime', service_id: svc.service_id } }];\nconst phone = (core.contact && core.contact.phone) ? core.contact.phone : null;\nconst name  = (core.contact && core.contact.name)  ? core.contact.name  : null;\nif (!phone && !name) {\n  return [{ json: { _incompleto: true, _reason: 'contact', service_id: svc.service_id } }];\n}\nreturn [{ json: {\n  service_id: svc.service_id,\n  start_at: start.toISO(),\n  contact_id: null,\n  phone, query: name,\n  source: 'ai',\n  idempotency_key: `${core.sessionID || core.canal || 'lucia'}-${start.toISO()}`,\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -821,7 +821,7 @@
           "conditions": [
             {
               "id": "d",
-              "leftValue": "={{ $json._no_datetime }}",
+              "leftValue": "={{ $json._incompleto }}",
               "rightValue": "",
               "operator": {
                 "type": "boolean",
@@ -950,7 +950,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const r = $json ?? {};\nif (r.ok === true) {\n  const a = r.data?.appointment || {};\n  const tz = $('Output IA → JSON').item.json.tenant_timezone || 'Europe/Madrid';\n  const cuando = a.start_at\n    ? DateTime.fromISO(a.start_at).setZone(tz).setLocale('es').toFormat(\"cccc d 'de' LLLL 'a las' HH:mm\")\n    : '';\n  return [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: false,\n    reply_to_user: (r.message && r.message.includes('idempotente'))\n      ? `Tu cita ya estaba reservada para el ${cuando}.`\n      : `Listo, cita confirmada para el ${cuando}.`,\n    appointment: a } }];\n}\nif (r.status === 'slot_taken') {\n  return [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: 'Ese horario acaba de ocuparse. ¿Quieres que mire otros huecos de ese día?' } }];\n}\nif (r.status === 'slot_conflict') {\n  return [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: 'Ese horario no está disponible ese día. ¿Quieres que te diga los huecos libres?' } }];\n}\nreturn [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n  reply_to_user: r.message || 'No he podido crear la cita. ¿Lo intentamos de otra forma?' } }];"
+        "jsCode": "const r = $json ?? {};\nif (r.ok === true) {\n  const a = r.data?.appointment || {};\n  const tz = $('Output IA → JSON').item.json.tenant_timezone || 'Europe/Madrid';\n  const cuando = a.start_at\n    ? DateTime.fromISO(a.start_at).setZone(tz).setLocale('es').toFormat(\"cccc d 'de' LLLL 'a las' HH:mm\")\n    : '';\n  return [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: false,\n    reply_to_user: (r.message && r.message.includes('idempotente'))\n      ? `Tu cita ya estaba reservada para el ${cuando}.`\n      : `Listo, cita confirmada para el ${cuando}.`,\n    appointment: a } }];\n}\nconst _errs = (r.data && Array.isArray(r.data.errors)) ? r.data.errors.join(' ') : (r.message || '');\nif (r.status === 'validation_error' && /contact_id|phone|email|query|identificar al contacto/i.test(_errs)) {\n  return [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: 'Para cerrar la cita necesito tu nombre y un teléfono de contacto. ¿Me los das?' } }];\n}\nif (r.status === 'slot_taken') {\n  return [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: 'Ese horario acaba de ocuparse. ¿Quieres que mire otros huecos de ese día?' } }];\n}\nif (r.status === 'slot_conflict') {\n  return [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: 'Ese horario no está disponible ese día. ¿Quieres que te diga los huecos libres?' } }];\n}\nreturn [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n  reply_to_user: r.message || 'No he podido crear la cita. ¿Lo intentamos de otra forma?' } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -963,7 +963,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const r = $json ?? {};\nif (r._no_datetime) return [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: true,\n  reply_to_user: '¿Qué día y a qué hora te viene bien?' } }];\nif (r.status === 'multiple') {\n  const nombres = (r.candidates || []).map(c => c.name).join(', ');\n  return [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: `¿Para qué servicio? Tenemos: ${nombres}.` } }];\n}\nreturn [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: true,\n  reply_to_user: 'No encuentro ese servicio. ¿Puedes decírmelo de otra forma?' } }];"
+        "jsCode": "const r = $json ?? {};\nif (r._reason === 'contact') return [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: true,\n  reply_to_user: 'Para cerrar la cita necesito tu nombre y un teléfono de contacto. ¿Me los das?' } }];\nif (r._reason === 'datetime' || r._no_datetime) return [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: true,\n  reply_to_user: '¿Qué día y a qué hora te viene bien?' } }];\nif (r.status === 'multiple') {\n  const nombres = (r.candidates || []).map(c => c.name).join(', ');\n  return [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: `¿Para qué servicio? Tenemos: ${nombres}.` } }];\n}\nreturn [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: true,\n  reply_to_user: 'No encuentro ese servicio. ¿Puedes decírmelo de otra forma?' } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
