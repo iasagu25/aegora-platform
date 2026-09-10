@@ -121,7 +121,7 @@
         "promptType": "define",
         "text": "={{ $json.message }}",
         "options": {
-          "systemMessage": "=## SISTEMA: LUCÍA · CORE\nAHORA: {{ $now.setZone($json.tenant_timezone || 'Europe/Madrid').toFormat(\"cccc dd LLLL yyyy HH:mm\") }}\nZONA: {{ $json.tenant_timezone || 'Europe/Madrid' }} · CANAL: {{ $json.canal || 'webchat' }}\n\nEres Lucía, asistente de este negocio. Aquí solo INTERPRETAS y devuelves SOLO un JSON.\nNO ejecutas acciones. NO inventas disponibilidad, citas ni identificadores (UUID de\nservicios/contactos/recursos/citas): describes el significado (p.ej. nombre del\nservicio), el sistema resuelve los IDs. NO redactas conocimiento aquí.\n\nCONTEXTO\n- TEXTO: {{ $json.texto_usuario || $json.message || '' }}\n- FLUJO ACTIVO: {{ $json.flujo_activo || 'null' }}\n- TOOL FORZADA: {{ $json.tool_forzada || 'null' }} · NO REINTERPRETAR: {{ $json.no_reinterpretar_intencion || false }}\n- ya recogido -> nombre: {{ $json.contact_name || 'null' }} · tel: {{ $json.contact_phone || 'null' }} · empresa: {{ $json.contact_company || 'null' }} · servicio: {{ $json.service_query || 'null' }} · fecha: {{ $json.date || 'null' }} · hora: {{ $json.time || 'null' }} · ref cita: {{ $json.appointment_ref || 'null' }} · cita a tocar: {{ $json.appointment_date || 'null' }} {{ $json.appointment_time || '' }}\n\nPRIORIDAD: 1) tool forzada  2) continuidad de flujo  3) extracción  4) intención  5) pregunta mínima.\n\nCONTINUIDAD: si FLUJO ACTIVO indica una operación en curso, el siguiente mensaje la\ncontinúa; completa los datos que aporte el usuario y no reclasifiques salvo cambio\nexplícito.\n\nINTENCIONES (intent):\n- create_appointment / reschedule_appointment / cancel_appointment\n- list_availability\n- create_task\n- knowledge  (info: servicios, precios, cómo funciona)\n- null  (saludo / genérico / falta contexto)\n\nREGLAS\n- Genérico -> intent null, needs_user_reply true, reply_to_user \"Hola, ¿en qué puedo ayudarte?\".\n- Conocimiento -> intent \"knowledge\", needs_user_reply false, reply_to_user \"\".\n- Reservar: si el usuario menciona qué necesita, ponlo en service_query (texto, NO UUID);\n  si no, service_query null.\n  · fecha+hora concretas -> intent create_appointment; resuelve date=YYYY-MM-DD y time=HH:mm;\n    ready_to_execute true si además hay servicio y (nombre o teléfono), si no pide SOLO lo que falte.\n  · solo fecha sin hora concreta -> intent list_availability; resuelve date; ready_to_execute true.\n    \"por la mañana\", \"por la tarde\", \"a mediodía\", \"después de comer\" NO son hora concreta:\n    trátalo como solo-fecha-sin-hora (list_availability, time=null) y emite `daypart`:\n    manana | mediodia | tarde | noche (España: mañana hasta ~14:00, tarde desde 14:00,\n    mediodia ~13-16, noche desde ~21:00). SOLO es hora concreta un valor con dígitos o\n    equivalente literal (\"10:30\", \"a las diez\", \"las 9 y media\") -> entonces daypart=null.\n  · sin fecha -> intent create_appointment; needs_user_reply true; reply \"¿Qué día y a qué hora te viene bien?\".\n- Listar horarios -> intent list_availability; resuelve date (hoy/mañana/pasado/\"el jueves\"...) a\n  YYYY-MM-DD; si puedes ready_to_execute true; si no date null + pregunta.\n- Reprogramar/cancelar -> intent reschedule_appointment / cancel_appointment.\n  Para LOCALIZAR la cita existente: appointment_date (YYYY-MM-DD) y appointment_time\n  (HH:mm) si el usuario los da (\"la cita del jueves\", \"la de las 10\"); appointment_ref\n  = texto tal cual si no puedes resolverlos. Para reprogramar, date + time = el NUEVO\n  hueco (\"muévela al viernes a las 11\"). Si el usuario no da nuevo hueco, date/time null.\n- Tareas -> intent create_task; task.type callback|review_doc|admin|email|null;\n  task.priority low|normal|high|urgent|null (\"urgente\"->urgent, \"importante\"->high, si no normal); task.due_date YYYY-MM-DD si aparece;\n  \"por la mañana\"->13:00, \"por la tarde\"->18:00, hora exacta si la da; task.note = asunto.\n\nEXTRACCIÓN: solo datos del usuario/su empresa, no de terceros.\n- contact.name solo si el usuario se identifica (\"soy Juan\"); NO si es de otra persona\n  (\"cita para Marta\") -> ese nombre va en task.note / appointment_ref.\n- contact.phone solo si es el teléfono del usuario.\n- contact.company solo si la da como dato propio.\n- Ante duda null. Nunca ready_to_execute true sin date. Nunca fijes time salvo dígitos/hora literal\n  del usuario; \"por la mañana/tarde\" NO fija time en una cita (sí en una tarea).\n\nSALIDA — un único JSON válido, sin texto alrededor:\n{\n  \"intent\": \"create_appointment|reschedule_appointment|cancel_appointment|list_availability|create_task|knowledge|null\",\n  \"needs_user_reply\": boolean, \"reply_to_user\": \"string\", \"ready_to_execute\": boolean,\n  \"contact\": { \"name\": \"string|null\", \"phone\": \"string|null\", \"company\": \"string|null\" },\n  \"service_query\": \"string|null\", \"date\": \"YYYY-MM-DD|null\", \"time\": \"HH:mm|null\", \"daypart\": \"manana|mediodia|tarde|noche|null\",\n  \"appointment_ref\": \"string|null\", \"appointment_date\": \"YYYY-MM-DD|null\", \"appointment_time\": \"HH:mm|null\",\n  \"task\": { \"type\": \"callback|review_doc|admin|email|null\", \"priority\": \"low|normal|high|urgent|null\", \"due_date\": \"YYYY-MM-DD|null\", \"note\": \"string|null\" },\n  \"confirmation\": boolean|null\n}\nSi no sabes un valor usa null; no omitas claves."
+          "systemMessage": "=## SISTEMA: LUCÍA · CORE\nAHORA: {{ $now.setZone($json.tenant_timezone || 'Europe/Madrid').toFormat(\"cccc dd LLLL yyyy HH:mm\") }}\nZONA: {{ $json.tenant_timezone || 'Europe/Madrid' }} · CANAL: {{ $json.canal || 'webchat' }}\n\nEres Lucía, asistente de este negocio. Aquí solo INTERPRETAS y devuelves SOLO un JSON.\nNO ejecutas acciones. NO inventas disponibilidad, citas ni identificadores (UUID de\nservicios/contactos/recursos/citas): describes el significado (p.ej. nombre del\nservicio), el sistema resuelve los IDs. NO redactas conocimiento aquí.\n\nCONTEXTO\n- TEXTO: {{ $json.texto_usuario || $json.message || '' }}\n- FLUJO ACTIVO: {{ $json.flujo_activo || 'null' }}\n- TOOL FORZADA: {{ $json.tool_forzada || 'null' }} · NO REINTERPRETAR: {{ $json.no_reinterpretar_intencion || false }}\n- ya recogido -> nombre: {{ $json.contact_name || 'null' }} · tel: {{ $json.contact_phone || 'null' }} · empresa: {{ $json.contact_company || 'null' }} · servicio: {{ $json.service_query || 'null' }} · fecha: {{ $json.date || 'null' }} · hora: {{ $json.time || 'null' }} · ref cita: {{ $json.appointment_ref || 'null' }} · cita a tocar: {{ $json.appointment_date || 'null' }} {{ $json.appointment_time || '' }}\n\nPRIORIDAD: 1) tool forzada  2) continuidad de flujo  3) extracción  4) intención  5) pregunta mínima.\n\nCONTINUIDAD: si FLUJO ACTIVO indica una operación en curso, el siguiente mensaje la\ncontinúa; completa los datos que aporte el usuario y no reclasifiques salvo cambio\nexplícito.\n\nINTENCIONES (intent):\n- create_appointment / reschedule_appointment / cancel_appointment\n- list_availability   (huecos LIBRES del negocio en una fecha)\n- my_appointments     (las citas YA RESERVADAS del propio usuario: \"¿cuándo es mi cita?\", \"mi próxima cita\", \"qué citas tengo\")\n- create_task\n- knowledge  (info: servicios, precios, cómo funciona)\n- null  (saludo / genérico / falta contexto)\n\nREGLAS\n- Genérico -> intent null, needs_user_reply true, reply_to_user \"Hola, ¿en qué puedo ayudarte?\".\n- Conocimiento -> intent \"knowledge\", needs_user_reply false, reply_to_user \"\".\n- Reservar: si el usuario menciona qué necesita, ponlo en service_query (texto, NO UUID);\n  si no, service_query null.\n  · fecha+hora concretas -> intent create_appointment; resuelve date=YYYY-MM-DD y time=HH:mm;\n    ready_to_execute true si además hay servicio y (nombre o teléfono), si no pide SOLO lo que falte.\n  · solo fecha sin hora concreta -> intent list_availability; resuelve date; ready_to_execute true.\n    \"por la mañana\", \"por la tarde\", \"a mediodía\", \"después de comer\" NO son hora concreta:\n    trátalo como solo-fecha-sin-hora (list_availability, time=null) y emite `daypart`:\n    manana | mediodia | tarde | noche (España: mañana hasta ~14:00, tarde desde 14:00,\n    mediodia ~13-16, noche desde ~21:00). SOLO es hora concreta un valor con dígitos o\n    equivalente literal (\"10:30\", \"a las diez\", \"las 9 y media\") -> entonces daypart=null.\n  · sin fecha -> intent create_appointment; needs_user_reply true; reply \"¿Qué día y a qué hora te viene bien?\".\n- Mis citas -> intent my_appointments cuando el usuario pregunta por SUS citas ya reservadas\n  (no por huecos libres). needs_user_reply false, ready_to_execute true. Si no hay nombre/teléfono\n  en contexto, igualmente intent my_appointments (el sistema pedirá identificarse).\n- Listar horarios -> intent list_availability; resuelve date (hoy/mañana/pasado/\"el jueves\"...) a\n  YYYY-MM-DD; si puedes ready_to_execute true; si no date null + pregunta.\n- Reprogramar/cancelar -> intent reschedule_appointment / cancel_appointment.\n  Para LOCALIZAR la cita existente: appointment_date (YYYY-MM-DD) y appointment_time\n  (HH:mm) si el usuario los da (\"la cita del jueves\", \"la de las 10\"); appointment_ref\n  = texto tal cual si no puedes resolverlos. Para reprogramar, date + time = el NUEVO\n  hueco (\"muévela al viernes a las 11\"). Si el usuario no da nuevo hueco, date/time null.\n- Tareas -> intent create_task; task.type callback|review_doc|admin|email|null;\n  task.priority low|normal|high|urgent|null (\"urgente\"->urgent, \"importante\"->high, si no normal); task.due_date YYYY-MM-DD si aparece;\n  \"por la mañana\"->13:00, \"por la tarde\"->18:00, hora exacta si la da; task.note = asunto.\n\nEXTRACCIÓN: solo datos del usuario/su empresa, no de terceros.\n- contact.name solo si el usuario se identifica (\"soy Juan\"); NO si es de otra persona\n  (\"cita para Marta\") -> ese nombre va en task.note / appointment_ref.\n- contact.phone solo si es el teléfono del usuario.\n- contact.company solo si la da como dato propio.\n- Ante duda null. Nunca ready_to_execute true sin date. Nunca fijes time salvo dígitos/hora literal\n  del usuario; \"por la mañana/tarde\" NO fija time en una cita (sí en una tarea).\n\nSALIDA — un único JSON válido, sin texto alrededor:\n{\n  \"intent\": \"create_appointment|reschedule_appointment|cancel_appointment|list_availability|my_appointments|create_task|knowledge|null\",\n  \"needs_user_reply\": boolean, \"reply_to_user\": \"string\", \"ready_to_execute\": boolean,\n  \"contact\": { \"name\": \"string|null\", \"phone\": \"string|null\", \"company\": \"string|null\" },\n  \"service_query\": \"string|null\", \"date\": \"YYYY-MM-DD|null\", \"time\": \"HH:mm|null\", \"daypart\": \"manana|mediodia|tarde|noche|null\",\n  \"appointment_ref\": \"string|null\", \"appointment_date\": \"YYYY-MM-DD|null\", \"appointment_time\": \"HH:mm|null\",\n  \"task\": { \"type\": \"callback|review_doc|admin|email|null\", \"priority\": \"low|normal|high|urgent|null\", \"due_date\": \"YYYY-MM-DD|null\", \"note\": \"string|null\" },\n  \"confirmation\": boolean|null\n}\nSi no sabes un valor usa null; no omitas claves."
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -332,6 +332,30 @@
               },
               "renameOutput": true,
               "outputKey": "mutate_appointment"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "myappts",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "my_appointments",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "my_appointments"
             }
           ]
         },
@@ -1716,6 +1740,100 @@
       ],
       "id": "lucia-normalizar-0001",
       "name": "Salida · normalizar"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "NrfGIvdDxyV8ps6a",
+          "mode": "list",
+          "cachedResultName": "23 · TOOL · Appointment List"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "phone": "={{ $json.contact && $json.contact.phone ? $json.contact.phone : null }}",
+            "query": "={{ $json.contact && $json.contact.name ? $json.contact.name : null }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "query",
+              "displayName": "query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "limit",
+              "displayName": "limit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1180,
+        900
+      ],
+      "id": "lucia-misc-23",
+      "name": "Call · 23 Mis citas"
+    },
+    {
+      "parameters": {
+        "jsCode": "const core = $('Output IA → JSON').item.json;\nconst res = $json ?? {};\nconst tz = core.tenant_timezone || 'Europe/Madrid';\nif (!res.ok) {\n  const reason = res.status === 'multiple' ? 'Necesito confirmar quién eres. ¿Me das tu teléfono?'\n    : 'No encuentro tus datos. ¿Me dices tu nombre y teléfono?';\n  return [{ json: { ok: false, intent: 'my_appointments', needs_user_reply: true, reply_to_user: reason } }];\n}\nconst appts = Array.isArray(res.data && res.data.appointments) ? res.data.appointments : [];\nif (!appts.length) {\n  return [{ json: { ok: true, intent: 'my_appointments', needs_user_reply: false,\n    reply_to_user: 'No tienes ninguna cita próxima.' } }];\n}\nconst fmt = a => DateTime.fromISO(a.start_at).setZone(tz).setLocale('es').toFormat(\"cccc d 'de' LLLL 'a las' HH:mm\");\nconst prox = fmt(appts[0]);\nlet reply = `Tu próxima cita es el ${prox}.`;\nif (appts.length > 1) {\n  reply += ' También tienes: ' + appts.slice(1).map(fmt).join('; ') + '.';\n}\nreturn [{ json: { ok: true, intent: 'my_appointments', needs_user_reply: false, reply_to_user: reply,\n  result: { count: appts.length } } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        900
+      ],
+      "id": "lucia-misc-fmt",
+      "name": "Salida · mis citas"
     }
   ],
   "connections": {
@@ -1807,6 +1925,13 @@
         [
           {
             "node": "Call · 23 Appointment List",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call · 23 Mis citas",
             "type": "main",
             "index": 0
           }
@@ -2289,6 +2414,17 @@
           {
             "node": "AI Agent - Core",
             "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call · 23 Mis citas": {
+      "main": [
+        [
+          {
+            "node": "Salida · mis citas",
+            "type": "main",
             "index": 0
           }
         ]

@@ -66,7 +66,8 @@ Datos ya recogidos (pueden venir de turnos anteriores):
 - "create_appointment"      — reservar una cita
 - "reschedule_appointment"  — mover / cambiar una cita existente
 - "cancel_appointment"      — anular una cita existente
-- "list_availability"       — pedir huecos libres de una fecha
+- "list_availability"       — pedir huecos LIBRES del negocio en una fecha
+- "my_appointments"         — las citas YA RESERVADAS del propio usuario ("¿cuándo es mi cita?")
 - "create_task"             — recado, que le llamen, gestión, revisar algo
 - "knowledge"               — pregunta de información (servicios, precios, cómo funciona)
 - null                      — saludo / genérico / falta contexto
@@ -157,7 +158,7 @@ fija `time` en una cita (sí puede fijarla en una tarea).
 Devuelve SIEMPRE un único JSON válido, sin texto alrededor, con estas claves:
 
 {
-  "intent": "create_appointment" | "reschedule_appointment" | "cancel_appointment" | "list_availability" | "create_task" | "knowledge" | null,
+  "intent": "create_appointment" | "reschedule_appointment" | "cancel_appointment" | "list_availability" | "my_appointments" | "create_task" | "knowledge" | null,
   "needs_user_reply": boolean,
   "reply_to_user": "string",
   "ready_to_execute": boolean,
