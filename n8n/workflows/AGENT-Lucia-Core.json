@@ -2524,7 +2524,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const av = $json ?? {};\nconst c = $('Salida · reserva').item.json;\nconst core = $('Output IA → JSON').item.json;\nconst tz = core.tenant_timezone || 'Europe/Madrid';\nconst slots = Array.isArray(av.slots) ? av.slots : [];\nconst flags = { awaiting_slots_offer: true, alt_slots_date: c.alt_slots_date, alt_slots_time: c.alt_slots_time };\nconst fecha = av.date\n  ? DateTime.fromISO(av.date).setZone(tz).setLocale('es').toFormat(\"cccc d 'de' LLLL\")\n  : 'ese día';\nconst hora = c.time || 'esa hora';\n\nif (!slots.length) {\n  return [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: `A las ${hora} no puedo, y el ${fecha} no me queda ningún hueco libre. ¿Miramos otro día?`,\n    ...flags } }];\n}\n\nconst hhmm = s => DateTime.fromISO(s).setZone(tz).toFormat('HH:mm');\nconst lista = slots.map(s => hhmm(s.start_at)).join(', ');\nconst primera = hhmm(slots[0].start_at);\nconst ultima = hhmm(slots[slots.length - 1].end_at);\n// Comparación lexicográfica de 'HH:mm' -- válida por el formato de ancho fijo\nconst dentroDeHorario = c.time ? (c.time >= primera && c.time <= ultima) : true;\n\nlet cabecera;\nif (c._conflict_kind === 'taken') cabecera = `Las ${hora} ya están cogidas.`;\nelse if (dentroDeHorario) cabecera = `A las ${hora} no me queda hueco.`;\nelse cabecera = `A las ${hora} no atiendo ese día.`;\n\nreturn [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n  reply_to_user: `${cabecera} El ${fecha} tengo libre: ${lista}. ¿Cuál te viene mejor, o prefieres otro día?`,\n  ...flags } }];"
+        "jsCode": "const av = $('Call · Availability (conflicto)').item.json ?? {};\nconst c = $('Salida · reserva').item.json;\nconst core = $('Output IA → JSON').item.json;\nconst tz = core.tenant_timezone || 'Europe/Madrid';\nconst slots = Array.isArray(av.slots) ? av.slots : [];\nconst flags = { awaiting_slots_offer: true, alt_slots_date: c.alt_slots_date, alt_slots_time: c.alt_slots_time };\nconst fecha = av.date\n  ? DateTime.fromISO(av.date).setZone(tz).setLocale('es').toFormat(\"cccc d 'de' LLLL\")\n  : 'ese día';\nconst hora = c.time || 'esa hora';\n\n// Horario de atención: se CITA LITERAL desde la KB, nunca se interpreta ni se resume.\n// Si no hay entrada, simplemente no se menciona.\nconst kbRes = $json ?? {};\nconst kbBody = (kbRes.body ?? kbRes) || {};\nconst kbRows = Array.isArray(kbBody.data) ? kbBody.data : [];\nlet horarioTxt = kbRows.length ? (kbRows[0].body || '').toString() : '';\nhorarioTxt = horarioTxt.replace(/^#+\\s*.*$/gm, '').replace(/[*_`>]/g, '').replace(/\\s+/g, ' ').trim();\nconst horarioFrase = (horarioTxt && horarioTxt.length <= 200) ? ` Nuestro horario: ${horarioTxt}` : '';\n// Si citamos el horario literal, el Redactor NO debe tocar el texto: un horario con dos tramos\n// ('de 9 a 14 y de 16 a 20') es justo lo que un parafraseo estropea.\nconst styled = horarioFrase ? { _already_styled: true } : {};\n\nconst hhmm = s => DateTime.fromISO(s).setZone(tz).toFormat('HH:mm');\n\nif (!slots.length) {\n  return [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: `A las ${hora} no puedo, y el ${fecha} no me queda ningún hueco libre.${horarioFrase} ¿Miramos otro día?`,\n    ...flags, ...styled } }];\n}\n\nconst lista = slots.map(s => hhmm(s.start_at)).join(', ');\nconst primera = hhmm(slots[0].start_at);\nconst ultima = hhmm(slots[slots.length - 1].end_at);\n// Comparación lexicográfica de 'HH:mm' -- válida por el formato de ancho fijo\nconst dentroDeHorario = c.time ? (c.time >= primera && c.time <= ultima) : true;\n\nlet cabecera;\nif (c._conflict_kind === 'taken') cabecera = `Las ${hora} ya están cogidas.`;\nelse if (dentroDeHorario) cabecera = `A las ${hora} no me queda hueco.`;\nelse cabecera = `A las ${hora} no atiendo ese día.${horarioFrase}`;\n\nreturn [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n  reply_to_user: `${cabecera} El ${fecha} tengo libre: ${lista}. ¿Cuál te viene mejor, o prefieres otro día?`,\n  ...flags, ...styled } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2534,6 +2534,40 @@
       ],
       "id": "lucia-conf-slots",
       "name": "Salida · huecos tras conflicto"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Output IA → JSON').item.json.directus_base_url }}/items/knowledge",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ 'filter[active][_eq]': 'true', 'filter[title][_icontains]': 'horario', fields: 'title,body', limit: 1 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3080,
+        -100
+      ],
+      "id": "lucia-conf-horario",
+      "name": "HTTP · Horario (knowledge)",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      },
+      "notes": "Horario de atención del negocio, citado LITERAL. Si no hay entrada 'horario' en la KB, no se menciona."
     }
   ],
   "connections": {
@@ -3381,7 +3415,7 @@
       "main": [
         [
           {
-            "node": "Salida · huecos tras conflicto",
+            "node": "HTTP · Horario (knowledge)",
             "type": "main",
             "index": 0
           }
@@ -3393,6 +3427,17 @@
         [
           {
             "node": "Código · outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Horario (knowledge)": {
+      "main": [
+        [
+          {
+            "node": "Salida · huecos tras conflicto",
             "type": "main",
             "index": 0
           }
