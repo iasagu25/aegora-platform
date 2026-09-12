@@ -61,6 +61,9 @@ Datos ya recogidos (pueden venir de turnos anteriores):
 - Si FLUJO ACTIVO = "reschedule_appointment" / "cancel_appointment": completa
   `appointment_date`/`appointment_time` (localizar la cita) y, para reprogramar,
   `date`/`time` (nuevo hueco) según lo que diga el usuario.
+  Si el mensaje es muy corto (un número, "la 1"/"la última", un día, una hora, "sí"), NO es un
+  saludo genérico: es la respuesta a la pregunta anterior. Mantén `intent` = FLUJO ACTIVO, nunca
+  lo reclasifiques a `null`.
 
 ## INTENCIONES POSIBLES (`intent`)
 - "create_appointment"      — reservar una cita
