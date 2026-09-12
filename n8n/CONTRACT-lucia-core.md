@@ -21,6 +21,7 @@ la capa de canal/entrada y el cerebro. **No se cambia sin actualizar Entry.**
 | `tenant_timezone` | string | IANA (`"Europe/Madrid"`) |
 | `tool_forzada` | string\|null | reservado; V1 siempre `null` |
 | `no_reinterpretar_intencion` | bool | reservado; V1 siempre `false` |
+| `pending_appointment_id` | string\|null | cita ya localizada en un reschedule/cancel en curso. Entry la guarda en `state.pending_appointment_id` y la reinyecta mientras `flujo_activo` sea reschedule/cancel; el router la usa para NO volver a listar/desambiguar cada turno. |
 | `service_query`, `date`, `time`, `appointment_ref`, `appointment_date`, `appointment_time` | string\|null | **V1: Entry NO los envía.** La continuidad de slots la da `Postgres Chat Memory` + la regla CONTINUIDAD del prompt del Core. Se mantienen como inputs del trigger para paso explícito de slots en el futuro. |
 | `texto_usuario` | string\|null | alias legacy de `message`; el prompt usa `texto_usuario || message`. |
 
@@ -39,6 +40,7 @@ borrador con tono natural, sin tocar datos; `onError` → borrador) →
 | `needs_user_reply` | boolean | `true` = esperando al usuario → la conversación sigue abierta |
 | `flujo_activo` | string\|null | regla ÚNICA (abajo) |
 | `contact_id` | string\|null | presente si un tool resolvió/creó contacto este turno; V1 **best-effort** |
+| `pending_appointment_id` | string\|null | cita localizada este turno en un reschedule/cancel; Entry la persiste mientras el flujo siga abierto y la limpia en cuanto `flujo_activo` vuelve a `null` |
 | `contact_phone` | string\|null | teléfono que el Core extrajo del usuario este turno; Entry lo guarda en `state.contact_phone` y lo re-inyecta como `contact_phone` en turnos siguientes (así la identidad persiste entre intenciones) |
 | `result` | object\|null | payload estructurado opcional (`appointment` / `task`) para logging |
 

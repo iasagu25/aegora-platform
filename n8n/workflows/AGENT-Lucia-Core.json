@@ -65,6 +65,9 @@
             },
             {
               "name": "appointment_time"
+            },
+            {
+              "name": "pending_appointment_id"
             }
           ]
         }
@@ -189,7 +192,7 @@
     },
     {
       "parameters": {
-        "jsCode": "let raw = ($json.output ?? '').trim();\nif (raw.startsWith('```')) raw = raw.replace(/^```json\\s*/i,'').replace(/^```\\s*/i,'').replace(/\\s*```$/,'');\nlet core;\ntry { core = JSON.parse(raw); } catch (e) { throw new Error('La salida del Core no es JSON válido: ' + raw); }\nconst cfg = $('Config (editar por tenant)').item.json;\nconst trg = $('When Executed by Another Workflow').item.json;\nreturn [{ json: {\n  ...core,\n  intent: core.intent === 'null' ? null : core.intent,\n  contact: core.contact || {},\n  task: core.task || {},\n  sessionID: trg.sessionID, client_id: trg.client_id, canal: trg.canal, message: trg.message,\n  booking_base_url: cfg.booking_base_url, directus_base_url: cfg.directus_base_url, tenant_timezone: cfg.tenant_timezone,\n} }];"
+        "jsCode": "let raw = ($json.output ?? '').trim();\nif (raw.startsWith('```')) raw = raw.replace(/^```json\\s*/i,'').replace(/^```\\s*/i,'').replace(/\\s*```$/,'');\nlet core;\ntry { core = JSON.parse(raw); } catch (e) { throw new Error('La salida del Core no es JSON válido: ' + raw); }\nconst cfg = $('Config (editar por tenant)').item.json;\nconst trg = $('When Executed by Another Workflow').item.json;\nreturn [{ json: {\n  ...core,\n  intent: core.intent === 'null' ? null : core.intent,\n  contact: core.contact || {},\n  task: core.task || {},\n  sessionID: trg.sessionID, client_id: trg.client_id, canal: trg.canal, message: trg.message,\n  pending_appointment_id: trg.pending_appointment_id || null,\n  booking_base_url: cfg.booking_base_url, directus_base_url: cfg.directus_base_url, tenant_timezone: cfg.tenant_timezone,\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1563,7 +1566,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const r = $json ?? {};\nif (r._have_date) {\n  const dia = r._new_date\n    ? DateTime.fromISO(r._new_date).setLocale('es').toFormat(\"cccc d 'de' LLLL\")\n    : 'ese día';\n  return [{ json: { ok: true, intent: 'reschedule_appointment', needs_user_reply: true,\n    reply_to_user: `¿A qué hora en concreto el ${dia}? (por ejemplo, \"a las 10:30\")` } }];\n}\nreturn [{ json: { ok: true, intent: 'reschedule_appointment', needs_user_reply: true,\n  reply_to_user: '¿A qué día y hora quieres moverla?' } }];"
+        "jsCode": "const r = $json ?? {};\nconst pending_appointment_id = r.appointment_id || null;\nif (r._have_date) {\n  const dia = r._new_date\n    ? DateTime.fromISO(r._new_date).setLocale('es').toFormat(\"cccc d 'de' LLLL\")\n    : 'ese día';\n  return [{ json: { ok: true, intent: 'reschedule_appointment', needs_user_reply: true,\n    reply_to_user: `¿A qué hora en concreto el ${dia}? (por ejemplo, \"a las 10:30\")`,\n    pending_appointment_id } }];\n}\nreturn [{ json: { ok: true, intent: 'reschedule_appointment', needs_user_reply: true,\n  reply_to_user: '¿A qué día y hora quieres moverla?', pending_appointment_id } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1730,7 +1733,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Estructura viene del outcome determinista; la prosa la pone el Redactor (si falla, borrador).\nconst s = $('Código · outcome').item.json ?? {};\nconst io = $('Output IA → JSON').item.json ?? {};\nconst prose = ($json && $json.output ? $json.output : '').toString().trim();\nconst ok = s.ok !== false;\nconst intent = (s.intent === undefined || s.intent === 'null') ? null : (s.intent ?? null);\nconst needs = s.needs_user_reply === true;\nconst flujo_activo = (!needs || !intent) ? null : intent;\nconst taskObj = (s.task && s.task.task) ? s.task.task : (s.task || null);\nconst contact_id = s.contact_id\n  ?? (s.appointment && s.appointment.contact_id)\n  ?? (taskObj && taskObj.contact_id)\n  ?? null;\nconst contact_phone = s.contact_phone\n  ?? (io.contact && io.contact.phone)\n  ?? null;\nconst result = s.appointment ?? taskObj ?? s.result ?? null;\nreturn [{ json: {\n  ok, intent,\n  reply_to_user: prose || s.reply_to_user || '',\n  needs_user_reply: needs, flujo_activo, contact_id, contact_phone, result,\n} }];"
+        "jsCode": "// Estructura viene del outcome determinista; la prosa la pone el Redactor (si falla, borrador).\nconst s = $('Código · outcome').item.json ?? {};\nconst io = $('Output IA → JSON').item.json ?? {};\nconst prose = ($json && $json.output ? $json.output : '').toString().trim();\nconst ok = s.ok !== false;\nconst intent = (s.intent === undefined || s.intent === 'null') ? null : (s.intent ?? null);\nconst needs = s.needs_user_reply === true;\nconst flujo_activo = (!needs || !intent) ? null : intent;\nconst taskObj = (s.task && s.task.task) ? s.task.task : (s.task || null);\nconst contact_id = s.contact_id\n  ?? (s.appointment && s.appointment.contact_id)\n  ?? (taskObj && taskObj.contact_id)\n  ?? null;\nconst contact_phone = s.contact_phone\n  ?? (io.contact && io.contact.phone)\n  ?? null;\nconst pending_appointment_id = s.pending_appointment_id ?? null;\nconst result = s.appointment ?? taskObj ?? s.result ?? null;\nreturn [{ json: {\n  ok, intent,\n  reply_to_user: prose || s.reply_to_user || '',\n  needs_user_reply: needs, flujo_activo, contact_id, contact_phone, pending_appointment_id, result,\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1924,6 +1927,52 @@
       ],
       "id": "lucia-skip-redactor-if",
       "name": "¿Necesita Redactor?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "pai",
+              "leftValue": "={{ $json.pending_appointment_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1180,
+        780
+      ],
+      "id": "lucia-pai-if",
+      "name": "¿Cita ya localizada?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const core = $('Output IA → JSON').item.json;\nconst phone = core.contact && core.contact.phone ? core.contact.phone : null;\nconst query = core.contact && core.contact.name ? core.contact.name : null;\nreturn [{ json: { intent: core.intent, phone, query, _found: true,\n  appointment_id: core.pending_appointment_id } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        780
+      ],
+      "id": "lucia-pai-use",
+      "name": "Code · Usar cita localizada"
     }
   ],
   "connections": {
@@ -2014,7 +2063,7 @@
         ],
         [
           {
-            "node": "Call · 23 Appointment List",
+            "node": "¿Cita ya localizada?",
             "type": "main",
             "index": 0
           }
@@ -2576,6 +2625,35 @@
         [
           {
             "node": "Salida · normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Cita ya localizada?": {
+      "main": [
+        [
+          {
+            "node": "Code · Usar cita localizada",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call · 23 Appointment List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Usar cita localizada": {
+      "main": [
+        [
+          {
+            "node": "¿Cita localizada?",
             "type": "main",
             "index": 0
           }
