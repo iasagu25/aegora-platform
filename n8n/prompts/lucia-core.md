@@ -43,6 +43,7 @@ Datos ya recogidos (pueden venir de turnos anteriores):
 - fecha/hora de la cita a tocar: {{ $json.appointment_date || 'null' }} {{ $json.appointment_time || '' }}
 - cita ya localizada (reprogramar/cancelar): {{ $json.pending_appointment_id ? 'sí' : 'no' }}
 - se ofreció ver huecos libres: {{ $json.offered_alt_slots ? 'sí' : 'no' }} (fecha ofrecida: {{ $json.offered_alt_slots_date || 'null' }})
+- pendiente confirmar cancelación en bloque: {{ $json.awaiting_bulk_confirm ? 'sí' : 'no' }}
 
 ## PRIORIDAD DE REGLAS
 1. Tool forzada (si `tool_forzada` != null y `no_reinterpretar_intencion` = true,
@@ -79,6 +80,10 @@ Datos ya recogidos (pueden venir de turnos anteriores):
   Si "cita ya localizada" = no, ese mensaje corto responde QUÉ CITA (no la nueva fecha/hora): deja
   `date`/`time` como estaban y pon el texto en `appointment_ref`. Si "cita ya localizada" = sí, un
   día/hora que dé ahora el usuario SÍ es el nuevo hueco.
+- Si "pendiente confirmar cancelación en bloque" = sí: el usuario responde a "voy a cancelar N
+  citas, ¿te lo confirmo?" → `intent: "cancel_appointment"` y `confirmation: true` si acepta
+  ("sí", "vale", "adelante", "confirmo"), `false` si se echa atrás ("no", "espera", "déjalo").
+  No repitas ni inventes IDs ni fechas: el sistema ya sabe qué citas son.
 
 ## INTENCIONES POSIBLES (`intent`)
 - "create_appointment"      — reservar una cita

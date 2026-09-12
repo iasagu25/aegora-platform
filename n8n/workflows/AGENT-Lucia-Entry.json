@@ -136,7 +136,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const inp = $('Code · Validar entrada').item.json;\nconst r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 300 || (body && body.errors)) {\n  throw new Error('Directus /items/conversation_sessions ' + code + ': ' + JSON.stringify(body.errors || body));\n}\nconst row = Array.isArray(body.data) && body.data.length ? body.data[0] : null;\nconst prevState = (row && row.state && typeof row.state === 'object') ? row.state : {};\nconst prevPhone = prevState.contact_phone || null;\nconst prevPendingAppt = prevState.pending_appointment_id || null;\nconst prevPendingApptSvc = prevState.pending_appointment_service_id || null;\nconst prevLastAppt = prevState.last_appointment_id || null;\nconst prevAwaitingSlots = prevState.awaiting_slots_offer === true;\nconst prevAltSlotsDate = prevState.alt_slots_date || null;\nconst prevAltSlotsTime = prevState.alt_slots_time || null;\n\n// rate-limit por session_key (state.rl)\nconst now = Date.now();\nlet rl = (prevState.rl && typeof prevState.rl === 'object') ? { ...prevState.rl } : { count: 0, window_start: now };\nif (now - (rl.window_start || 0) > (inp.rl_window_ms || 300000)) rl = { count: 0, window_start: now };\nrl.count = (rl.count || 0) + 1;\nconst _rate_limited = rl.count > (inp.rl_max || 20);\n\n// identidad conocida del hilo: la del canal si la hay, si no la que ya teníamos\nconst known_phone = inp.from_phone || prevPhone || null;\nconst state_next = { ...prevState, rl, contact_phone: known_phone };\n\nreturn [{ json: {\n  ...inp,\n  _session_id: row ? row.id : null,\n  _prev_contact_id: row ? (row.contact_id || null) : null,\n  _prev_flujo_activo: row ? (row.flujo_activo || null) : null,\n  _known_phone: known_phone,\n  _prev_pending_appt: prevPendingAppt,\n  _prev_pending_appt_svc: prevPendingApptSvc,\n  _prev_last_appt: prevLastAppt,\n  _rate_limited, state_next,\n  core_in: {\n    message: inp.message, sessionID: inp.session_key, client_id: inp.tenant, canal: inp.canal,\n    flujo_activo: row ? (row.flujo_activo || null) : null,\n    contact_phone: known_phone,\n    contact_name: inp.from_name,\n    pending_appointment_id: prevPendingAppt,\n    pending_appointment_service_id: prevPendingApptSvc,\n    last_appointment_id: prevLastAppt,\n    offered_alt_slots: prevAwaitingSlots,\n    offered_alt_slots_date: prevAltSlotsDate,\n    offered_alt_slots_time: prevAltSlotsTime,\n    booking_base_url: inp.booking_base_url, directus_base_url: inp.directus_base_url,\n    tenant_timezone: inp.tenant_timezone,\n  },\n} }];"
+        "jsCode": "const inp = $('Code · Validar entrada').item.json;\nconst r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 300 || (body && body.errors)) {\n  throw new Error('Directus /items/conversation_sessions ' + code + ': ' + JSON.stringify(body.errors || body));\n}\nconst row = Array.isArray(body.data) && body.data.length ? body.data[0] : null;\nconst prevState = (row && row.state && typeof row.state === 'object') ? row.state : {};\nconst prevPhone = prevState.contact_phone || null;\nconst prevPendingAppt = prevState.pending_appointment_id || null;\nconst prevPendingApptSvc = prevState.pending_appointment_service_id || null;\nconst prevLastAppt = prevState.last_appointment_id || null;\nconst prevAwaitingSlots = prevState.awaiting_slots_offer === true;\nconst prevAltSlotsDate = prevState.alt_slots_date || null;\nconst prevAltSlotsTime = prevState.alt_slots_time || null;\nconst prevBulkConfirm = prevState.awaiting_bulk_confirm === true;\nconst prevBulkIds = prevState.bulk_appointment_ids || '';\n\n// rate-limit por session_key (state.rl)\nconst now = Date.now();\nlet rl = (prevState.rl && typeof prevState.rl === 'object') ? { ...prevState.rl } : { count: 0, window_start: now };\nif (now - (rl.window_start || 0) > (inp.rl_window_ms || 300000)) rl = { count: 0, window_start: now };\nrl.count = (rl.count || 0) + 1;\nconst _rate_limited = rl.count > (inp.rl_max || 20);\n\n// identidad conocida del hilo: la del canal si la hay, si no la que ya teníamos\nconst known_phone = inp.from_phone || prevPhone || null;\nconst state_next = { ...prevState, rl, contact_phone: known_phone };\n\nreturn [{ json: {\n  ...inp,\n  _session_id: row ? row.id : null,\n  _prev_contact_id: row ? (row.contact_id || null) : null,\n  _prev_flujo_activo: row ? (row.flujo_activo || null) : null,\n  _known_phone: known_phone,\n  _prev_pending_appt: prevPendingAppt,\n  _prev_pending_appt_svc: prevPendingApptSvc,\n  _prev_last_appt: prevLastAppt,\n  _rate_limited, state_next,\n  core_in: {\n    message: inp.message, sessionID: inp.session_key, client_id: inp.tenant, canal: inp.canal,\n    flujo_activo: row ? (row.flujo_activo || null) : null,\n    contact_phone: known_phone,\n    contact_name: inp.from_name,\n    pending_appointment_id: prevPendingAppt,\n    pending_appointment_service_id: prevPendingApptSvc,\n    last_appointment_id: prevLastAppt,\n    offered_alt_slots: prevAwaitingSlots,\n    offered_alt_slots_date: prevAltSlotsDate,\n    offered_alt_slots_time: prevAltSlotsTime,\n    awaiting_bulk_confirm: prevBulkConfirm,\n    bulk_appointment_ids: prevBulkIds,\n    booking_base_url: inp.booking_base_url, directus_base_url: inp.directus_base_url,\n    tenant_timezone: inp.tenant_timezone,\n  },\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -219,7 +219,9 @@
             "offered_alt_slots": "={{ $json.core_in.offered_alt_slots }}",
             "offered_alt_slots_date": "={{ $json.core_in.offered_alt_slots_date }}",
             "offered_alt_slots_time": "={{ $json.core_in.offered_alt_slots_time }}",
-            "pending_appointment_service_id": "={{ $json.core_in.pending_appointment_service_id }}"
+            "pending_appointment_service_id": "={{ $json.core_in.pending_appointment_service_id }}",
+            "awaiting_bulk_confirm": "={{ $json.core_in.awaiting_bulk_confirm }}",
+            "bulk_appointment_ids": "={{ $json.core_in.bulk_appointment_ids }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -482,6 +484,26 @@
               "canBeUsedToMatch": true,
               "type": "string",
               "removed": false
+            },
+            {
+              "id": "awaiting_bulk_confirm",
+              "displayName": "awaiting_bulk_confirm",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "boolean",
+              "removed": false
+            },
+            {
+              "id": "bulk_appointment_ids",
+              "displayName": "bulk_appointment_ids",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -500,7 +522,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const ctx = $('Code · Preparar contexto').item.json;\nconst inp = $('Code · Validar entrada').item.json;\nconst out = $json ?? {};\nconst contact_id = out.contact_id || ctx._prev_contact_id || null;\nconst contact_phone = out.contact_phone || ctx._known_phone || null;\nconst flujo_activo = out.flujo_activo ?? null;\n// la cita localizada solo se recuerda mientras el flujo de reprogramar/cancelar sigue abierto\nconst pending_appointment_id = flujo_activo\n  ? (out.pending_appointment_id || ctx._prev_pending_appt || null)\n  : null;\nconst pending_appointment_service_id = flujo_activo\n  ? (out.pending_appointment_service_id || ctx._prev_pending_appt_svc || null)\n  : null;\n// no caduca con el flujo: es la última cita tocada en la sesión, se sobreescribe al tocar otra\nconst last_appointment_id = out.last_appointment_id || ctx._prev_last_appt || null;\n// se \"consume\" en un turno: solo vive si ESTE turno la vuelve a poner\nconst awaiting_slots_offer = out.awaiting_slots_offer === true;\nconst alt_slots_date = out.awaiting_slots_offer === true ? (out.alt_slots_date || null) : null;\nconst alt_slots_time = out.awaiting_slots_offer === true ? (out.alt_slots_time || null) : null;\nreturn [{ json: {\n  _session_id: ctx._session_id, session_key: inp.session_key, canal: inp.canal,\n  reply_to: inp.reply_to, directus_base_url: inp.directus_base_url,\n  save: { session_key: inp.session_key, canal: inp.canal, contact_id,\n          flujo_activo,\n          state: { ...ctx.state_next, contact_phone, pending_appointment_id, pending_appointment_service_id,\n                   last_appointment_id, awaiting_slots_offer, alt_slots_date, alt_slots_time } },\n  ok: out.ok !== false, intent: out.intent ?? null,\n  reply_to_user: out.reply_to_user || '', needs_user_reply: out.needs_user_reply === true,\n} }];"
+        "jsCode": "const ctx = $('Code · Preparar contexto').item.json;\nconst inp = $('Code · Validar entrada').item.json;\nconst out = $json ?? {};\nconst contact_id = out.contact_id || ctx._prev_contact_id || null;\nconst contact_phone = out.contact_phone || ctx._known_phone || null;\nconst flujo_activo = out.flujo_activo ?? null;\n// la cita localizada solo se recuerda mientras el flujo de reprogramar/cancelar sigue abierto\nconst pending_appointment_id = flujo_activo\n  ? (out.pending_appointment_id || ctx._prev_pending_appt || null)\n  : null;\nconst pending_appointment_service_id = flujo_activo\n  ? (out.pending_appointment_service_id || ctx._prev_pending_appt_svc || null)\n  : null;\n// no caduca con el flujo: es la última cita tocada en la sesión, se sobreescribe al tocar otra\nconst last_appointment_id = out.last_appointment_id || ctx._prev_last_appt || null;\n// se \"consume\" en un turno: solo vive si ESTE turno la vuelve a poner\nconst awaiting_slots_offer = out.awaiting_slots_offer === true;\nconst alt_slots_date = out.awaiting_slots_offer === true ? (out.alt_slots_date || null) : null;\nconst alt_slots_time = out.awaiting_slots_offer === true ? (out.alt_slots_time || null) : null;\n// confirmación en bloque: vive un turno; los IDs nunca pasan por el LLM\nconst awaiting_bulk_confirm = out.awaiting_bulk_confirm === true;\nconst bulk_appointment_ids = awaiting_bulk_confirm ? (out.bulk_appointment_ids || '') : '';\nreturn [{ json: {\n  _session_id: ctx._session_id, session_key: inp.session_key, canal: inp.canal,\n  reply_to: inp.reply_to, directus_base_url: inp.directus_base_url,\n  save: { session_key: inp.session_key, canal: inp.canal, contact_id,\n          flujo_activo,\n          state: { ...ctx.state_next, contact_phone, pending_appointment_id, pending_appointment_service_id,\n                   last_appointment_id, awaiting_slots_offer, alt_slots_date, alt_slots_time,\n                   awaiting_bulk_confirm, bulk_appointment_ids } },\n  ok: out.ok !== false, intent: out.intent ?? null,\n  reply_to_user: out.reply_to_user || '', needs_user_reply: out.needs_user_reply === true,\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

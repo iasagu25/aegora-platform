@@ -27,6 +27,8 @@ la capa de canal/entrada y el cerebro. **No se cambia sin actualizar Entry.**
 | `offered_alt_slots_date` | string\|null | la fecha exacta (`YYYY-MM-DD`) que falló, capturada en el momento del slot_conflict — el Core la copia tal cual, no la reinterpreta. |
 | `offered_alt_slots_time` | string\|null | la hora (`HH:mm`) que falló; el router corta en seco si se vuelve a pedir ese mismo par fecha+hora. |
 | `pending_appointment_service_id` | string\|null | servicio de la cita localizada, para poder consultar huecos al reprogramar sin volver a leer la cita. |
+| `awaiting_bulk_confirm` | boolean | true mientras esté pendiente confirmar una cancelación en bloque. |
+| `bulk_appointment_ids` | string | IDs (coma-separados) de las citas propuestas para cancelar en bloque. **Los fija el router, nunca el LLM**; el Core solo emite `confirmation: true/false`. |
 | `service_query`, `date`, `time`, `appointment_ref`, `appointment_date`, `appointment_time` | string\|null | **V1: Entry NO los envía.** La continuidad de slots la da `Postgres Chat Memory` + la regla CONTINUIDAD del prompt del Core. Se mantienen como inputs del trigger para paso explícito de slots en el futuro. |
 | `texto_usuario` | string\|null | alias legacy de `message`; el prompt usa `texto_usuario || message`. |
 
@@ -48,6 +50,7 @@ borrador con tono natural, sin tocar datos; `onError` → borrador) →
 | `pending_appointment_id` | string\|null | cita localizada este turno en un reschedule/cancel; Entry la persiste mientras el flujo siga abierto y la limpia en cuanto `flujo_activo` vuelve a `null` |
 | `last_appointment_id` | string\|null | cita recién creada/reprogramada este turno; Entry la persiste sin caducar (se sobreescribe al tocar otra) |
 | `awaiting_slots_offer` | boolean | true solo en el turno del slot_taken/slot_conflict; Entry lo guarda y lo reinyecta UNA vez, luego se limpia solo (cada turno lo sobreescribe con su propio valor, no hay `_prev`) |
+| `awaiting_bulk_confirm` / `bulk_appointment_ids` | boolean / string | propuesta de cancelación en bloque pendiente de confirmar; misma vida de un turno |
 | `contact_phone` | string\|null | teléfono que el Core extrajo del usuario este turno; Entry lo guarda en `state.contact_phone` y lo re-inyecta como `contact_phone` en turnos siguientes (así la identidad persiste entre intenciones) |
 | `result` | object\|null | payload estructurado opcional (`appointment` / `task`) para logging |
 
