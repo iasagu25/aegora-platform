@@ -42,7 +42,7 @@ Datos ya recogidos (pueden venir de turnos anteriores):
 - referencia de cita: {{ $json.appointment_ref || 'null' }}
 - fecha/hora de la cita a tocar: {{ $json.appointment_date || 'null' }} {{ $json.appointment_time || '' }}
 - cita ya localizada (reprogramar/cancelar): {{ $json.pending_appointment_id ? 'sí' : 'no' }}
-- se ofreció ver huecos libres: {{ $json.offered_alt_slots ? 'sí' : 'no' }}
+- se ofreció ver huecos libres: {{ $json.offered_alt_slots ? 'sí' : 'no' }} (fecha ofrecida: {{ $json.offered_alt_slots_date || 'null' }})
 
 ## PRIORIDAD DE REGLAS
 1. Tool forzada (si `tool_forzada` != null y `no_reinterpretar_intencion` = true,
@@ -60,8 +60,10 @@ Datos ya recogidos (pueden venir de turnos anteriores):
   devuelve `ready_to_execute: true`.
   Si "se ofreció ver huecos libres" = sí, el usuario está respondiendo a "¿quieres que te diga
   los huecos libres?", **no** reintentando la reserva. Si dice sí/vale/claro/venga sin dar una
-  hora nueva: cambia `intent` a `list_availability`, conserva la `date` ya conocida, pon
-  `time`/`daypart` = null. Nunca vuelvas a intentar la misma hora que falló.
+  hora nueva: cambia `intent` a `list_availability` y pon `date` = EXACTAMENTE la "fecha
+  ofrecida" (cópiala tal cual, ya es `YYYY-MM-DD` — no la reinterpretes ni intentes recordar
+  qué día era "el lunes"), `time`/`daypart` = null. Nunca vuelvas a intentar la misma hora que
+  falló.
 - Si FLUJO ACTIVO = "create_task": continuación de una tarea. No lo conviertas
   en consulta de conocimiento.
 - Si FLUJO ACTIVO = "reschedule_appointment" / "cancel_appointment": completa

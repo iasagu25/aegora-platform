@@ -23,7 +23,8 @@ la capa de canal/entrada y el cerebro. **No se cambia sin actualizar Entry.**
 | `no_reinterpretar_intencion` | bool | reservado; V1 siempre `false` |
 | `pending_appointment_id` | string\|null | cita ya localizada en un reschedule/cancel en curso. Entry la guarda en `state.pending_appointment_id` y la reinyecta mientras `flujo_activo` sea reschedule/cancel; el router la usa para NO volver a listar/desambiguar cada turno. |
 | `last_appointment_id` | string\|null | última cita creada/tocada en la sesión (NO caduca con el flujo). `Emparejar cita` la usa como referencia implícita ("mejor pasarla al jueves" tras reservar) solo cuando ningún otro filtro (día/hora/ordinal) descartó ninguna candidata y el mensaje no es una petición en bloque ("todas"/"ambas"). |
-| `offered_alt_slots` | boolean | true si el turno anterior ofreció "¿quieres que te diga los huecos libres?" tras un slot_taken/slot_conflict. Se consume en un turno: un "sí" del usuario reencamina a `list_availability` para la misma fecha en vez de reintentar la hora que falló. |
+| `offered_alt_slots` | boolean | true si el turno anterior ofreció "¿quieres que te diga los huecos libres?" tras un slot_taken/slot_conflict. Se consume en un turno. |
+| `offered_alt_slots_date` | string\|null | la fecha exacta (`YYYY-MM-DD`) que falló, capturada en el momento del slot_conflict — el Core la copia tal cual, no la reinterpreta. |
 | `service_query`, `date`, `time`, `appointment_ref`, `appointment_date`, `appointment_time` | string\|null | **V1: Entry NO los envía.** La continuidad de slots la da `Postgres Chat Memory` + la regla CONTINUIDAD del prompt del Core. Se mantienen como inputs del trigger para paso explícito de slots en el futuro. |
 | `texto_usuario` | string\|null | alias legacy de `message`; el prompt usa `texto_usuario || message`. |
 
