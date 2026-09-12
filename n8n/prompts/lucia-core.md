@@ -58,6 +58,10 @@ Datos ya recogidos (pueden venir de turnos anteriores):
   según lo que aporte el usuario. No reclasifiques como tarea salvo cambio
   explícito. Si ya están servicio + fecha + hora y (contacto o teléfono),
   devuelve `ready_to_execute: true`.
+  Si "se ofreció ver huecos libres" = sí, el usuario está respondiendo a "¿quieres que te diga
+  los huecos libres?", **no** reintentando la reserva. Si dice sí/vale/claro/venga sin dar una
+  hora nueva: cambia `intent` a `list_availability`, conserva la `date` ya conocida, pon
+  `time`/`daypart` = null. Nunca vuelvas a intentar la misma hora que falló.
 - Si FLUJO ACTIVO = "create_task": continuación de una tarea. No lo conviertas
   en consulta de conocimiento.
 - Si FLUJO ACTIVO = "reschedule_appointment" / "cancel_appointment": completa
@@ -69,11 +73,6 @@ Datos ya recogidos (pueden venir de turnos anteriores):
   Si "cita ya localizada" = no, ese mensaje corto responde QUÉ CITA (no la nueva fecha/hora): deja
   `date`/`time` como estaban y pon el texto en `appointment_ref`. Si "cita ya localizada" = sí, un
   día/hora que dé ahora el usuario SÍ es el nuevo hueco.
-
-- Si "se ofreció ver huecos libres" = sí y el usuario responde afirmativamente ("sí", "vale",
-  "claro", "venga") sin dar una hora nueva: cambia `intent` a `list_availability`, conserva la
-  `date` ya conocida, pon `time`/`daypart` = null (salvo que dé una franja). No reintentes la
-  hora que falló.
 
 ## INTENCIONES POSIBLES (`intent`)
 - "create_appointment"      — reservar una cita
