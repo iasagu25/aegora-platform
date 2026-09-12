@@ -77,6 +77,9 @@
             },
             {
               "name": "offered_alt_slots_date"
+            },
+            {
+              "name": "offered_alt_slots_time"
             }
           ]
         }
@@ -201,7 +204,7 @@
     },
     {
       "parameters": {
-        "jsCode": "let raw = ($json.output ?? '').trim();\nif (raw.startsWith('```')) raw = raw.replace(/^```json\\s*/i,'').replace(/^```\\s*/i,'').replace(/\\s*```$/,'');\nlet core;\ntry { core = JSON.parse(raw); } catch (e) { throw new Error('La salida del Core no es JSON válido: ' + raw); }\nconst cfg = $('Config (editar por tenant)').item.json;\nconst trg = $('When Executed by Another Workflow').item.json;\nreturn [{ json: {\n  ...core,\n  intent: core.intent === 'null' ? null : core.intent,\n  contact: core.contact || {},\n  task: core.task || {},\n  sessionID: trg.sessionID, client_id: trg.client_id, canal: trg.canal, message: trg.message,\n  pending_appointment_id: trg.pending_appointment_id || null,\n  last_appointment_id: trg.last_appointment_id || null,\n  offered_alt_slots: trg.offered_alt_slots === true,\n  offered_alt_slots_date: trg.offered_alt_slots_date || null,\n  booking_base_url: cfg.booking_base_url, directus_base_url: cfg.directus_base_url, tenant_timezone: cfg.tenant_timezone,\n} }];"
+        "jsCode": "let raw = ($json.output ?? '').trim();\nif (raw.startsWith('```')) raw = raw.replace(/^```json\\s*/i,'').replace(/^```\\s*/i,'').replace(/\\s*```$/,'');\nlet core;\ntry { core = JSON.parse(raw); } catch (e) { throw new Error('La salida del Core no es JSON válido: ' + raw); }\nconst cfg = $('Config (editar por tenant)').item.json;\nconst trg = $('When Executed by Another Workflow').item.json;\nreturn [{ json: {\n  ...core,\n  intent: core.intent === 'null' ? null : core.intent,\n  contact: core.contact || {},\n  task: core.task || {},\n  sessionID: trg.sessionID, client_id: trg.client_id, canal: trg.canal, message: trg.message,\n  pending_appointment_id: trg.pending_appointment_id || null,\n  last_appointment_id: trg.last_appointment_id || null,\n  offered_alt_slots: trg.offered_alt_slots === true,\n  offered_alt_slots_date: trg.offered_alt_slots_date || null,\n  offered_alt_slots_time: trg.offered_alt_slots_time || null,\n  booking_base_url: cfg.booking_base_url, directus_base_url: cfg.directus_base_url, tenant_timezone: cfg.tenant_timezone,\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -884,7 +887,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const core = $('Output IA → JSON').item.json;\nconst svc = $json;  // salida de Resolve Service (single)\nconst tz = core.tenant_timezone || 'Europe/Madrid';\nif (!core.date || !core.time) {\n  return [{ json: { _incompleto: true, _reason: 'datetime', service_id: svc.service_id } }];\n}\nconst start = DateTime.fromISO(`${core.date}T${core.time}`, { zone: tz });\nif (!start.isValid) return [{ json: { _incompleto: true, _reason: 'datetime', service_id: svc.service_id } }];\nconst phone = (core.contact && core.contact.phone) ? core.contact.phone : null;\nconst name  = (core.contact && core.contact.name)  ? core.contact.name  : null;\nif (!phone && !name) {\n  return [{ json: { _incompleto: true, _reason: 'contact', service_id: svc.service_id } }];\n}\nreturn [{ json: {\n  service_id: svc.service_id,\n  start_at: start.toISO(),\n  contact_id: null,\n  phone, query: name,\n  source: 'ai',\n  idempotency_key: `${core.sessionID || core.canal || 'lucia'}-${start.toISO()}`,\n} }];"
+        "jsCode": "const core = $('Output IA → JSON').item.json;\nconst svc = $json;  // salida de Resolve Service (single)\nconst tz = core.tenant_timezone || 'Europe/Madrid';\nif (!core.date || !core.time) {\n  return [{ json: { _incompleto: true, _reason: 'datetime', service_id: svc.service_id } }];\n}\n// Si es EXACTAMENTE el hueco que acaba de fallar, no volvemos a llamar al Booking API:\n// el usuario quiere ver alternativas, no reintentar lo imposible.\nif (core.offered_alt_slots === true\n    && core.offered_alt_slots_date && core.offered_alt_slots_time\n    && core.date === core.offered_alt_slots_date\n    && core.time === core.offered_alt_slots_time) {\n  return [{ json: { _slot_ya_fallido: true, service_id: svc.service_id } }];\n}\nconst start = DateTime.fromISO(`${core.date}T${core.time}`, { zone: tz });\nif (!start.isValid) return [{ json: { _incompleto: true, _reason: 'datetime', service_id: svc.service_id } }];\nconst phone = (core.contact && core.contact.phone) ? core.contact.phone : null;\nconst name  = (core.contact && core.contact.name)  ? core.contact.name  : null;\nif (!phone && !name) {\n  return [{ json: { _incompleto: true, _reason: 'contact', service_id: svc.service_id } }];\n}\nreturn [{ json: {\n  service_id: svc.service_id,\n  start_at: start.toISO(),\n  contact_id: null,\n  phone, query: name,\n  source: 'ai',\n  idempotency_key: `${core.sessionID || core.canal || 'lucia'}-${start.toISO()}`,\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1076,7 +1079,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const r = $json ?? {};\nconst core = $('Output IA → JSON').item.json;\nif (r.ok === true) {\n  const a = r.data?.appointment || {};\n  const tz = $('Output IA → JSON').item.json.tenant_timezone || 'Europe/Madrid';\n  const cuando = a.start_at\n    ? DateTime.fromISO(a.start_at).setZone(tz).setLocale('es').toFormat(\"cccc d 'de' LLLL 'a las' HH:mm\")\n    : '';\n  return [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: false,\n    reply_to_user: (r.message && r.message.includes('idempotente'))\n      ? `Tu cita ya estaba reservada para el ${cuando}.`\n      : `Listo, cita confirmada para el ${cuando}.`,\n    appointment: a, last_appointment_id: a.id } }];\n}\nconst _errs = (r.data && Array.isArray(r.data.errors)) ? r.data.errors.join(' ') : (r.message || '');\nif (r.status === 'validation_error' && /contact_id|phone|email|query|identificar al contacto/i.test(_errs)) {\n  return [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: 'Para cerrar la cita necesito tu nombre y un teléfono de contacto. ¿Me los das?' } }];\n}\nif (r.status === 'slot_taken') {\n  return [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: 'Ese horario acaba de ocuparse. ¿Quieres que mire otros huecos de ese día?',\n    awaiting_slots_offer: true, alt_slots_date: core.date || null } }];\n}\nif (r.status === 'slot_conflict') {\n  return [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: 'Ese horario no está disponible ese día. ¿Quieres que te diga los huecos libres?',\n    awaiting_slots_offer: true, alt_slots_date: core.date || null } }];\n}\nreturn [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n  reply_to_user: r.message || 'No he podido crear la cita. ¿Lo intentamos de otra forma?' } }];"
+        "jsCode": "const r = $json ?? {};\nconst core = $('Output IA → JSON').item.json;\nif (r.ok === true) {\n  const a = r.data?.appointment || {};\n  const tz = $('Output IA → JSON').item.json.tenant_timezone || 'Europe/Madrid';\n  const cuando = a.start_at\n    ? DateTime.fromISO(a.start_at).setZone(tz).setLocale('es').toFormat(\"cccc d 'de' LLLL 'a las' HH:mm\")\n    : '';\n  return [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: false,\n    reply_to_user: (r.message && r.message.includes('idempotente'))\n      ? `Tu cita ya estaba reservada para el ${cuando}.`\n      : `Listo, cita confirmada para el ${cuando}.`,\n    appointment: a, last_appointment_id: a.id } }];\n}\nconst _errs = (r.data && Array.isArray(r.data.errors)) ? r.data.errors.join(' ') : (r.message || '');\nif (r.status === 'validation_error' && /contact_id|phone|email|query|identificar al contacto/i.test(_errs)) {\n  return [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: 'Para cerrar la cita necesito tu nombre y un teléfono de contacto. ¿Me los das?' } }];\n}\nif (r.status === 'slot_taken') {\n  return [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: 'Ese horario acaba de ocuparse. ¿Quieres que mire otros huecos de ese día?',\n    awaiting_slots_offer: true, alt_slots_date: core.date || null, alt_slots_time: core.time || null } }];\n}\nif (r.status === 'slot_conflict') {\n  return [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: 'Ese horario no está disponible ese día. ¿Quieres que te diga los huecos libres?',\n    awaiting_slots_offer: true, alt_slots_date: core.date || null, alt_slots_time: core.time || null } }];\n}\nreturn [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n  reply_to_user: r.message || 'No he podido crear la cita. ¿Lo intentamos de otra forma?' } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1742,7 +1745,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Estructura viene del outcome determinista; la prosa la pone el Redactor (si falla, borrador).\nconst s = $('Código · outcome').item.json ?? {};\nconst io = $('Output IA → JSON').item.json ?? {};\nconst prose = ($json && $json.output ? $json.output : '').toString().trim();\nconst ok = s.ok !== false;\nconst intent = (s.intent === undefined || s.intent === 'null') ? null : (s.intent ?? null);\nconst needs = s.needs_user_reply === true;\nconst flujo_activo = (!needs || !intent) ? null : intent;\nconst taskObj = (s.task && s.task.task) ? s.task.task : (s.task || null);\nconst contact_id = s.contact_id\n  ?? (s.appointment && s.appointment.contact_id)\n  ?? (taskObj && taskObj.contact_id)\n  ?? null;\nconst contact_phone = s.contact_phone\n  ?? (io.contact && io.contact.phone)\n  ?? null;\nconst pending_appointment_id = s.pending_appointment_id ?? null;\nconst last_appointment_id = s.last_appointment_id ?? null;\nconst awaiting_slots_offer = s.awaiting_slots_offer === true;\nconst alt_slots_date = s.alt_slots_date ?? null;\nconst result = s.appointment ?? taskObj ?? s.result ?? null;\nreturn [{ json: {\n  ok, intent,\n  reply_to_user: prose || s.reply_to_user || '',\n  needs_user_reply: needs, flujo_activo, contact_id, contact_phone, pending_appointment_id, last_appointment_id,\n  awaiting_slots_offer, alt_slots_date, result,\n} }];"
+        "jsCode": "// Estructura viene del outcome determinista; la prosa la pone el Redactor (si falla, borrador).\nconst s = $('Código · outcome').item.json ?? {};\nconst io = $('Output IA → JSON').item.json ?? {};\nconst prose = ($json && $json.output ? $json.output : '').toString().trim();\nconst ok = s.ok !== false;\nconst intent = (s.intent === undefined || s.intent === 'null') ? null : (s.intent ?? null);\nconst needs = s.needs_user_reply === true;\nconst flujo_activo = (!needs || !intent) ? null : intent;\nconst taskObj = (s.task && s.task.task) ? s.task.task : (s.task || null);\nconst contact_id = s.contact_id\n  ?? (s.appointment && s.appointment.contact_id)\n  ?? (taskObj && taskObj.contact_id)\n  ?? null;\nconst contact_phone = s.contact_phone\n  ?? (io.contact && io.contact.phone)\n  ?? null;\nconst pending_appointment_id = s.pending_appointment_id ?? null;\nconst last_appointment_id = s.last_appointment_id ?? null;\nconst awaiting_slots_offer = s.awaiting_slots_offer === true;\nconst alt_slots_date = s.alt_slots_date ?? null;\nconst alt_slots_time = s.alt_slots_time ?? null;\nconst result = s.appointment ?? taskObj ?? s.result ?? null;\nreturn [{ json: {\n  ok, intent,\n  reply_to_user: prose || s.reply_to_user || '',\n  needs_user_reply: needs, flujo_activo, contact_id, contact_phone, pending_appointment_id, last_appointment_id,\n  awaiting_slots_offer, alt_slots_date, alt_slots_time, result,\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1982,6 +1985,39 @@
       ],
       "id": "lucia-pai-use",
       "name": "Code · Usar cita localizada"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "sf",
+              "leftValue": "={{ $json._slot_ya_fallido }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2060,
+        120
+      ],
+      "id": "lucia-slot-fallido-if",
+      "name": "¿Repite hueco fallido?"
     }
   ],
   "connections": {
@@ -2257,7 +2293,7 @@
       "main": [
         [
           {
-            "node": "¿Hay fecha y hora?",
+            "node": "¿Repite hueco fallido?",
             "type": "main",
             "index": 0
           }
@@ -2663,6 +2699,24 @@
         [
           {
             "node": "¿Cita localizada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Repite hueco fallido?": {
+      "main": [
+        [
+          {
+            "node": "Call · APPOINTMENT_Availability",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Hay fecha y hora?",
             "type": "main",
             "index": 0
           }
