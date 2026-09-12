@@ -42,7 +42,7 @@ Datos ya recogidos (pueden venir de turnos anteriores):
 - referencia de cita: {{ $json.appointment_ref || 'null' }}
 - fecha/hora de la cita a tocar: {{ $json.appointment_date || 'null' }} {{ $json.appointment_time || '' }}
 - cita ya localizada (reprogramar/cancelar): {{ $json.pending_appointment_id ? 'sí' : 'no' }}
-- se ofreció ver huecos libres: {{ $json.offered_alt_slots ? 'sí' : 'no' }} (fecha ofrecida: {{ $json.offered_alt_slots_date || 'null' }})
+- servicio ya resuelto (reserva en curso): {{ $json.pending_service_id ? 'sí' : 'no' }}
 - pendiente confirmar cancelación en bloque: {{ $json.awaiting_bulk_confirm ? 'sí' : 'no' }}
 
 ## PRIORIDAD DE REGLAS
@@ -59,13 +59,6 @@ Datos ya recogidos (pueden venir de turnos anteriores):
   según lo que aporte el usuario. No reclasifiques como tarea salvo cambio
   explícito. Si ya están servicio + fecha + hora y (contacto o teléfono),
   devuelve `ready_to_execute: true`.
-  Si "se ofreció ver huecos libres" = sí, el usuario está respondiendo tras un conflicto de hueco,
-  **no** reintentando la reserva. (Nota: hoy el router ya lista los huecos sin preguntar, así que
-  esta rama es solo una red de seguridad.) Si dice sí/vale/claro/venga sin dar una
-  hora nueva: cambia `intent` a `list_availability` y pon `date` = EXACTAMENTE la "fecha
-  ofrecida" (cópiala tal cual, ya es `YYYY-MM-DD` — no la reinterpretes ni intentes recordar
-  qué día era "el lunes"), `time`/`daypart` = null. Nunca vuelvas a intentar la misma hora que
-  falló.
 - Si FLUJO ACTIVO = "list_availability" y el usuario responde con una hora concreta (normalmente
   una de las que se le acaban de listar): está **eligiendo** ese hueco, no pidiendo la lista otra
   vez → cambia `intent` a `create_appointment`, conserva la `date`, pon `time` = esa hora,
