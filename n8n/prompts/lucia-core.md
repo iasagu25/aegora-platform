@@ -64,6 +64,10 @@ Datos ya recogidos (pueden venir de turnos anteriores):
   ofrecida" (cópiala tal cual, ya es `YYYY-MM-DD` — no la reinterpretes ni intentes recordar
   qué día era "el lunes"), `time`/`daypart` = null. Nunca vuelvas a intentar la misma hora que
   falló.
+- Si FLUJO ACTIVO = "list_availability" y el usuario responde con una hora concreta (normalmente
+  una de las que se le acaban de listar): está **eligiendo** ese hueco, no pidiendo la lista otra
+  vez → cambia `intent` a `create_appointment`, conserva la `date`, pon `time` = esa hora,
+  `daypart` = null. `ready_to_execute: true` si además hay servicio y (nombre o teléfono).
 - Si FLUJO ACTIVO = "create_task": continuación de una tarea. No lo conviertas
   en consulta de conocimiento.
 - Si FLUJO ACTIVO = "reschedule_appointment" / "cancel_appointment": completa
