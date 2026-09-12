@@ -22,7 +22,8 @@ la capa de canal/entrada y el cerebro. **No se cambia sin actualizar Entry.**
 | `tool_forzada` | string\|null | reservado; V1 siempre `null` |
 | `no_reinterpretar_intencion` | bool | reservado; V1 siempre `false` |
 | `pending_appointment_id` | string\|null | cita ya localizada en un reschedule/cancel en curso. Entry la guarda en `state.pending_appointment_id` y la reinyecta mientras `flujo_activo` sea reschedule/cancel; el router la usa para NO volver a listar/desambiguar cada turno. |
-| `last_appointment_id` | string\|null | última cita creada/tocada en la sesión (NO caduca con el flujo). `Emparejar cita` la usa como referencia implícita ("mejor pasarla al jueves" tras reservar) solo cuando ningún otro filtro (día/hora/ordinal) descartó ninguna candidata — si el usuario dio cualquier pista real, esa pista manda. |
+| `last_appointment_id` | string\|null | última cita creada/tocada en la sesión (NO caduca con el flujo). `Emparejar cita` la usa como referencia implícita ("mejor pasarla al jueves" tras reservar) solo cuando ningún otro filtro (día/hora/ordinal) descartó ninguna candidata y el mensaje no es una petición en bloque ("todas"/"ambas"). |
+| `offered_alt_slots` | boolean | true si el turno anterior ofreció "¿quieres que te diga los huecos libres?" tras un slot_taken/slot_conflict. Se consume en un turno: un "sí" del usuario reencamina a `list_availability` para la misma fecha en vez de reintentar la hora que falló. |
 | `service_query`, `date`, `time`, `appointment_ref`, `appointment_date`, `appointment_time` | string\|null | **V1: Entry NO los envía.** La continuidad de slots la da `Postgres Chat Memory` + la regla CONTINUIDAD del prompt del Core. Se mantienen como inputs del trigger para paso explícito de slots en el futuro. |
 | `texto_usuario` | string\|null | alias legacy de `message`; el prompt usa `texto_usuario || message`. |
 
@@ -43,6 +44,7 @@ borrador con tono natural, sin tocar datos; `onError` → borrador) →
 | `contact_id` | string\|null | presente si un tool resolvió/creó contacto este turno; V1 **best-effort** |
 | `pending_appointment_id` | string\|null | cita localizada este turno en un reschedule/cancel; Entry la persiste mientras el flujo siga abierto y la limpia en cuanto `flujo_activo` vuelve a `null` |
 | `last_appointment_id` | string\|null | cita recién creada/reprogramada este turno; Entry la persiste sin caducar (se sobreescribe al tocar otra) |
+| `awaiting_slots_offer` | boolean | true solo en el turno del slot_taken/slot_conflict; Entry lo guarda y lo reinyecta UNA vez, luego se limpia solo (cada turno lo sobreescribe con su propio valor, no hay `_prev`) |
 | `contact_phone` | string\|null | teléfono que el Core extrajo del usuario este turno; Entry lo guarda en `state.contact_phone` y lo re-inyecta como `contact_phone` en turnos siguientes (así la identidad persiste entre intenciones) |
 | `result` | object\|null | payload estructurado opcional (`appointment` / `task`) para logging |
 
