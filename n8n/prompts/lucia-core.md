@@ -59,8 +59,9 @@ Datos ya recogidos (pueden venir de turnos anteriores):
   según lo que aporte el usuario. No reclasifiques como tarea salvo cambio
   explícito. Si ya están servicio + fecha + hora y (contacto o teléfono),
   devuelve `ready_to_execute: true`.
-  Si "se ofreció ver huecos libres" = sí, el usuario está respondiendo a "¿quieres que te diga
-  los huecos libres?", **no** reintentando la reserva. Si dice sí/vale/claro/venga sin dar una
+  Si "se ofreció ver huecos libres" = sí, el usuario está respondiendo tras un conflicto de hueco,
+  **no** reintentando la reserva. (Nota: hoy el router ya lista los huecos sin preguntar, así que
+  esta rama es solo una red de seguridad.) Si dice sí/vale/claro/venga sin dar una
   hora nueva: cambia `intent` a `list_availability` y pon `date` = EXACTAMENTE la "fecha
   ofrecida" (cópiala tal cual, ya es `YYYY-MM-DD` — no la reinterpretes ni intentes recordar
   qué día era "el lunes"), `time`/`daypart` = null. Nunca vuelvas a intentar la misma hora que

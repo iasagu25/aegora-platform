@@ -1089,7 +1089,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const r = $json ?? {};\nconst core = $('Output IA → JSON').item.json;\nif (r.ok === true) {\n  const a = r.data?.appointment || {};\n  const tz = $('Output IA → JSON').item.json.tenant_timezone || 'Europe/Madrid';\n  const cuando = a.start_at\n    ? DateTime.fromISO(a.start_at).setZone(tz).setLocale('es').toFormat(\"cccc d 'de' LLLL 'a las' HH:mm\")\n    : '';\n  return [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: false,\n    reply_to_user: (r.message && r.message.includes('idempotente'))\n      ? `Tu cita ya estaba reservada para el ${cuando}.`\n      : `Listo, cita confirmada para el ${cuando}.`,\n    appointment: a, last_appointment_id: a.id } }];\n}\nconst _errs = (r.data && Array.isArray(r.data.errors)) ? r.data.errors.join(' ') : (r.message || '');\nif (r.status === 'validation_error' && /contact_id|phone|email|query|identificar al contacto/i.test(_errs)) {\n  return [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: 'Para cerrar la cita necesito tu nombre y un teléfono de contacto. ¿Me los das?' } }];\n}\nif (r.status === 'slot_taken') {\n  return [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: 'Ese horario acaba de ocuparse. ¿Quieres que mire otros huecos de ese día?',\n    awaiting_slots_offer: true, alt_slots_date: core.date || null, alt_slots_time: core.time || null } }];\n}\nif (r.status === 'slot_conflict') {\n  return [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: 'Ese horario no está disponible ese día. ¿Quieres que te diga los huecos libres?',\n    awaiting_slots_offer: true, alt_slots_date: core.date || null, alt_slots_time: core.time || null } }];\n}\nreturn [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n  reply_to_user: r.message || 'No he podido crear la cita. ¿Lo intentamos de otra forma?' } }];"
+        "jsCode": "const r = $json ?? {};\nconst core = $('Output IA → JSON').item.json;\nif (r.ok === true) {\n  const a = r.data?.appointment || {};\n  const tz = $('Output IA → JSON').item.json.tenant_timezone || 'Europe/Madrid';\n  const cuando = a.start_at\n    ? DateTime.fromISO(a.start_at).setZone(tz).setLocale('es').toFormat(\"cccc d 'de' LLLL 'a las' HH:mm\")\n    : '';\n  return [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: false,\n    reply_to_user: (r.message && r.message.includes('idempotente'))\n      ? `Tu cita ya estaba reservada para el ${cuando}.`\n      : `Listo, cita confirmada para el ${cuando}.`,\n    appointment: a, last_appointment_id: a.id } }];\n}\nconst _errs = (r.data && Array.isArray(r.data.errors)) ? r.data.errors.join(' ') : (r.message || '');\nif (r.status === 'validation_error' && /contact_id|phone|email|query|identificar al contacto/i.test(_errs)) {\n  return [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: 'Para cerrar la cita necesito tu nombre y un teléfono de contacto. ¿Me los das?' } }];\n}\nif (r.status === 'slot_taken' || r.status === 'slot_conflict') {\n  // No preguntamos \"¿quieres ver los huecos?\": los enseñamos directamente (lo hace el nodo\n  // de disponibilidad aguas abajo). Esto es solo el marcador + texto de reserva por si falla.\n  return [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n    _needs_slots: true,\n    _conflict_kind: r.status === 'slot_taken' ? 'taken' : 'closed',\n    service_id: $('Construir start_at').item.json.service_id || null,\n    date: core.date || null, time: core.time || null,\n    reply_to_user: r.status === 'slot_taken'\n      ? 'Ese horario acaba de ocuparse.'\n      : 'Ese horario no está disponible ese día.',\n    awaiting_slots_offer: true, alt_slots_date: core.date || null, alt_slots_time: core.time || null } }];\n}\nreturn [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n  reply_to_user: r.message || 'No he podido crear la cita. ¿Lo intentamos de otra forma?' } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2385,6 +2385,155 @@
       ],
       "id": "lucia-bulk-done",
       "name": "Salida · cancelar bloque"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "ns",
+              "leftValue": "={{ $json._needs_slots }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2720,
+        -40
+      ],
+      "id": "lucia-conf-needslots",
+      "name": "¿Listar huecos del día?"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraApptAvailabilityV1",
+          "mode": "list",
+          "cachedResultName": "APPOINTMENT Availability"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "service_id": "={{ $json.service_id }}",
+            "date": "={{ $json.date }}",
+            "timezone": "={{ $('Output IA → JSON').item.json.tenant_timezone }}",
+            "booking_base_url": "={{ $('Output IA → JSON').item.json.booking_base_url }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "service_id",
+              "displayName": "service_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "location_id",
+              "displayName": "location_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "resource_id",
+              "displayName": "resource_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "timezone",
+              "displayName": "timezone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "exclude_appointment_id",
+              "displayName": "exclude_appointment_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "booking_base_url",
+              "displayName": "booking_base_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        2940,
+        -100
+      ],
+      "id": "lucia-conf-avail",
+      "name": "Call · Availability (conflicto)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const av = $json ?? {};\nconst c = $('Salida · reserva').item.json;\nconst core = $('Output IA → JSON').item.json;\nconst tz = core.tenant_timezone || 'Europe/Madrid';\nconst slots = Array.isArray(av.slots) ? av.slots : [];\nconst flags = { awaiting_slots_offer: true, alt_slots_date: c.alt_slots_date, alt_slots_time: c.alt_slots_time };\nconst fecha = av.date\n  ? DateTime.fromISO(av.date).setZone(tz).setLocale('es').toFormat(\"cccc d 'de' LLLL\")\n  : 'ese día';\nconst hora = c.time || 'esa hora';\n\nif (!slots.length) {\n  return [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: `A las ${hora} no puedo, y el ${fecha} no me queda ningún hueco libre. ¿Miramos otro día?`,\n    ...flags } }];\n}\n\nconst hhmm = s => DateTime.fromISO(s).setZone(tz).toFormat('HH:mm');\nconst lista = slots.map(s => hhmm(s.start_at)).join(', ');\nconst primera = hhmm(slots[0].start_at);\nconst ultima = hhmm(slots[slots.length - 1].end_at);\n// Comparación lexicográfica de 'HH:mm' -- válida por el formato de ancho fijo\nconst dentroDeHorario = c.time ? (c.time >= primera && c.time <= ultima) : true;\n\nlet cabecera;\nif (c._conflict_kind === 'taken') cabecera = `Las ${hora} ya están cogidas.`;\nelse if (dentroDeHorario) cabecera = `A las ${hora} no me queda hueco.`;\nelse cabecera = `A las ${hora} no atiendo ese día.`;\n\nreturn [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n  reply_to_user: `${cabecera} El ${fecha} tengo libre: ${lista}. ¿Cuál te viene mejor, o prefieres otro día?`,\n  ...flags } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3160,
+        -100
+      ],
+      "id": "lucia-conf-slots",
+      "name": "Salida · huecos tras conflicto"
     }
   ],
   "connections": {
@@ -2875,7 +3024,7 @@
       "main": [
         [
           {
-            "node": "Código · outcome",
+            "node": "¿Listar huecos del día?",
             "type": "main",
             "index": 0
           }
@@ -3200,6 +3349,46 @@
       ]
     },
     "Salida · confirmar bloque": {
+      "main": [
+        [
+          {
+            "node": "Código · outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Listar huecos del día?": {
+      "main": [
+        [
+          {
+            "node": "Call · Availability (conflicto)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Código · outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call · Availability (conflicto)": {
+      "main": [
+        [
+          {
+            "node": "Salida · huecos tras conflicto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salida · huecos tras conflicto": {
       "main": [
         [
           {
