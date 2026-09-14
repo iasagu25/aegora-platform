@@ -211,29 +211,57 @@ Todas las ramas producen un **borrador determinista**; `Código · outcome` →
 paraphrasear "cita confirmada" → "cita pendiente" es inaceptable. También se salta
 cuando se cita el horario literal de la KB.
 
-#### UX conversacional resuelta
+#### UX conversacional — validado en `demo` por webchat (14/sep/2026)
+Todo lo de abajo está probado conversando, no solo cableado:
 - Franjas con convención española (`tarde` desde las 14:00, no mediodía);
   el Core emite `daypart` y n8n filtra los slots.
 - Un conflicto de hueco **lista los huecos libres de inmediato**, sin preguntar
-  "¿quieres que te los diga?" (tanto al reservar como al reprogramar), y si la
-  hora pedida cae fuera de servicio cita el horario **literal** de la colección
-  `knowledge` (nunca interpretado: `availability_rules` es por recurso y no sirve
-  para afirmar el horario del negocio).
-- Reprogramar sabe listar disponibilidad del servicio de la cita, excluyéndose a
-  sí misma.
-- Cancelación en bloque con confirmación explícita; reprogramar en bloque no
-  (cada cita necesita su hueco).
+  "¿quieres que te los diga?" (al reservar y al reprogramar). Si la hora pedida
+  cae fuera de servicio, cita el horario **literal** de la colección `knowledge`
+  (nunca interpretado: `availability_rules` es por recurso y no sirve para
+  afirmar el horario del negocio; esos mensajes saltan el Redactor).
+- Reprogramar lista disponibilidad del servicio de la cita, excluyéndose a sí
+  misma (su hora actual aparece libre si se mueve dentro del mismo día).
+- Elegir una hora de una lista reserva/reprograma; no vuelve a listar.
+- Reserva sin declarar servicio: si el tenant tiene uno solo, se usa; si tiene
+  varios, se listan por nombre ("¿Para cuál de estos servicios? …"). Nunca se
+  pregunta por datos ya dados.
+- Referencias implícitas: "mejor pásala al jueves" tras reservar se refiere a esa
+  cita, sin listar nada (`last_appointment_id`).
+- Desambiguación por día, hora, ordinal o número, contra **la lista que se
+  mostró** (`shown_appointment_ids`), no contra todas las citas del contacto.
+- Cancelación en bloque: plural detectado ("cancela **las** del martes",
+  "todas mis citas"), propuesta explícita del conjunto y confirmación;
+  un "no" no toca nada. Reprogramar en bloque no se soporta a propósito
+  (cada cita necesita su propio hueco).
+- Nombrar un día sin citas es un error explícito ("No tienes ninguna cita el
+  martes"), nunca un filtro que se ignora — eso llegó a cancelar otra cita.
 - Intención `my_appointments` ("¿cuándo es mi próxima cita?").
 
+**Lección de la sesión de depuración** (vale para cualquier rama nueva): casi
+todos los bugs fueron de dos tipos, y conviene revisarlos antes de dar algo por
+bueno:
+1. Un hecho que solo conoce la capa determinista no llega a la memoria del LLM
+   → hay que persistirlo en `state` (tabla de arriba).
+2. Un filtro "tolerante" (`if (hayResultados) aplica`) que ante 0 coincidencias
+   se ignora en silencio y deja actuar sobre lo que no era.
+
 - Pendiente omnicanal / cerebro:
-  - **Personalizar con el nombre del contacto** (no prioritario): cuando el
-    contacto ya está resuelto, tutearle por su nombre — "Paco, a las 8:00 no
-    atendemos ese día…", "Listo Paco, cita confirmada para…". Hoy el nombre se
-    resuelve en los tools pero no vuelve al texto de las `Salida ·`.
+  - **WhatsApp (siguiente)**: número ya dado de alta en Meta → WABA Cloud API.
+    Hace falta `WHATSAPP-Adapter.json` (verificación del webhook con
+    `hub.challenge`, firma `X-Hub-Signature-256`, normalización del payload de
+    Meta al contrato de Entry, `sendText` de vuelta) + credenciales del tenant.
+    **Entry y Core no se tocan**: ese es justo el motivo del split.
+    Pendiente de decidir: multi-tenant vía Embedded Signup (cada negocio conecta
+    su número bajo su Meta Business y su billing) vs. un WABA propio por ahora.
+  - **Personalizar con el nombre del contacto** (no prioritario): "Paco, a las
+    8:00 no atendemos ese día…". El nombre lo resuelven los tools pero no vuelve
+    al texto de las `Salida ·` — mismo patrón: tendría que viajar en el outcome.
   - `SESSION · Cleanup`: conceder `delete` en `conversation_sessions` a la policy
     n8n `c42ccf84` (SQL) y activarlo.
   - Probar el widget en navegador contra el host público del n8n de `demo`.
-  - Parametrizar `http://demo-directus:8055` hardcodeado en los workflows `00-25`.
+  - Parametrizar `http://demo-directus:8055` hardcodeado en los workflows `00-25`
+    (bloqueante real para un segundo tenant).
   - Aplicar `base.yaml` + `booking-indexes.sql` en `aegora-internal`, y montar
     allí credenciales n8n + workflows.
   - Migrar build A → imagen en GHCR (CI en `aegora-booking`).
