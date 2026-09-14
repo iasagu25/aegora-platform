@@ -333,7 +333,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const e = $json ?? {};\nconst cfg = $('Config (editar por tenant)').item.json;\nconst norm = $('Code · Clasificar y normalizar').item.json;\nconst texto = (e.reply || '').toString().trim();\n// Duplicado detectado por Entry, o nada que decir: no se envía nada a Meta.\nif (!texto) return [];\nreturn [{ json: {\n  _url: `https://graph.facebook.com/${cfg.graph_version || 'v21.0'}/${cfg.phone_number_id}/messages`,\n  _body: { messaging_product: 'whatsapp', recipient_type: 'individual',\n           to: norm.from, type: 'text', text: { preview_url: false, body: texto } },\n} }];"
+        "jsCode": "const e = $json ?? {};\nconst cfg = $('Config (editar por tenant)').item.json;\nconst norm = $('Code · Clasificar y normalizar').item.json;\nconst base_url = `https://graph.facebook.com/${cfg.graph_version || 'v21.0'}/${cfg.phone_number_id}/messages`;\nconst items = [];\n\n// Aviso de privacidad como botón CTA-URL: WhatsApp no permite enlaces con texto\n// personalizado en un mensaje de texto normal, así que va como mensaje interactivo\n// aparte (tocar el botón solo abre la URL, no genera respuesta que haya que procesar).\n// Límite real de WhatsApp: display_text del botón <= 20 caracteres.\nif (e.privacy_prompt && e.privacy_prompt.url) {\n  items.push({ json: {\n    _url: base_url,\n    _body: {\n      messaging_product: 'whatsapp', recipient_type: 'individual', to: norm.from,\n      type: 'interactive',\n      interactive: {\n        type: 'cta_url',\n        body: { text: (e.privacy_prompt.intro || '').slice(0, 1024) },\n        action: {\n          name: 'cta_url',\n          parameters: {\n            display_text: (e.privacy_prompt.label || 'Ver política').slice(0, 20),\n            url: e.privacy_prompt.url,\n          },\n        },\n      },\n    },\n  } });\n}\n\n// El resto de la respuesta (si lo hay) va como texto normal, sin repetir el aviso.\nconst texto = (e.core_reply ?? e.reply ?? '').toString().trim();\nif (texto) {\n  items.push({ json: {\n    _url: base_url,\n    _body: { messaging_product: 'whatsapp', recipient_type: 'individual', to: norm.from,\n             type: 'text', text: { preview_url: false, body: texto } },\n  } });\n}\n\nreturn items;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -379,7 +379,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 300 || body.error) {\n  throw new Error('WhatsApp sendText devolvió ' + code + ': ' + JSON.stringify(body.error || body));\n}\nreturn [{ json: { enviado: true, wamid: body?.messages?.[0]?.id || null } }];"
+        "jsCode": "// Puede haber 1 o 2 respuestas (botón de privacidad + texto): se comprueban todas,\n// no solo la primera, para no perder un fallo en el segundo envío.\nconst items = $input.all();\nreturn items.map(item => {\n  const r = item.json ?? {};\n  const code = r.statusCode ?? 0;\n  const body = (r.body ?? r) || {};\n  if (code >= 300 || body.error) {\n    throw new Error('WhatsApp send devolvió ' + code + ': ' + JSON.stringify(body.error || body));\n  }\n  return { json: { enviado: true, wamid: (body.messages && body.messages[0] && body.messages[0].id) || null } };\n});"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

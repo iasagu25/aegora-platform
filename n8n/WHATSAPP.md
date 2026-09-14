@@ -53,6 +53,25 @@
   teléfono identifica al contacto desde el primer mensaje (a diferencia del
   webchat, que empieza anónimo).
 
+## Aviso de privacidad — botón CTA-URL
+
+El primer mensaje de cada sesión lleva el aviso de privacidad que ya compone Entry
+(`n8n/CONTRACT-lucia-core.md` no aplica aquí, es interno de Entry). En WhatsApp se
+manda como un **mensaje interactivo `cta_url`** separado del texto normal, con un
+botón que abre la política de privacidad — no como un enlace en el propio texto:
+WhatsApp no soporta enlaces con texto personalizado en mensajes de texto normales.
+
+Consecuencia: cuando `privacy_prompt` viene relleno, `WHATSAPP · Adapter` manda **dos**
+mensajes seguidos (botón, luego la respuesta real si la hay) en vez de uno. Tocar el
+botón solo abre el navegador — no genera ninguna respuesta que el adapter tenga que
+interpretar, a diferencia de los botones de respuesta rápida (tipo "Sí"/"No"), que sí
+necesitarían manejar un mensaje entrante nuevo.
+
+**Límite real de WhatsApp**: el texto del botón (`display_text`) no puede pasar de
+**20 caracteres**. "Política de Privacidad" no cabe (22); se usa por defecto
+`Ver política` (12), editable en el nodo `Config` de `AGENT-Lucia-Entry`
+(`privacy_button_label`).
+
 ## Pendiente
 
 - **Multi-tenant**: hoy el `phone_number_id` y el token son del tenant en el
