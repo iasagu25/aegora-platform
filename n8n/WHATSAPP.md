@@ -1,0 +1,60 @@
+# WhatsApp — `WHATSAPP-Adapter.json`
+
+`WhatsApp Cloud API (WABA) → WHATSAPP · Adapter → AGENT · Lucía · Entry → Core`.
+**Entry y Core no se tocan**: el adapter traduce entre Meta y el contrato de Entry.
+
+## Alta en Meta (por tenant)
+
+1. **System User token permanente**: business.facebook.com → Configuración del
+   negocio → Usuarios → Usuarios del sistema. Asignar como activos **la App**
+   (rol *Administrar aplicación*) **y el WABA** (control total) — hacen falta
+   las dos. Generar token con caducidad *Nunca* y permisos
+   `whatsapp_business_messaging` + `whatsapp_business_management`.
+2. Guardar en `/opt/aegora/tenants/<tenant>/secrets/whatsapp.env` (root, 600):
+   `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_WABA_ID`,
+   `WHATSAPP_VERIFY_TOKEN` (te lo inventas: `openssl rand -hex 16`),
+   `WHATSAPP_APP_SECRET` (App → Configuración → Básica).
+3. **Webhook** en la App → WhatsApp → Configuración:
+   - URL: `https://${WEBHOOK_HOST}/webhook/whatsapp`
+   - Verify token: el `WHATSAPP_VERIFY_TOKEN`
+   - Suscribirse al campo **`messages`**.
+
+## En n8n (por tenant)
+
+- Credencial **Header Auth** `WhatsApp · demo`:
+  `Authorization: Bearer <WHATSAPP_TOKEN>`.
+- Nodo `Config (editar por tenant)`: `phone_number_id`, `verify_token`,
+  `app_secret`, `graph_version`, `tenant`, `require_signature`.
+  Los `REPLACE_*` del JSON son placeholders a propósito — esos valores **no van
+  a Git**.
+- Activar el workflow (el webhook de producción solo responde activo).
+
+## Cómo funciona
+
+- **GET** de verificación: compara `hub.verify_token` y devuelve `hub.challenge`
+  en texto plano.
+- **POST**: responde **200 de inmediato** y sigue procesando. Meta reintrega si
+  tardas, y la cadena Core+tools puede pasar de 10 s.
+- **Firma** `X-Hub-Signature-256`: HMAC-SHA256 del cuerpo **crudo** con el App
+  Secret. El nodo Webhook va con `rawBody: true`. Empieza con
+  `require_signature: false` y mira en el log de la ejecución la línea
+  `[whatsapp] firma=...`; cuando diga `valida`, **ponlo a true**.
+- **Duplicados**: el `wamid` viaja como `client_message_id` hasta Entry, que lo
+  guarda en `conversation_sessions.state.last_client_message_id` y descarta la
+  reentrega sin llamar al Core ni responder.
+- **Statuses** (`sent`/`delivered`/`read`) llegan al mismo webhook y se ignoran.
+- **No-texto** (audio, imagen): responde que de momento solo lee texto.
+- `session_key` = `whatsapp:<E.164 sin +>`, así que el hilo es por número y el
+  teléfono identifica al contacto desde el primer mensaje (a diferencia del
+  webchat, que empieza anónimo).
+
+## Pendiente
+
+- **Multi-tenant**: hoy el `phone_number_id` y el token son del tenant en el
+  nodo Config. Con varios WABA habrá que resolver el tenant a partir del
+  `phone_number_id` que viene en `value.metadata`, y guardar esas credenciales
+  por tenant en Directus (Embedded Signup).
+- **Debounce**: en WhatsApp la gente manda 3 mensajes cortos seguidos; hoy cada
+  uno dispara un turno. Habría que esperar ~2-3 s y concatenar.
+- **Plantillas**: para escribir fuera de la ventana de 24 h (recordatorios de
+  cita) hacen falta plantillas aprobadas por Meta.

@@ -1,0 +1,539 @@
+{
+  "id": "aegoraWhatsappAdapter",
+  "name": "WHATSAPP · Adapter",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp",
+        "responseMode": "responseNode",
+        "multipleMethods": true,
+        "httpMethods": [
+          "GET",
+          "POST"
+        ],
+        "options": {
+          "rawBody": true
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "wa-0001",
+      "name": "Webhook · WhatsApp",
+      "webhookId": "aegora-whatsapp-demo"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "w1",
+              "name": "phone_number_id",
+              "type": "string",
+              "value": "REPLACE_PHONE_NUMBER_ID"
+            },
+            {
+              "id": "w2",
+              "name": "verify_token",
+              "type": "string",
+              "value": "REPLACE_VERIFY_TOKEN"
+            },
+            {
+              "id": "w3",
+              "name": "app_secret",
+              "type": "string",
+              "value": "REPLACE_APP_SECRET"
+            },
+            {
+              "id": "w4",
+              "name": "graph_version",
+              "type": "string",
+              "value": "v21.0"
+            },
+            {
+              "id": "w5",
+              "name": "tenant",
+              "type": "string",
+              "value": "demo"
+            },
+            {
+              "id": "w6",
+              "name": "require_signature",
+              "type": "boolean",
+              "value": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "id": "wa-0002",
+      "name": "Config (editar por tenant)",
+      "notes": "Valores por tenant. require_signature: ponlo a true en cuanto confirmes en el log que la firma valida."
+    },
+    {
+      "parameters": {
+        "jsCode": "const hook = $('Webhook · WhatsApp').item.json;\nconst cfg = $json;\nconst q = hook.query || {};\nconst headers = hook.headers || {};\n\n// --- 1) Verificación del webhook (GET de Meta) ---\nif (q['hub.mode'] || q['hub.challenge']) {\n  const ok = q['hub.verify_token'] === cfg.verify_token;\n  return [{ json: { tipo: ok ? 'verificacion' : 'ignorar',\n    challenge: ok ? String(q['hub.challenge'] ?? '') : '',\n    motivo: ok ? null : 'verify_token no coincide' } }];\n}\n\n// --- 2) Cuerpo: con rawBody llega como string; si no, ya viene parseado ---\nlet raw = null, body = null;\nif (typeof hook.body === 'string') { raw = hook.body; try { body = JSON.parse(raw); } catch (e) { body = null; } }\nelse { body = hook.body || null; }\nif (!body) return [{ json: { tipo: 'ignorar', motivo: 'cuerpo no parseable' } }];\n\n// --- 3) Firma X-Hub-Signature-256 (solo comprobable con el cuerpo crudo) ---\nlet firma = 'no_comprobada';\nconst sigHeader = headers['x-hub-signature-256'] || headers['X-Hub-Signature-256'] || '';\nif (raw && cfg.app_secret && !String(cfg.app_secret).startsWith('REPLACE_')) {\n  const crypto = require('crypto');\n  const esperado = 'sha256=' + crypto.createHmac('sha256', cfg.app_secret).update(raw, 'utf8').digest('hex');\n  firma = (sigHeader && sigHeader === esperado) ? 'valida' : 'invalida';\n}\nconsole.log('[whatsapp] firma=' + firma + ' (raw=' + (raw ? 'si' : 'no') + ')');\nif (cfg.require_signature === true && firma !== 'valida') {\n  return [{ json: { tipo: 'ignorar', motivo: 'firma ' + firma } }];\n}\n\n// --- 4) Normalizar el payload de Meta ---\nconst value = body?.entry?.[0]?.changes?.[0]?.value || {};\nconst msg = value?.messages?.[0];\n// Los avisos de estado (sent/delivered/read) llegan al mismo webhook: se ignoran.\nif (!msg) return [{ json: { tipo: 'ignorar', motivo: value.statuses ? 'status' : 'sin mensajes' } }];\n\nconst pnid = value?.metadata?.phone_number_id || null;\nif (pnid && cfg.phone_number_id && !String(cfg.phone_number_id).startsWith('REPLACE_')\n    && pnid !== cfg.phone_number_id) {\n  return [{ json: { tipo: 'ignorar', motivo: 'phone_number_id ajeno: ' + pnid } }];\n}\n\nconst from = msg.from || null;                       // E.164 sin '+'\nconst perfil = value?.contacts?.[0]?.profile?.name || null;\nconst texto = msg.type === 'text' ? (msg.text?.body || '') : '';\n\nreturn [{ json: {\n  tipo: msg.type === 'text' ? 'mensaje' : 'no_texto',\n  wamid: msg.id || null,\n  from,\n  entry: {\n    canal: 'whatsapp',\n    session_key: 'whatsapp:' + from,\n    message: texto,\n    from: { phone: from ? '+' + from : null, name: perfil },\n    tenant: cfg.tenant || 'demo',\n    reply_to: { phone_number_id: cfg.phone_number_id },\n    client_message_id: msg.id || null,\n  },\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "id": "wa-0003",
+      "name": "Code · Clasificar y normalizar"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "v",
+                    "leftValue": "={{ $json.tipo }}",
+                    "rightValue": "verificacion",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "verificacion"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "m",
+                    "leftValue": "={{ $json.tipo }}",
+                    "rightValue": "mensaje",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "mensaje"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "nt",
+                    "leftValue": "={{ $json.tipo }}",
+                    "rightValue": "no_texto",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "no_texto"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "ignorar"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        660,
+        0
+      ],
+      "id": "wa-0004",
+      "name": "Switch · tipo"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.challenge }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        900,
+        -220
+      ],
+      "id": "wa-0005",
+      "name": "Responder challenge"
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        900,
+        320
+      ],
+      "id": "wa-0006",
+      "name": "Responder 200 (ignorar)"
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        900,
+        -40
+      ],
+      "id": "wa-0007",
+      "name": "Responder 200 (recibido)"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraAgentLuciaEntry",
+          "mode": "list",
+          "cachedResultName": "AGENT · Lucía · Entry"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "canal": "={{ $json.entry.canal }}",
+            "session_key": "={{ $json.entry.session_key }}",
+            "message": "={{ $json.entry.message }}",
+            "from": "={{ $json.entry.from }}",
+            "tenant": "={{ $json.entry.tenant }}",
+            "reply_to": "={{ $json.entry.reply_to }}",
+            "client_message_id": "={{ $json.entry.client_message_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "canal",
+              "displayName": "canal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "session_key",
+              "displayName": "session_key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "from",
+              "displayName": "from",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object",
+              "removed": false
+            },
+            {
+              "id": "tenant",
+              "displayName": "tenant",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "reply_to",
+              "displayName": "reply_to",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object",
+              "removed": false
+            },
+            {
+              "id": "client_message_id",
+              "displayName": "client_message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1120,
+        -40
+      ],
+      "id": "wa-0008",
+      "name": "Execute · AGENT-Lucia-Entry"
+    },
+    {
+      "parameters": {
+        "jsCode": "const e = $json ?? {};\nconst cfg = $('Config (editar por tenant)').item.json;\nconst norm = $('Code · Clasificar y normalizar').item.json;\nconst texto = (e.reply || '').toString().trim();\n// Duplicado detectado por Entry, o nada que decir: no se envía nada a Meta.\nif (!texto) return [];\nreturn [{ json: {\n  _url: `https://graph.facebook.com/${cfg.graph_version || 'v21.0'}/${cfg.phone_number_id}/messages`,\n  _body: { messaging_product: 'whatsapp', recipient_type: 'individual',\n           to: norm.from, type: 'text', text: { preview_url: false, body: texto } },\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        -40
+      ],
+      "id": "wa-0009",
+      "name": "Code · Preparar envío"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json._url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json._body) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1560,
+        -40
+      ],
+      "id": "wa-0010",
+      "name": "HTTP · WhatsApp sendText",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WHATSAPP_CRED",
+          "name": "WhatsApp · demo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 300 || body.error) {\n  throw new Error('WhatsApp sendText devolvió ' + code + ': ' + JSON.stringify(body.error || body));\n}\nreturn [{ json: { enviado: true, wamid: body?.messages?.[0]?.id || null } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1780,
+        -40
+      ],
+      "id": "wa-0011",
+      "name": "Code · Verificar envío"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Config (editar por tenant)').item.json;\nconst norm = $json ?? {};\nreturn [{ json: {\n  _url: `https://graph.facebook.com/${cfg.graph_version || 'v21.0'}/${cfg.phone_number_id}/messages`,\n  _body: { messaging_product: 'whatsapp', recipient_type: 'individual',\n           to: norm.from, type: 'text',\n           text: { preview_url: false,\n                   body: 'De momento solo puedo leer mensajes de texto. ¿Me lo escribes?' } },\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        160
+      ],
+      "id": "wa-0012",
+      "name": "Code · Solo texto"
+    }
+  ],
+  "connections": {
+    "Webhook · WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "Code · Clasificar y normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Clasificar y normalizar": {
+      "main": [
+        [
+          {
+            "node": "Switch · tipo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch · tipo": {
+      "main": [
+        [
+          {
+            "node": "Responder challenge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 200 (recibido)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Solo texto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 200 (ignorar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder 200 (recibido)": {
+      "main": [
+        [
+          {
+            "node": "Execute · AGENT-Lucia-Entry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · AGENT-Lucia-Entry": {
+      "main": [
+        [
+          {
+            "node": "Code · Preparar envío",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Preparar envío": {
+      "main": [
+        [
+          {
+            "node": "HTTP · WhatsApp sendText",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · WhatsApp sendText": {
+      "main": [
+        [
+          {
+            "node": "Code · Verificar envío",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Solo texto": {
+      "main": [
+        [
+          {
+            "node": "HTTP · WhatsApp sendText",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  }
+}

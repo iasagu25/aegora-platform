@@ -13,7 +13,9 @@ N8N_PORT=5678
 N8N_PROTOCOL=https
 
 N8N_EDITOR_BASE_URL=https://${N8N_HOST}
-N8N_WEBHOOK_URL=https://${N8N_HOST}/
+# La variable de n8n es WEBHOOK_URL (N8N_WEBHOOK_URL no existe y se ignoraba).
+# Apunta al hostname neutro de canales, que es el que se da a WhatsApp/Meta.
+WEBHOOK_URL=https://${WEBHOOK_HOST}/
 
 N8N_PROXY_HOPS=1
 
