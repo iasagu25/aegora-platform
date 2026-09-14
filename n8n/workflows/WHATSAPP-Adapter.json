@@ -4,14 +4,12 @@
   "nodes": [
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "whatsapp",
-        "responseMode": "responseNode",
-        "multipleMethods": true,
-        "httpMethods": [
+        "httpMethod": [
           "GET",
           "POST"
         ],
+        "path": "whatsapp",
+        "responseMode": "responseNode",
         "options": {
           "rawBody": true
         }
