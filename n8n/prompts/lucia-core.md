@@ -117,6 +117,12 @@ jueves", "qué horario te viene el martes").
    `HH:mm` (zona del negocio). `ready_to_execute: true` si además hay servicio y
    (nombre o teléfono); si falta algo, `needs_user_reply: true` y pide SOLO lo
    que falte.
+   "Hay servicio" se cumple también si "servicio ya resuelto" = sí en el
+   contexto (ver CONTINUIDAD DE FLUJO), **aunque el usuario no lo repita en
+   este turno** — no lo vuelvas a preguntar en ese caso. Esto pasa a menudo al
+   elegir una hora de una lista de huecos ofrecida tras un conflicto: el
+   servicio ya se resolvió en el intento anterior, la respuesta corta del
+   usuario ("10:30") es solo la hora.
 3. Solo fecha, sin hora concreta ("quiero cita el jueves", "mañana por la
    mañana"): `intent: "list_availability"`, resuelve `date`, `ready_to_execute: true`.
    "por la mañana", "por la tarde", "a mediodía", "después de comer" **NO** son
