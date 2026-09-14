@@ -79,9 +79,15 @@
             },
             {
               "id": "e6",
-              "name": "privacy_notice",
+              "name": "tenant_display_name",
               "type": "string",
-              "value": "Antes de seguir: al escribirme aceptas nuestra política de privacidad (https://aegora.es/legal/demo-privacidad). Guardamos tu nombre y teléfono solo para gestionar tu cita."
+              "value": "Aegora Demo"
+            },
+            {
+              "id": "e7",
+              "name": "privacy_policy_url",
+              "type": "string",
+              "value": "https://aegora.es/legal/demo-privacidad"
             }
           ]
         },
@@ -99,7 +105,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const t = $('When Executed by Another Workflow').item.json;\nconst cfg = $json;\nconst clean = v => (v === undefined || v === null) ? null : (String(v).trim() || null);\nconst parseObj = v => { if (!v) return {}; if (typeof v === 'string') { try { return JSON.parse(v); } catch (e) { return {}; } } return v; };\nconst session_key = clean(t.session_key);\nconst message = clean(t.message);\nif (!session_key) throw new Error('Entry: falta session_key');\nif (!message) throw new Error('Entry: falta message');\nconst canal = clean(t.canal) || (session_key.includes(':') ? session_key.split(':')[0] : 'webchat');\nconst from = parseObj(t.from);\nreturn [{ json: {\n  session_key, message, canal,\n  tenant: clean(t.tenant) || 'demo',\n  from_phone: clean(from.phone), from_name: clean(from.name),\n  reply_to: parseObj(t.reply_to),\n  client_message_id: clean(t.client_message_id),\n  booking_base_url: cfg.booking_base_url, directus_base_url: cfg.directus_base_url,\n  tenant_timezone: cfg.tenant_timezone,\n  rl_window_ms: cfg.rl_window_ms, rl_max: cfg.rl_max,\n  privacy_notice: cfg.privacy_notice,\n} }];"
+        "jsCode": "const t = $('When Executed by Another Workflow').item.json;\nconst cfg = $json;\nconst clean = v => (v === undefined || v === null) ? null : (String(v).trim() || null);\nconst parseObj = v => { if (!v) return {}; if (typeof v === 'string') { try { return JSON.parse(v); } catch (e) { return {}; } } return v; };\nconst session_key = clean(t.session_key);\nconst message = clean(t.message);\nif (!session_key) throw new Error('Entry: falta session_key');\nif (!message) throw new Error('Entry: falta message');\nconst canal = clean(t.canal) || (session_key.includes(':') ? session_key.split(':')[0] : 'webchat');\nconst from = parseObj(t.from);\nreturn [{ json: {\n  session_key, message, canal,\n  tenant: clean(t.tenant) || 'demo',\n  from_phone: clean(from.phone), from_name: clean(from.name),\n  reply_to: parseObj(t.reply_to),\n  client_message_id: clean(t.client_message_id),\n  booking_base_url: cfg.booking_base_url, directus_base_url: cfg.directus_base_url,\n  tenant_timezone: cfg.tenant_timezone,\n  rl_window_ms: cfg.rl_window_ms, rl_max: cfg.rl_max,\n  privacy_notice: '¡Hola! Soy Lucía, la asistente virtual de ' + cfg.tenant_display_name\n    + '. Gracias por escribirnos \\uD83D\\uDE0A\\n\\n'\n    + 'Antes de continuar: guardamos tu nombre y teléfono solo para gestionar tu cita. '\n    + 'Puedes leer los detalles en nuestra política de privacidad: ' + cfg.privacy_policy_url,\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
