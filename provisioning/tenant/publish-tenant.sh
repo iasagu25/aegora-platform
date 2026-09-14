@@ -363,12 +363,21 @@ if [[ -n "$BOOKING_HOST" && -n "$BOOKING_CONTAINER" ]] &&
   BOOKING_PUBLISH=true
 fi
 
+# Hostname neutro de cara a los canales (WhatsApp, webchat...). Apunta al mismo
+# n8n pero SOLO expone /webhook/*: el editor no debe quedar accesible ahí.
+WEBHOOK_HOST="${WEBHOOK_HOST:-}"
+WEBHOOK_PUBLISH=false
+if [[ -n "$WEBHOOK_HOST" ]]; then
+  WEBHOOK_PUBLISH=true
+fi
+
 [[ "$TENANT_ID" == "$TENANT" ]] ||
   fail "TENANT_ID no coincide con --tenant."
 
 validate_hostname "$DIRECTUS_HOST"
 validate_hostname "$N8N_HOST"
 [[ "$BOOKING_PUBLISH" != true ]] || validate_hostname "$BOOKING_HOST"
+[[ "$WEBHOOK_PUBLISH" != true ]] || validate_hostname "$WEBHOOK_HOST"
 
 # =============================================================================
 # Política de dominios
@@ -387,6 +396,11 @@ if [[ "$ALLOW_CUSTOM_DOMAIN" != true ]]; then
     is_managed_hostname "$BOOKING_HOST" ||
     fail \
       "BOOKING_HOST no pertenece a ${MANAGED_DOMAIN}: ${BOOKING_HOST}"
+
+  [[ "$WEBHOOK_PUBLISH" != true ]] ||
+    is_managed_hostname "$WEBHOOK_HOST" ||
+    fail \
+      "WEBHOOK_HOST no pertenece a ${MANAGED_DOMAIN}: ${WEBHOOK_HOST}"
 fi
 
 # =============================================================================
@@ -439,6 +453,21 @@ Booking:
   BOOKING_SUMMARY_BLOCK=""
 fi
 
+if [[ "$WEBHOOK_PUBLISH" == true ]]; then
+  WEBHOOK_PLAN_BLOCK="
+Webhooks (canales):
+  https://${WEBHOOK_HOST}/webhook/*
+  -> ${N8N_CONTAINER}:5678  (resto de rutas: 404)"
+  WEBHOOK_SUMMARY_BLOCK="
+Webhooks (canales):
+  https://${WEBHOOK_HOST}/webhook/..."
+else
+  WEBHOOK_PLAN_BLOCK="
+Webhooks (canales):
+  (sin WEBHOOK_HOST; se omite)"
+  WEBHOOK_SUMMARY_BLOCK=""
+fi
+
 cat <<EOF
 
 ============================================================
@@ -456,6 +485,7 @@ n8n:
   https://${N8N_HOST}
   -> ${N8N_CONTAINER}:5678
 ${BOOKING_PLAN_BLOCK}
+${WEBHOOK_PLAN_BLOCK}
 
 Fragmento:
   ${SITE_FILE}
@@ -554,6 +584,45 @@ ${N8N_HOST} {
 	}
 }
 EOF
+
+if [[ "$WEBHOOK_PUBLISH" == true ]]; then
+  cat >> "$candidate" <<EOF
+
+${WEBHOOK_HOST} {
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	# Solo webhooks. El editor de n8n NO se expone en este hostname.
+	handle /webhook/* {
+		reverse_proxy ${N8N_CONTAINER}:5678 {
+			flush_interval -1
+		}
+	}
+
+	# Modo test del editor. Quitar cuando no se necesite para desarrollo.
+	handle /webhook-test/* {
+		reverse_proxy ${N8N_CONTAINER}:5678 {
+			flush_interval -1
+		}
+	}
+
+	handle {
+		respond 404
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
+EOF
+fi
 
 if [[ "$BOOKING_PUBLISH" == true ]]; then
   cat >> "$candidate" <<EOF

@@ -56,6 +56,7 @@ BOOKING_CONTAINER=""
 
 DIRECTUS_HOST=""
 N8N_HOST=""
+WEBHOOK_HOST=""
 BOOKING_HOST=""
 
 POSTGRES_DIRECTUS_DB=""
@@ -499,6 +500,9 @@ BOOKING_CONTAINER="${TENANT_ID}-booking"
 
 DIRECTUS_HOST="panel.${BASE_DOMAIN}"
 N8N_HOST="n8n.${BASE_DOMAIN}"
+# Hostname neutro de cara a los canales (WhatsApp, webchat): no revela el stack
+# y solo expone /webhook/* (ver publish-tenant.sh).
+WEBHOOK_HOST="lucia.${BASE_DOMAIN}"
 BOOKING_HOST="reservas.${BASE_DOMAIN}"
 
 POSTGRES_DIRECTUS_DB="directus_${TENANT_SQL_ID}"
@@ -536,6 +540,7 @@ Versiones:
 Endpoints previstos:
   Directus:         https://${DIRECTUS_HOST}
   n8n:              https://${N8N_HOST}
+  webhooks:         https://${WEBHOOK_HOST}/webhook/...
   Booking:          https://${BOOKING_HOST}
 
 PostgreSQL:
@@ -739,6 +744,7 @@ export \
   N8N_VERSION \
   N8N_CONTAINER \
   N8N_HOST \
+  WEBHOOK_HOST \
   N8N_DATA_DIR \
   N8N_ENCRYPTION_KEY \
   BOOKING_CONTAINER \
@@ -806,6 +812,7 @@ write_env "$TENANT_ENV" "N8N_VERSION" "$N8N_VERSION"
 
 write_env "$TENANT_ENV" "DIRECTUS_HOST" "$DIRECTUS_HOST"
 write_env "$TENANT_ENV" "N8N_HOST" "$N8N_HOST"
+write_env "$TENANT_ENV" "WEBHOOK_HOST" "$WEBHOOK_HOST"
 write_env "$TENANT_ENV" "BOOKING_HOST" "$BOOKING_HOST"
 
 write_env "$TENANT_ENV" "DIRECTUS_CONTAINER" "$DIRECTUS_CONTAINER"
