@@ -265,6 +265,13 @@ bueno:
   - Aplicar `base.yaml` + `booking-indexes.sql` en `aegora-internal`, y montar
     allí credenciales n8n + workflows.
   - Migrar build A → imagen en GHCR (CI en `aegora-booking`).
+  - **Cambios de plataforma no llegan a tenants existentes**: `create-tenant.sh`
+    renderiza `compose/*/.env` una sola vez, al crear el tenant. Si cambia una
+    plantilla (p.ej. `WEBHOOK_URL` en `n8n/.env.tpl`), los tenants ya creados se
+    quedan atrás y no hay forma limpia de actualizarlos. Falta un
+    `render-tenant-config.sh` (PLAN con diff + APPLY) que re-renderice las
+    plantillas desde `tenant.env`. Para `tenant.env` en sí ya existe
+    `set-tenant-config.sh`.
 
 ## Estilo de trabajo esperado
 - PLAN antes de APPLY siempre. No inventar flags de script sin confirmar
