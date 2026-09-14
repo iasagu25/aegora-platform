@@ -246,8 +246,13 @@ Todo lo de abajo está probado conversando, no solo cableado:
   hace falta opt-in para esto — un opt-in aparte haría falta solo para
   marketing, que no está construido). `22 · TOOL · Appointment Create`
   intenta `01 · CONTACT · Upsert` con el teléfono conocido del canal cuando
-  `17 · CORE · Resolve + Context` no encuentra a nadie; si tampoco hay
-  teléfono, Lucía lo pide explícitamente en vez de fallar en seco.
+  `17 · CORE · Resolve + Context` no encuentra a nadie; si falta el
+  teléfono, el nombre, o ambos, Lucía los pide explícitamente en vez de
+  fallar en seco o de inventar el nombre. **El nombre nunca sale del
+  nombre de perfil del canal** (el push name de WhatsApp no es una
+  identidad fiable ni deseada por la persona para su ficha): solo cuenta
+  el que el usuario ha dicho explícitamente en la conversación
+  (`Construir start_at` en el Core ya no cae al nombre de canal).
 - Cancelación en bloque: plural detectado ("cancela **las** del martes",
   "todas mis citas"), propuesta explícita del conjunto y confirmación;
   un "no" no toca nada. Reprogramar en bloque no se soporta a propósito

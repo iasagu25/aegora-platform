@@ -255,7 +255,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $json ?? {};\n\nreturn [{\n  json: {\n    ok: false,\n    status: 'not_found',\n    message: 'Para darte de alta necesito un teléfono de contacto. ¿Me lo facilitas?',\n    data: {\n      query: input.query ?? null,\n    },\n  },\n}];"
+        "jsCode": "const input = $json ?? {};\n\n// Puede faltar el teléfono, el nombre (nunca lo rellenamos con el nombre de perfil del\n// canal -- ver Construir start_at en el Core), o ambos.\nconst faltaTelefono = !input.phone;\nconst faltaNombre = !input.query;\nlet message;\nif (faltaTelefono && faltaNombre) {\n  message = 'Para darte de alta necesito tu nombre y un teléfono de contacto. ¿Me los facilitas?';\n} else if (faltaTelefono) {\n  message = 'Para darte de alta necesito un teléfono de contacto. ¿Me lo facilitas?';\n} else {\n  message = '¿Cómo te llamas? Lo necesito para darte de alta y confirmar la cita.';\n}\n\nreturn [{\n  json: {\n    ok: false,\n    status: 'not_found',\n    message,\n    data: {\n      query: input.query ?? null,\n    },\n  },\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -450,6 +450,16 @@
                 "operation": "notEmpty",
                 "singleValue": true
               }
+            },
+            {
+              "id": "6f2b8b9a-6e21-4d2e-9a13-2f9c6c5a1a08",
+              "leftValue": "={{ $('Code · Normalize Input').item.json.query }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -457,7 +467,7 @@
         "options": {}
       },
       "id": "6f2b8b9a-6e21-4d2e-9a13-2f9c6c5a1a02",
-      "name": "¿Tenemos teléfono?",
+      "name": "¿Tenemos teléfono y nombre?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
@@ -694,7 +704,7 @@
         ],
         [
           {
-            "node": "¿Tenemos teléfono?",
+            "node": "¿Tenemos teléfono y nombre?",
             "type": "main",
             "index": 0
           }
@@ -724,24 +734,6 @@
         [
           {
             "node": "Code · Tool Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "¿Tenemos teléfono?": {
-      "main": [
-        [
-          {
-            "node": "Call · 01 Contact Upsert",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Code · Tool Response2",
             "type": "main",
             "index": 0
           }
@@ -782,6 +774,24 @@
         [
           {
             "node": "Call '03 · APPOINTMENT · Create'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Tenemos teléfono y nombre?": {
+      "main": [
+        [
+          {
+            "node": "Call · 01 Contact Upsert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Tool Response2",
             "type": "main",
             "index": 0
           }
