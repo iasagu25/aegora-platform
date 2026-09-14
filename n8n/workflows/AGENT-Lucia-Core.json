@@ -2365,7 +2365,8 @@
           "attemptToConvertTypes": false,
           "convertFieldsToString": true
         },
-        "options": {}
+        "options": {},
+        "mode": "each"
       },
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
@@ -2374,7 +2375,8 @@
         1020
       ],
       "id": "lucia-bulk-cancel",
-      "name": "Call · 25 Cancel (bloque)"
+      "name": "Call · 25 Cancel (bloque)",
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
