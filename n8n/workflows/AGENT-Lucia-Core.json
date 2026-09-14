@@ -93,6 +93,9 @@
             },
             {
               "name": "pending_service_id"
+            },
+            {
+              "name": "shown_appointment_ids"
             }
           ]
         }
@@ -217,7 +220,7 @@
     },
     {
       "parameters": {
-        "jsCode": "let raw = ($json.output ?? '').trim();\nif (raw.startsWith('```')) raw = raw.replace(/^```json\\s*/i,'').replace(/^```\\s*/i,'').replace(/\\s*```$/,'');\nlet core;\ntry { core = JSON.parse(raw); } catch (e) { throw new Error('La salida del Core no es JSON válido: ' + raw); }\nconst cfg = $('Config (editar por tenant)').item.json;\nconst trg = $('When Executed by Another Workflow').item.json;\nreturn [{ json: {\n  ...core,\n  intent: core.intent === 'null' ? null : core.intent,\n  contact: core.contact || {},\n  task: core.task || {},\n  sessionID: trg.sessionID, client_id: trg.client_id, canal: trg.canal, message: trg.message,\n  pending_appointment_id: trg.pending_appointment_id || null,\n  pending_appointment_service_id: trg.pending_appointment_service_id || null,\n  pending_service_id: trg.pending_service_id || null,\n  awaiting_bulk_confirm: trg.awaiting_bulk_confirm === true,\n  bulk_appointment_ids: trg.bulk_appointment_ids || '',\n  last_appointment_id: trg.last_appointment_id || null,\n  offered_alt_slots: trg.offered_alt_slots === true,\n  offered_alt_slots_date: trg.offered_alt_slots_date || null,\n  offered_alt_slots_time: trg.offered_alt_slots_time || null,\n  booking_base_url: cfg.booking_base_url, directus_base_url: cfg.directus_base_url, tenant_timezone: cfg.tenant_timezone,\n} }];"
+        "jsCode": "let raw = ($json.output ?? '').trim();\nif (raw.startsWith('```')) raw = raw.replace(/^```json\\s*/i,'').replace(/^```\\s*/i,'').replace(/\\s*```$/,'');\nlet core;\ntry { core = JSON.parse(raw); } catch (e) { throw new Error('La salida del Core no es JSON válido: ' + raw); }\nconst cfg = $('Config (editar por tenant)').item.json;\nconst trg = $('When Executed by Another Workflow').item.json;\nreturn [{ json: {\n  ...core,\n  intent: core.intent === 'null' ? null : core.intent,\n  contact: core.contact || {},\n  task: core.task || {},\n  sessionID: trg.sessionID, client_id: trg.client_id, canal: trg.canal, message: trg.message,\n  pending_appointment_id: trg.pending_appointment_id || null,\n  pending_appointment_service_id: trg.pending_appointment_service_id || null,\n  pending_service_id: trg.pending_service_id || null,\n  awaiting_bulk_confirm: trg.awaiting_bulk_confirm === true,\n  bulk_appointment_ids: trg.bulk_appointment_ids || '',\n  shown_appointment_ids: trg.shown_appointment_ids || '',\n  last_appointment_id: trg.last_appointment_id || null,\n  offered_alt_slots: trg.offered_alt_slots === true,\n  offered_alt_slots_date: trg.offered_alt_slots_date || null,\n  offered_alt_slots_time: trg.offered_alt_slots_time || null,\n  booking_base_url: cfg.booking_base_url, directus_base_url: cfg.directus_base_url, tenant_timezone: cfg.tenant_timezone,\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1351,7 +1354,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const core = $('Output IA → JSON').item.json;\nconst res = $json ?? {};\nconst tz = core.tenant_timezone || 'Europe/Madrid';\nconst phone = core.contact && core.contact.phone ? core.contact.phone : null;\nconst query = core.contact && core.contact.name ? core.contact.name : null;\nconst base = { intent: core.intent, phone, query };\n\nif (!res.ok) {\n  return [{ json: { ...base, _found: false, _reason: res.status === 'multiple' ? 'varios_contactos' : 'sin_contacto' } }];\n}\nconst appts = Array.isArray(res.data && res.data.appointments) ? res.data.appointments : [];\nif (!appts.length) return [{ json: { ...base, _found: false, _reason: 'sin_citas' } }];\n\nconst norm = s => (s || '').toString().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();\nconst msg = norm(core.message);\n// \"todas\"/\"ambas\"/\"las dos\"(=\"the two of them\")... es una petición EN BLOQUE. Se calcula\n// ANTES de leer hora/ordinal para que \"las dos\" no se confunda con el ordinal \"segunda\" ni con\n// una hora, y para que tampoco dispare el tie-break de 'última cita tocada'.\nconst bulk = /\\b(todas|todos|ambas|ambos)\\b/.test(msg) || /\\b(las|los) dos\\b/.test(msg);\nconst when = a => DateTime.fromISO(a.start_at).setZone(tz);\nlet cands = appts.slice();\n\nconst WD = { domingo: 7, lunes: 1, martes: 2, miercoles: 3, jueves: 4, viernes: 5, sabado: 6 };\nlet diaPedido = null;\nlet sinCitasEseDia = false;\n\n// 1) appointment_date del Core: semánticamente es \"el día de la cita a tocar\",\n//    así que si no casa con ninguna, es un error explícito (no un filtro a ignorar).\nconst ad = core.appointment_date || null;\nif (ad) {\n  diaPedido = DateTime.fromISO(ad).setZone(tz).setLocale('es').toFormat(\"cccc d 'de' LLLL\");\n  const f = cands.filter(a => when(a).toISODate() === ad);\n  if (f.length) cands = f; else sinCitasEseDia = true;\n}\n\n// 2) día de la semana suelto en el mensaje.\n//    Al CANCELAR se refiere a la cita existente -> estricto.\n//    Al REPROGRAMAR suele ser el destino (\"pásala al jueves\") -> tolerante.\nif (!ad) {\n  const estricto = core.intent === 'cancel_appointment';\n  for (const [name, iso] of Object.entries(WD)) {\n    if (msg.includes(name)) {\n      const f = cands.filter(a => when(a).weekday === iso);\n      if (f.length) { cands = f; }\n      else if (estricto) { diaPedido = name; sinCitasEseDia = true; }\n      break;\n    }\n  }\n}\n\nif (sinCitasEseDia) {\n  return [{ json: { ...base, _found: false, _reason: 'sin_citas_ese_dia',\n    dia: diaPedido, otras: appts.length } }];\n}\n\n// 3) hora: appointment_time del Core, o \"HH:MM\" / \"a las HH\" en el mensaje\nlet hm = core.appointment_time || null;\nif (!hm) {\n  const m = msg.match(/\\b(\\d{1,2})[:h.](\\d{2})\\b/) || msg.match(/\\b(?:a\\s+)?las\\s+(\\d{1,2})\\b/);\n  if (m) hm = m[2] ? `${String(m[1]).padStart(2,'0')}:${m[2]}` : `${String(m[1]).padStart(2,'0')}:00`;\n}\nif (!bulk && cands.length > 1 && hm) { const f = cands.filter(a => when(a).toFormat('HH:mm') === hm); if (f.length) cands = f; }\n\n// 4) ordinal / número sobre la lista actual (en el mismo orden en que se le mostró) -- nunca si es bulk\nif (!bulk && cands.length > 1) {\n  const ORD = { primera: 1, uno: 1, segunda: 2, dos: 2, tercera: 3, tres: 3, cuarta: 4, cuatro: 4 };\n  let pick = null;\n  const numMatch = msg.match(/\\b(?:la\\s+)?(?:numero\\s+)?([1-9])\\b/);\n  if (numMatch) pick = Number(numMatch[1]);\n  if (!pick) for (const [k, i] of Object.entries(ORD)) if (msg.includes(k)) { pick = i; break; }\n  if (/\\bultim[ao]\\b/.test(msg)) pick = cands.length;\n  if (pick && cands[pick - 1]) cands = [cands[pick - 1]];\n}\n\n// Si el usuario no dio NINGÚN dato que distinga (ningún filtro anterior descartó nada) y hay una\n// cita 'recién tocada' en esta sesión, se asume que se refiere a esa (referencia implícita:\n// \"mejor pasarla al jueves\" tras acabar de reservar/tocar una cita).\nif (!bulk && cands.length > 1 && cands.length === appts.length && core.last_appointment_id) {\n  const recent = appts.find(a => a.id === core.last_appointment_id);\n  if (recent) cands = [recent];\n}\n\n// Cancelación EN BLOQUE: se propone el conjunto y se confirma antes de tocar nada.\n// (Reprogramar en bloque no tiene sentido: cada cita necesita su propio hueco.)\nif (bulk && core.intent === 'cancel_appointment' && cands.length > 1) {\n  return [{ json: { ...base, _found: false, _bulk: true,\n    bulk_ids: cands.map(a => a.id).join(','),\n    opciones: cands.map((a, i) => ({ n: i + 1, id: a.id,\n      cuando: when(a).setLocale('es').toFormat(\"cccc d 'de' LLLL 'a las' HH:mm\") })) } }];\n}\n\nif (cands.length === 1) return [{ json: { ...base, _found: true, appointment_id: cands[0].id,\n  service_id: cands[0].service_id || null } }];\nreturn [{ json: { ...base, _found: false, _reason: bulk ? 'en_bloque' : 'ambigua',\n  opciones: cands.map((a, i) => ({ n: i + 1, id: a.id,\n    cuando: when(a).setLocale('es').toFormat(\"cccc d 'de' LLLL 'a las' HH:mm\") })) } }];"
+        "jsCode": "const core = $('Output IA → JSON').item.json;\nconst res = $json ?? {};\nconst tz = core.tenant_timezone || 'Europe/Madrid';\nconst phone = core.contact && core.contact.phone ? core.contact.phone : null;\nconst query = core.contact && core.contact.name ? core.contact.name : null;\nconst base = { intent: core.intent, phone, query };\n\nif (!res.ok) {\n  return [{ json: { ...base, _found: false, _reason: res.status === 'multiple' ? 'varios_contactos' : 'sin_contacto' } }];\n}\nlet appts = Array.isArray(res.data && res.data.appointments) ? res.data.appointments : [];\nif (!appts.length) return [{ json: { ...base, _found: false, _reason: 'sin_citas' } }];\n// Si el turno anterior mostró una lista concreta, \"todas\"/\"la 2\" se refieren A ESA lista,\n// no a todas las citas del contacto.\nconst shown = (core.shown_appointment_ids || '').toString().split(',').map(s => s.trim()).filter(Boolean);\nif (shown.length) {\n  const f = appts.filter(a => shown.includes(a.id));\n  if (f.length) appts = f;\n}\n\nconst norm = s => (s || '').toString().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();\nconst msg = norm(core.message);\n// \"todas\"/\"ambas\"/\"las dos\"(=\"the two of them\")... es una petición EN BLOQUE. Se calcula\n// ANTES de leer hora/ordinal para que \"las dos\" no se confunda con el ordinal \"segunda\" ni con\n// una hora, y para que tampoco dispare el tie-break de 'última cita tocada'.\n// Plural = petición en bloque. 'las/los' solo cuenta si NO va seguido de cifra,\n// para no confundir \"a las 10\" (hora) con \"las del martes\" (varias citas).\nconst bulk = /\\b(todas|todos|ambas|ambos)\\b/.test(msg)\n  || /\\b(las|los)\\b(?!\\s*\\d)/.test(msg);\nconst when = a => DateTime.fromISO(a.start_at).setZone(tz);\nlet cands = appts.slice();\n\nconst WD = { domingo: 7, lunes: 1, martes: 2, miercoles: 3, jueves: 4, viernes: 5, sabado: 6 };\nlet diaPedido = null;\nlet sinCitasEseDia = false;\n\n// 1) appointment_date del Core: semánticamente es \"el día de la cita a tocar\",\n//    así que si no casa con ninguna, es un error explícito (no un filtro a ignorar).\nconst ad = core.appointment_date || null;\nif (ad) {\n  diaPedido = DateTime.fromISO(ad).setZone(tz).setLocale('es').toFormat(\"cccc d 'de' LLLL\");\n  const f = cands.filter(a => when(a).toISODate() === ad);\n  if (f.length) cands = f; else sinCitasEseDia = true;\n}\n\n// 2) día de la semana suelto en el mensaje.\n//    Al CANCELAR se refiere a la cita existente -> estricto.\n//    Al REPROGRAMAR suele ser el destino (\"pásala al jueves\") -> tolerante.\nif (!ad) {\n  const estricto = core.intent === 'cancel_appointment';\n  for (const [name, iso] of Object.entries(WD)) {\n    if (msg.includes(name)) {\n      const f = cands.filter(a => when(a).weekday === iso);\n      if (f.length) { cands = f; }\n      else if (estricto) { diaPedido = name; sinCitasEseDia = true; }\n      break;\n    }\n  }\n}\n\nif (sinCitasEseDia) {\n  return [{ json: { ...base, _found: false, _reason: 'sin_citas_ese_dia',\n    dia: diaPedido, otras: appts.length } }];\n}\n\n// 3) hora: appointment_time del Core, o \"HH:MM\" / \"a las HH\" en el mensaje\nlet hm = core.appointment_time || null;\nif (!hm) {\n  const m = msg.match(/\\b(\\d{1,2})[:h.](\\d{2})\\b/) || msg.match(/\\b(?:a\\s+)?las\\s+(\\d{1,2})\\b/);\n  if (m) hm = m[2] ? `${String(m[1]).padStart(2,'0')}:${m[2]}` : `${String(m[1]).padStart(2,'0')}:00`;\n}\nif (!bulk && cands.length > 1 && hm) { const f = cands.filter(a => when(a).toFormat('HH:mm') === hm); if (f.length) cands = f; }\n\n// 4) ordinal / número sobre la lista actual (en el mismo orden en que se le mostró) -- nunca si es bulk\nif (!bulk && cands.length > 1) {\n  const ORD = { primera: 1, uno: 1, segunda: 2, dos: 2, tercera: 3, tres: 3, cuarta: 4, cuatro: 4 };\n  let pick = null;\n  const numMatch = msg.match(/\\b(?:la\\s+)?(?:numero\\s+)?([1-9])\\b/);\n  if (numMatch) pick = Number(numMatch[1]);\n  if (!pick) for (const [k, i] of Object.entries(ORD)) if (msg.includes(k)) { pick = i; break; }\n  if (/\\bultim[ao]\\b/.test(msg)) pick = cands.length;\n  if (pick && cands[pick - 1]) cands = [cands[pick - 1]];\n}\n\n// Si el usuario no dio NINGÚN dato que distinga (ningún filtro anterior descartó nada) y hay una\n// cita 'recién tocada' en esta sesión, se asume que se refiere a esa (referencia implícita:\n// \"mejor pasarla al jueves\" tras acabar de reservar/tocar una cita).\nconst respuestaSiNo = /^\\s*(si|no|vale|ok|claro|venga|dale)\\s*[.!]?\\s*$/.test(msg);\nif (!bulk && !respuestaSiNo && cands.length > 1 && cands.length === appts.length && core.last_appointment_id) {\n  const recent = appts.find(a => a.id === core.last_appointment_id);\n  if (recent) cands = [recent];\n}\n\n// Cancelación EN BLOQUE: se propone el conjunto y se confirma antes de tocar nada.\n// (Reprogramar en bloque no tiene sentido: cada cita necesita su propio hueco.)\nif (bulk && core.intent === 'cancel_appointment' && cands.length > 1) {\n  return [{ json: { ...base, _found: false, _bulk: true,\n    bulk_ids: cands.map(a => a.id).join(','),\n    opciones: cands.map((a, i) => ({ n: i + 1, id: a.id,\n      cuando: when(a).setLocale('es').toFormat(\"cccc d 'de' LLLL 'a las' HH:mm\") })) } }];\n}\n\nif (cands.length === 1) return [{ json: { ...base, _found: true, appointment_id: cands[0].id,\n  service_id: cands[0].service_id || null } }];\nreturn [{ json: { ...base, _found: false, _reason: bulk ? 'en_bloque' : 'ambigua',\n  opciones: cands.map((a, i) => ({ n: i + 1, id: a.id,\n    cuando: when(a).setLocale('es').toFormat(\"cccc d 'de' LLLL 'a las' HH:mm\") })) } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1699,7 +1702,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const m = $json ?? {};\nconst accion = m.intent === 'cancel_appointment' ? 'cancelar' : 'cambiar';\nconst map = {\n  varios_contactos: 'Necesito confirmar quién eres. ¿Me das tu teléfono?',\n  sin_contacto: 'No encuentro tus datos. ¿Me dices tu nombre y teléfono?',\n  sin_citas: 'No veo ninguna cita próxima a tu nombre.',\n};\nif (m._reason === 'sin_citas_ese_dia') {\n  const dia = m.dia ? `el ${m.dia}` : 'ese día';\n  const extra = m.otras > 0 ? ' Sí tienes otras próximas, dime si quieres verlas.' : '';\n  return [{ json: { ok: false, intent: m.intent, needs_user_reply: true,\n    reply_to_user: `No tienes ninguna cita ${dia}.${extra}` } }];\n}\nif (m._reason === 'ambigua' || m._reason === 'en_bloque') {\n  const lista = (m.opciones || []).map(o => `${o.n}) ${o.cuando}`).join('   ');\n  const prefijo = m._reason === 'en_bloque' ? 'De momento solo puedo gestionar una cita cada vez. ' : '';\n  return [{ json: { ok: false, intent: m.intent, needs_user_reply: true,\n    reply_to_user: `${prefijo}Tienes varias citas próximas: ${lista}. ¿Cuál quieres ${accion}? Dime el día o el número.` } }];\n}\nreturn [{ json: { ok: false, intent: m.intent, needs_user_reply: true,\n  reply_to_user: map[m._reason] || 'No he podido localizar la cita.' } }];"
+        "jsCode": "const m = $json ?? {};\nconst accion = m.intent === 'cancel_appointment' ? 'cancelar' : 'cambiar';\nconst map = {\n  varios_contactos: 'Necesito confirmar quién eres. ¿Me das tu teléfono?',\n  sin_contacto: 'No encuentro tus datos. ¿Me dices tu nombre y teléfono?',\n  sin_citas: 'No veo ninguna cita próxima a tu nombre.',\n};\nif (m._reason === 'sin_citas_ese_dia') {\n  const dia = m.dia ? `el ${m.dia}` : 'ese día';\n  const extra = m.otras > 0 ? ' Sí tienes otras próximas, dime si quieres verlas.' : '';\n  return [{ json: { ok: false, intent: m.intent, needs_user_reply: true,\n    reply_to_user: `No tienes ninguna cita ${dia}.${extra}` } }];\n}\nif (m._reason === 'ambigua' || m._reason === 'en_bloque') {\n  const lista = (m.opciones || []).map(o => `${o.n}) ${o.cuando}`).join('   ');\n  const prefijo = m._reason === 'en_bloque' ? 'De momento solo puedo gestionar una cita cada vez. ' : '';\n  return [{ json: { ok: false, intent: m.intent, needs_user_reply: true,\n    shown_appointment_ids: (m.opciones || []).map(o => o.id).join(','),\n    reply_to_user: `${prefijo}Tienes varias citas próximas: ${lista}. ¿Cuál quieres ${accion}? Dime el día o el número.` } }];\n}\nreturn [{ json: { ok: false, intent: m.intent, needs_user_reply: true,\n  reply_to_user: map[m._reason] || 'No he podido localizar la cita.' } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1758,7 +1761,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Estructura viene del outcome determinista; la prosa la pone el Redactor (si falla, borrador).\nconst s = $('Código · outcome').item.json ?? {};\nconst io = $('Output IA → JSON').item.json ?? {};\nconst prose = ($json && $json.output ? $json.output : '').toString().trim();\nconst ok = s.ok !== false;\nconst intent = (s.intent === undefined || s.intent === 'null') ? null : (s.intent ?? null);\nconst needs = s.needs_user_reply === true;\nconst flujo_activo = (!needs || !intent) ? null : intent;\nconst taskObj = (s.task && s.task.task) ? s.task.task : (s.task || null);\nconst contact_id = s.contact_id\n  ?? (s.appointment && s.appointment.contact_id)\n  ?? (taskObj && taskObj.contact_id)\n  ?? null;\nconst contact_phone = s.contact_phone\n  ?? (io.contact && io.contact.phone)\n  ?? null;\nconst pending_appointment_id = s.pending_appointment_id ?? null;\nconst pending_appointment_service_id = s.pending_appointment_service_id ?? null;\nconst pending_service_id = s.pending_service_id ?? null;\nconst last_appointment_id = s.last_appointment_id ?? null;\nconst awaiting_slots_offer = s.awaiting_slots_offer === true;\nconst alt_slots_date = s.alt_slots_date ?? null;\nconst alt_slots_time = s.alt_slots_time ?? null;\nconst awaiting_bulk_confirm = s.awaiting_bulk_confirm === true;\nconst bulk_appointment_ids = s.bulk_appointment_ids || '';\nconst result = s.appointment ?? taskObj ?? s.result ?? null;\nreturn [{ json: {\n  ok, intent,\n  reply_to_user: prose || s.reply_to_user || '',\n  needs_user_reply: needs, flujo_activo, contact_id, contact_phone, pending_appointment_id,\n  pending_appointment_service_id, pending_service_id, last_appointment_id,\n  awaiting_slots_offer, alt_slots_date, alt_slots_time,\n  awaiting_bulk_confirm, bulk_appointment_ids, result,\n} }];"
+        "jsCode": "// Estructura viene del outcome determinista; la prosa la pone el Redactor (si falla, borrador).\nconst s = $('Código · outcome').item.json ?? {};\nconst io = $('Output IA → JSON').item.json ?? {};\nconst prose = ($json && $json.output ? $json.output : '').toString().trim();\nconst ok = s.ok !== false;\nconst intent = (s.intent === undefined || s.intent === 'null') ? null : (s.intent ?? null);\nconst needs = s.needs_user_reply === true;\nconst flujo_activo = (!needs || !intent) ? null : intent;\nconst taskObj = (s.task && s.task.task) ? s.task.task : (s.task || null);\nconst contact_id = s.contact_id\n  ?? (s.appointment && s.appointment.contact_id)\n  ?? (taskObj && taskObj.contact_id)\n  ?? null;\nconst contact_phone = s.contact_phone\n  ?? (io.contact && io.contact.phone)\n  ?? null;\nconst pending_appointment_id = s.pending_appointment_id ?? null;\nconst pending_appointment_service_id = s.pending_appointment_service_id ?? null;\nconst pending_service_id = s.pending_service_id ?? null;\nconst last_appointment_id = s.last_appointment_id ?? null;\nconst awaiting_slots_offer = s.awaiting_slots_offer === true;\nconst alt_slots_date = s.alt_slots_date ?? null;\nconst alt_slots_time = s.alt_slots_time ?? null;\nconst awaiting_bulk_confirm = s.awaiting_bulk_confirm === true;\nconst bulk_appointment_ids = s.bulk_appointment_ids || '';\nconst shown_appointment_ids = s.shown_appointment_ids || '';\nconst result = s.appointment ?? taskObj ?? s.result ?? null;\nreturn [{ json: {\n  ok, intent,\n  reply_to_user: prose || s.reply_to_user || '',\n  needs_user_reply: needs, flujo_activo, contact_id, contact_phone, pending_appointment_id,\n  pending_appointment_service_id, pending_service_id, last_appointment_id,\n  awaiting_slots_offer, alt_slots_date, alt_slots_time,\n  awaiting_bulk_confirm, bulk_appointment_ids, shown_appointment_ids, result,\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2227,7 +2230,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const m = $json ?? {};\nconst lista = (m.opciones || []).map(o => o.cuando).join('; ');\nconst n = (m.opciones || []).length;\nreturn [{ json: {\n  ok: true, intent: 'cancel_appointment', needs_user_reply: true,\n  reply_to_user: `Voy a cancelar ${n} citas: ${lista}. ¿Las cancelo?`,\n  awaiting_bulk_confirm: true,\n  bulk_appointment_ids: m.bulk_ids || '',\n} }];"
+        "jsCode": "const m = $json ?? {};\nconst lista = (m.opciones || []).map(o => o.cuando).join('; ');\nconst n = (m.opciones || []).length;\nreturn [{ json: {\n  ok: true, intent: 'cancel_appointment', needs_user_reply: true,\n  reply_to_user: `Voy a cancelar ${n} citas: ${lista}. ¿Las cancelo?`,\n  awaiting_bulk_confirm: true,\n  bulk_appointment_ids: m.bulk_ids || '',\n  shown_appointment_ids: m.bulk_ids || '',\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2248,16 +2251,6 @@
           },
           "combinator": "and",
           "conditions": [
-            {
-              "id": "aw",
-              "leftValue": "={{ $json.awaiting_bulk_confirm }}",
-              "rightValue": "",
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            },
             {
               "id": "cf",
               "leftValue": "={{ $json.confirmation }}",
@@ -2653,6 +2646,168 @@
       ],
       "id": "lucia-resched-needslots",
       "name": "¿Listar huecos (reprogramar)?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "aw2",
+              "leftValue": "={{ $json.awaiting_bulk_confirm }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        900,
+        700
+      ],
+      "id": "lucia-bulk-answering",
+      "name": "¿Respondía a confirmación?"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ok: true, intent: 'cancel_appointment', needs_user_reply: false,\n  reply_to_user: 'Vale, no cancelo nada.' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        860
+      ],
+      "id": "lucia-bulk-abort",
+      "name": "Salida · no cancelar bloque"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "nosvc",
+              "leftValue": "={{ $json.service_query }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "nopsvc",
+              "leftValue": "={{ $json.pending_service_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1180,
+        940
+      ],
+      "id": "lucia-need-catalog",
+      "name": "¿Falta el servicio?"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraToolResolveService",
+          "mode": "list",
+          "cachedResultName": "26 · TOOL · Resolve Service"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "directus_base_url": "={{ $json.directus_base_url }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "service_query",
+              "displayName": "service_query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "service_id",
+              "displayName": "service_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "directus_base_url",
+              "displayName": "directus_base_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1400,
+        1000
+      ],
+      "id": "lucia-catalog",
+      "name": "Call · 26 Catálogo servicios"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json ?? {};\n// Catálogo del tenant: preguntar \"¿qué servicio?\" a secas no es contestable para un cliente.\nif (r.status === 'multiple') {\n  const nombres = (r.candidates || []).map(c => c.name).join(', ');\n  return [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: `¿Para cuál de estos servicios? ${nombres}.` } }];\n}\nif (r.status === 'single' && r.service_id) {\n  return [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: true,\n    pending_service_id: r.service_id,\n    reply_to_user: `¿Qué día y a qué hora te viene bien para ${r.service_name || 'la cita'}?` } }];\n}\nreturn [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: true,\n  reply_to_user: '¿Qué servicio necesitas?' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1620,
+        1000
+      ],
+      "id": "lucia-catalog-out",
+      "name": "Salida · pedir servicio"
     }
   ],
   "connections": {
@@ -2743,7 +2898,7 @@
         ],
         [
           {
-            "node": "¿Confirma bloque?",
+            "node": "¿Respondía a confirmación?",
             "type": "main",
             "index": 0
           }
@@ -2888,7 +3043,7 @@
         ],
         [
           {
-            "node": "Salida · respuesta directa",
+            "node": "¿Falta el servicio?",
             "type": "main",
             "index": 0
           }
@@ -3409,7 +3564,7 @@
         ],
         [
           {
-            "node": "¿Cita ya localizada?",
+            "node": "Salida · no cancelar bloque",
             "type": "main",
             "index": 0
           }
@@ -3567,6 +3722,75 @@
             "index": 0
           }
         ],
+        [
+          {
+            "node": "Código · outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Respondía a confirmación?": {
+      "main": [
+        [
+          {
+            "node": "¿Confirma bloque?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Cita ya localizada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salida · no cancelar bloque": {
+      "main": [
+        [
+          {
+            "node": "Código · outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Falta el servicio?": {
+      "main": [
+        [
+          {
+            "node": "Call · 26 Catálogo servicios",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Salida · respuesta directa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call · 26 Catálogo servicios": {
+      "main": [
+        [
+          {
+            "node": "Salida · pedir servicio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salida · pedir servicio": {
+      "main": [
         [
           {
             "node": "Código · outcome",

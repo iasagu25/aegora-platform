@@ -29,6 +29,7 @@ la capa de canal/entrada y el cerebro. **No se cambia sin actualizar Entry.**
 | `pending_appointment_service_id` | string\|null | servicio de la cita localizada, para poder consultar huecos al reprogramar sin volver a leer la cita. |
 | `awaiting_bulk_confirm` | boolean | true mientras esté pendiente confirmar una cancelación en bloque. |
 | `bulk_appointment_ids` | string | IDs (coma-separados) de las citas propuestas para cancelar en bloque. **Los fija el router, nunca el LLM**; el Core solo emite `confirmation: true/false`. |
+| `shown_appointment_ids` | string | IDs de la lista que se le enseñó al usuario en el turno anterior. "todas" / "la 2" se resuelven **contra esa lista**, no contra todas las citas del contacto. |
 | `service_query`, `date`, `time`, `appointment_ref`, `appointment_date`, `appointment_time` | string\|null | **V1: Entry NO los envía.** La continuidad de slots la da `Postgres Chat Memory` + la regla CONTINUIDAD del prompt del Core. Se mantienen como inputs del trigger para paso explícito de slots en el futuro. |
 | `texto_usuario` | string\|null | alias legacy de `message`; el prompt usa `texto_usuario || message`. |
 
