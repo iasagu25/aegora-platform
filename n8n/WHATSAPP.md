@@ -31,6 +31,11 @@
 
 ## Cómo funciona
 
+- Dos triggers de Webhook en el mismo path `whatsapp`, uno por método: n8n 2.31
+  no admite varios métodos en un solo nodo Webhook pese a lo que sugiere su UI
+  (probar con un array `httpMethod` se queda silenciosamente en uno solo). El de
+  **GET** atiende la verificación `hub.challenge`; el de **POST**, los eventos
+  reales. Ambos alimentan el mismo `Config` y de ahí en adelante el flujo es único.
 - **GET** de verificación: compara `hub.verify_token` y devuelve `hub.challenge`
   en texto plano.
 - **POST**: responde **200 de inmediato** y sigue procesando. Meta reintrega si

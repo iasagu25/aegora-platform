@@ -4,10 +4,7 @@
   "nodes": [
     {
       "parameters": {
-        "httpMethod": [
-          "GET",
-          "POST"
-        ],
+        "httpMethod": "POST",
         "path": "whatsapp",
         "responseMode": "responseNode",
         "options": {
@@ -20,8 +17,8 @@
         0,
         0
       ],
-      "id": "wa-0001",
-      "name": "Webhook · WhatsApp",
+      "id": "wa-0001b",
+      "name": "Webhook · WhatsApp (POST)",
       "webhookId": "aegora-whatsapp-demo"
     },
     {
@@ -82,7 +79,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const hook = $('Webhook · WhatsApp').item.json;\nconst cfg = $json;\nconst q = hook.query || {};\nconst headers = hook.headers || {};\n\n// --- 1) Verificación del webhook (GET de Meta) ---\nif (q['hub.mode'] || q['hub.challenge']) {\n  const ok = q['hub.verify_token'] === cfg.verify_token;\n  return [{ json: { tipo: ok ? 'verificacion' : 'ignorar',\n    challenge: ok ? String(q['hub.challenge'] ?? '') : '',\n    motivo: ok ? null : 'verify_token no coincide' } }];\n}\n\n// --- 2) Cuerpo: con rawBody llega como string; si no, ya viene parseado ---\nlet raw = null, body = null;\nif (typeof hook.body === 'string') { raw = hook.body; try { body = JSON.parse(raw); } catch (e) { body = null; } }\nelse { body = hook.body || null; }\nif (!body) return [{ json: { tipo: 'ignorar', motivo: 'cuerpo no parseable' } }];\n\n// --- 3) Firma X-Hub-Signature-256 (solo comprobable con el cuerpo crudo) ---\nlet firma = 'no_comprobada';\nconst sigHeader = headers['x-hub-signature-256'] || headers['X-Hub-Signature-256'] || '';\nif (raw && cfg.app_secret && !String(cfg.app_secret).startsWith('REPLACE_')) {\n  const crypto = require('crypto');\n  const esperado = 'sha256=' + crypto.createHmac('sha256', cfg.app_secret).update(raw, 'utf8').digest('hex');\n  firma = (sigHeader && sigHeader === esperado) ? 'valida' : 'invalida';\n}\nconsole.log('[whatsapp] firma=' + firma + ' (raw=' + (raw ? 'si' : 'no') + ')');\nif (cfg.require_signature === true && firma !== 'valida') {\n  return [{ json: { tipo: 'ignorar', motivo: 'firma ' + firma } }];\n}\n\n// --- 4) Normalizar el payload de Meta ---\nconst value = body?.entry?.[0]?.changes?.[0]?.value || {};\nconst msg = value?.messages?.[0];\n// Los avisos de estado (sent/delivered/read) llegan al mismo webhook: se ignoran.\nif (!msg) return [{ json: { tipo: 'ignorar', motivo: value.statuses ? 'status' : 'sin mensajes' } }];\n\nconst pnid = value?.metadata?.phone_number_id || null;\nif (pnid && cfg.phone_number_id && !String(cfg.phone_number_id).startsWith('REPLACE_')\n    && pnid !== cfg.phone_number_id) {\n  return [{ json: { tipo: 'ignorar', motivo: 'phone_number_id ajeno: ' + pnid } }];\n}\n\nconst from = msg.from || null;                       // E.164 sin '+'\nconst perfil = value?.contacts?.[0]?.profile?.name || null;\nconst texto = msg.type === 'text' ? (msg.text?.body || '') : '';\n\nreturn [{ json: {\n  tipo: msg.type === 'text' ? 'mensaje' : 'no_texto',\n  wamid: msg.id || null,\n  from,\n  entry: {\n    canal: 'whatsapp',\n    session_key: 'whatsapp:' + from,\n    message: texto,\n    from: { phone: from ? '+' + from : null, name: perfil },\n    tenant: cfg.tenant || 'demo',\n    reply_to: { phone_number_id: cfg.phone_number_id },\n    client_message_id: msg.id || null,\n  },\n} }];"
+        "jsCode": "// Dos triggers posibles (GET de verificación / POST de eventos): Config ya mezcló\n// sus campos hacia aquí (includeOtherFields), así que basta con $json.\nconst cfg = $json;\nconst q = cfg.query || {};\nconst headers = cfg.headers || {};\n\n// --- 1) Verificación del webhook (GET de Meta) ---\nif (q['hub.mode'] || q['hub.challenge']) {\n  const ok = q['hub.verify_token'] === cfg.verify_token;\n  return [{ json: { tipo: ok ? 'verificacion' : 'ignorar',\n    challenge: ok ? String(q['hub.challenge'] ?? '') : '',\n    motivo: ok ? null : 'verify_token no coincide' } }];\n}\n\n// --- 2) Cuerpo: con rawBody llega como string; si no, ya viene parseado ---\nlet raw = null, body = null;\nif (typeof cfg.body === 'string') { raw = cfg.body; try { body = JSON.parse(raw); } catch (e) { body = null; } }\nelse { body = cfg.body || null; }\nif (!body) return [{ json: { tipo: 'ignorar', motivo: 'cuerpo no parseable' } }];\n\n// --- 3) Firma X-Hub-Signature-256 (solo comprobable con el cuerpo crudo) ---\nlet firma = 'no_comprobada';\nconst sigHeader = headers['x-hub-signature-256'] || headers['X-Hub-Signature-256'] || '';\nif (raw && cfg.app_secret && !String(cfg.app_secret).startsWith('REPLACE_')) {\n  const crypto = require('crypto');\n  const esperado = 'sha256=' + crypto.createHmac('sha256', cfg.app_secret).update(raw, 'utf8').digest('hex');\n  firma = (sigHeader && sigHeader === esperado) ? 'valida' : 'invalida';\n}\nconsole.log('[whatsapp] firma=' + firma + ' (raw=' + (raw ? 'si' : 'no') + ')');\nif (cfg.require_signature === true && firma !== 'valida') {\n  return [{ json: { tipo: 'ignorar', motivo: 'firma ' + firma } }];\n}\n\n// --- 4) Normalizar el payload de Meta ---\nconst value = body?.entry?.[0]?.changes?.[0]?.value || {};\nconst msg = value?.messages?.[0];\n// Los avisos de estado (sent/delivered/read) llegan al mismo webhook: se ignoran.\nif (!msg) return [{ json: { tipo: 'ignorar', motivo: value.statuses ? 'status' : 'sin mensajes' } }];\n\nconst pnid = value?.metadata?.phone_number_id || null;\nif (pnid && cfg.phone_number_id && !String(cfg.phone_number_id).startsWith('REPLACE_')\n    && pnid !== cfg.phone_number_id) {\n  return [{ json: { tipo: 'ignorar', motivo: 'phone_number_id ajeno: ' + pnid } }];\n}\n\nconst from = msg.from || null;                       // E.164 sin '+'\nconst perfil = value?.contacts?.[0]?.profile?.name || null;\nconst texto = msg.type === 'text' ? (msg.text?.body || '') : '';\n\nreturn [{ json: {\n  tipo: msg.type === 'text' ? 'mensaje' : 'no_texto',\n  wamid: msg.id || null,\n  from,\n  entry: {\n    canal: 'whatsapp',\n    session_key: 'whatsapp:' + from,\n    message: texto,\n    from: { phone: from ? '+' + from : null, name: perfil },\n    tenant: cfg.tenant || 'demo',\n    reply_to: { phone_number_id: cfg.phone_number_id },\n    client_message_id: msg.id || null,\n  },\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -405,20 +402,27 @@
       ],
       "id": "wa-0012",
       "name": "Code · Solo texto"
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "whatsapp",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        -200
+      ],
+      "id": "wa-0001a",
+      "name": "Webhook · WhatsApp (GET)",
+      "webhookId": "aegora-whatsapp-demo-get",
+      "notes": "Solo la verificación hub.challenge de Meta usa GET. Los eventos reales (mensajes, estados) son POST -> el otro trigger."
     }
   ],
   "connections": {
-    "Webhook · WhatsApp": {
-      "main": [
-        [
-          {
-            "node": "Config (editar por tenant)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Config (editar por tenant)": {
       "main": [
         [
@@ -522,6 +526,28 @@
         [
           {
             "node": "HTTP · WhatsApp sendText",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook · WhatsApp (POST)": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook · WhatsApp (GET)": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
             "type": "main",
             "index": 0
           }
