@@ -172,11 +172,15 @@ documentado sigue siendo cierto.
     si una KB crece de verdad (~>30k tokens). **Probado en `demo`** end-to-end
     (Core → `knowledge` → colección `knowledge` → respuesta del dato correcto).
 ### Omnicanal (capa de entrada del cerebro) — V1 funcionando en `demo`
-- Cadena: `WEBCHAT · Adapter` → `AGENT · Lucía · Entry` → `AGENT · Lucía · Core`
-  → tools versionados → Booking API. Validada end-to-end por webchat.
-- **V1 = solo webchat.** WhatsApp irá con WABA Cloud API + Embedded Signup
-  (NO Evolution para tenants de pago: viola ToS y arriesga el número del
-  cliente). Otro adapter, sin tocar Entry ni Core.
+- Cadena: `WEBCHAT · Adapter` / `WHATSAPP · Adapter` → `AGENT · Lucía · Entry`
+  → `AGENT · Lucía · Core` → tools versionados → Booking API. Validada
+  end-to-end por webchat y por WhatsApp real (número de prueba, WABA Cloud
+  API — NO Evolution para tenants de pago: viola ToS y arriesga el número
+  del cliente). Cada canal es un adapter fino; **Entry y Core no se tocan**
+  por canal (`n8n/WHATSAPP.md` documenta el setup de Meta).
+  Pendiente de decidir: multi-tenant vía Embedded Signup (cada negocio
+  conecta su número bajo su Meta Business y su billing) vs. un WABA propio
+  por ahora — de momento un único WABA para `demo`.
 - `conversation_sessions` (Directus) guarda SOLO estado operativo; la
   conversación vive en `Postgres Chat Memory` del Core (`n8n_<tenant>`).
   Entry es dueño de `canal` + `session_key`; `sessionID` del Core === `session_key`.
@@ -230,6 +234,20 @@ Todo lo de abajo está probado conversando, no solo cableado:
   cita, sin listar nada (`last_appointment_id`).
 - Desambiguación por día, hora, ordinal o número, contra **la lista que se
   mostró** (`shown_appointment_ids`), no contra todas las citas del contacto.
+- Aviso de privacidad (Art. 13 RGPD) en el primer mensaje de cada sesión:
+  intro + enlace a la política. En canales de solo texto (webchat) va
+  concatenado al inicio de la respuesta; en WhatsApp va como mensaje
+  **interactivo `cta_url`** aparte (texto de enlace personalizado no existe
+  en un mensaje de texto normal de WhatsApp; botón limitado a 20 caracteres
+  — `Ver política` por defecto, editable en `Config` de Entry). No repite el
+  saludo genérico detrás si el primer mensaje ya era solo un saludo.
+- Alta automática de contacto al reservar si no existe en Directus (Art.
+  6.1.b RGPD: medida precontractual a petición del propio interesado, no
+  hace falta opt-in para esto — un opt-in aparte haría falta solo para
+  marketing, que no está construido). `22 · TOOL · Appointment Create`
+  intenta `01 · CONTACT · Upsert` con el teléfono conocido del canal cuando
+  `17 · CORE · Resolve + Context` no encuentra a nadie; si tampoco hay
+  teléfono, Lucía lo pide explícitamente en vez de fallar en seco.
 - Cancelación en bloque: plural detectado ("cancela **las** del martes",
   "todas mis citas"), propuesta explícita del conjunto y confirmación;
   un "no" no toca nada. Reprogramar en bloque no se soporta a propósito
@@ -247,13 +265,15 @@ bueno:
    se ignora en silencio y deja actuar sobre lo que no era.
 
 - Pendiente omnicanal / cerebro:
-  - **WhatsApp (siguiente)**: número ya dado de alta en Meta → WABA Cloud API.
-    Hace falta `WHATSAPP-Adapter.json` (verificación del webhook con
-    `hub.challenge`, firma `X-Hub-Signature-256`, normalización del payload de
-    Meta al contrato de Entry, `sendText` de vuelta) + credenciales del tenant.
-    **Entry y Core no se tocan**: ese es justo el motivo del split.
-    Pendiente de decidir: multi-tenant vía Embedded Signup (cada negocio conecta
-    su número bajo su Meta Business y su billing) vs. un WABA propio por ahora.
+  - **WhatsApp**: `WHATSAPP-Adapter.json` en producción en `demo` (verificación
+    de webhook, firma `X-Hub-Signature-256`, dedup por `wamid`, aviso de
+    privacidad como CTA-url, alta automática de contacto) — validado con
+    conversación real de principio a fin, incluida una reserva desde un
+    número que no existía todavía en Directus. Sigue pendiente: decidir
+    Embedded Signup multi-tenant (ver arriba) y sincronizar el nodo `Config`
+    del adapter con `secrets/whatsapp.env` sin copiar a mano (el usuario
+    preguntó si hay forma de automatizarlo; de momento se edita en la UI de
+    n8n tras cada import).
   - **Personalizar con el nombre del contacto** (no prioritario): "Paco, a las
     8:00 no atendemos ese día…". El nombre lo resuelven los tools pero no vuelve
     al texto de las `Salida ·` — mismo patrón: tendría que viajar en el outcome.

@@ -6,17 +6,39 @@
       "parameters": {
         "workflowInputs": {
           "values": [
-            { "name": "contact_id" },
-            { "name": "phone" },
-            { "name": "email" },
-            { "name": "query" },
-            { "name": "service_id" },
-            { "name": "start_at" },
-            { "name": "primary_resource_id" },
-            { "name": "title" },
-            { "name": "notes" },
-            { "name": "source" },
-            { "name": "idempotency_key" }
+            {
+              "name": "contact_id"
+            },
+            {
+              "name": "phone"
+            },
+            {
+              "name": "email"
+            },
+            {
+              "name": "query"
+            },
+            {
+              "name": "service_id"
+            },
+            {
+              "name": "start_at"
+            },
+            {
+              "name": "primary_resource_id"
+            },
+            {
+              "name": "title"
+            },
+            {
+              "name": "notes"
+            },
+            {
+              "name": "source"
+            },
+            {
+              "name": "idempotency_key"
+            }
           ]
         }
       },
@@ -233,7 +255,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $json ?? {};\n\nreturn [{\n  json: {\n    ok: false,\n    status: 'not_found',\n    message: 'No se ha encontrado ningún contacto para asociar la cita.',\n    data: {\n      query: input.query ?? null,\n    },\n  },\n}];"
+        "jsCode": "const input = $json ?? {};\n\nreturn [{\n  json: {\n    ok: false,\n    status: 'not_found',\n    message: 'Para darte de alta necesito un teléfono de contacto. ¿Me lo facilitas?',\n    data: {\n      query: input.query ?? null,\n    },\n  },\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -301,14 +323,86 @@
           },
           "matchingColumns": [],
           "schema": [
-            { "id": "contact_id", "displayName": "contact_id", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string", "removed": false },
-            { "id": "service_id", "displayName": "service_id", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string", "removed": false },
-            { "id": "start_at", "displayName": "start_at", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string", "removed": false },
-            { "id": "primary_resource_id", "displayName": "primary_resource_id", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string", "removed": false },
-            { "id": "title", "displayName": "title", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string", "removed": false },
-            { "id": "notes", "displayName": "notes", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string", "removed": false },
-            { "id": "source", "displayName": "source", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string", "removed": false },
-            { "id": "idempotency_key", "displayName": "idempotency_key", "required": false, "defaultMatch": false, "display": true, "canBeUsedToMatch": true, "type": "string", "removed": false }
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "service_id",
+              "displayName": "service_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "start_at",
+              "displayName": "start_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "primary_resource_id",
+              "displayName": "primary_resource_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "idempotency_key",
+              "displayName": "idempotency_key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
           ],
           "attemptToConvertTypes": false,
           "convertFieldsToString": true
@@ -336,6 +430,216 @@
       ],
       "id": "87a7f09b-0446-4b65-bae7-9e332c06e0ea",
       "name": "Code · Return Validation Error"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6f2b8b9a-6e21-4d2e-9a13-2f9c6c5a1a01",
+              "leftValue": "={{ $('Code · Normalize Input').item.json.phone }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6f2b8b9a-6e21-4d2e-9a13-2f9c6c5a1a02",
+      "name": "¿Tenemos teléfono?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1376,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "ZRsLhADqrYxOSIge",
+          "mode": "list",
+          "cachedResultName": "01 · CONTACT · Upsert"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "phone": "={{ $('Code · Normalize Input').item.json.phone }}",
+            "first_name": "={{ $('Code · Normalize Input').item.json.query }}",
+            "last_name": "",
+            "company": "",
+            "email": "={{ $('Code · Normalize Input').item.json.email }}",
+            "phone_label": "",
+            "can_whatsapp": "",
+            "source": "lucia_ai"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "first_name",
+              "displayName": "first_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "last_name",
+              "displayName": "last_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "phone_label",
+              "displayName": "phone_label",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "can_whatsapp",
+              "displayName": "can_whatsapp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "6f2b8b9a-6e21-4d2e-9a13-2f9c6c5a1a03",
+      "name": "Call · 01 Contact Upsert",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1616,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6f2b8b9a-6e21-4d2e-9a13-2f9c6c5a1a04",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "resolved",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6f2b8b9a-6e21-4d2e-9a13-2f9c6c5a1a05",
+      "name": "¿Alta resuelta?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1856,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// GDPR: crear el contacto aquí (Art. 6.1.b, medida precontractual a petición\n// del interesado) es legítimo porque el usuario está pidiendo la cita ahora mismo;\n// no hace falta opt-in para esto. Un opt-in aparte haría falta solo para marketing.\nconst r = $json ?? {};\nreturn [{ json: { contact_id: r.contact?.id || null, _contact_auto: r.action || null } }];"
+      },
+      "id": "6f2b8b9a-6e21-4d2e-9a13-2f9c6c5a1a06",
+      "name": "Code · Contacto creado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2096,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json ?? {};\nreturn [{\n  json: {\n    ok: false,\n    status: 'ambiguous',\n    message: 'Hay varios contactos con ese teléfono. Necesito que nos escribáis o llaméis directamente para aclararlo.',\n    data: { candidates: r.candidates || [] },\n  },\n}];"
+      },
+      "id": "6f2b8b9a-6e21-4d2e-9a13-2f9c6c5a1a07",
+      "name": "Code · Tool Response3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2096,
+        320
+      ]
     }
   ],
   "connections": {
@@ -390,7 +694,7 @@
         ],
         [
           {
-            "node": "Code · Tool Response2",
+            "node": "¿Tenemos teléfono?",
             "type": "main",
             "index": 0
           }
@@ -420,6 +724,64 @@
         [
           {
             "node": "Code · Tool Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Tenemos teléfono?": {
+      "main": [
+        [
+          {
+            "node": "Call · 01 Contact Upsert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Tool Response2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call · 01 Contact Upsert": {
+      "main": [
+        [
+          {
+            "node": "¿Alta resuelta?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Alta resuelta?": {
+      "main": [
+        [
+          {
+            "node": "Code · Contacto creado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Tool Response3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Contacto creado": {
+      "main": [
+        [
+          {
+            "node": "Call '03 · APPOINTMENT · Create'",
             "type": "main",
             "index": 0
           }
