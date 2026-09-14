@@ -107,6 +107,12 @@ respuesta; Entry gestiona el estado de sesión y llama al Core.
   → `HTTP · Actualizar / Crear sesión` (persiste `flujo_activo` + `contact_id`)
   → `Salida Entry` `{ ok, intent, reply, needs_user_reply, session_key, canal, to }`.
 - **Entry es dueño de `canal` + `session_key`**; nunca el LLM.
+- **Aviso de privacidad**: una vez por sesión (`state.privacy_notice_shown`), Entry
+  antepone el texto del campo `privacy_notice` de `Config` a la primera respuesta.
+  Base legal RGPD: ejecución de medidas precontractuales a petición del interesado
+  (crear el contacto al reservar no necesita opt-in); el aviso cubre el deber de
+  información. Si algún día se usa el teléfono para marketing, eso sí necesita
+  consentimiento explícito aparte — no está montado.
 - Estado en `conversation_sessions` (Directus): sólo operativo. La conversación
   vive en `Postgres Chat Memory` del Core.
 - Rate-limit por `session_key` (`state.rl`, `rl_max`/`rl_window_ms` en Config):
