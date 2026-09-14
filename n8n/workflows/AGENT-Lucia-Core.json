@@ -2798,16 +2798,48 @@
     },
     {
       "parameters": {
-        "jsCode": "const r = $json ?? {};\n// Catálogo del tenant: preguntar \"¿qué servicio?\" a secas no es contestable para un cliente.\nif (r.status === 'multiple') {\n  const nombres = (r.candidates || []).map(c => c.name).join(', ');\n  return [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: `¿Para cuál de estos servicios? ${nombres}.` } }];\n}\nif (r.status === 'single' && r.service_id) {\n  return [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: true,\n    pending_service_id: r.service_id,\n    reply_to_user: `¿Qué día y a qué hora te viene bien para ${r.service_name || 'la cita'}?` } }];\n}\nreturn [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: true,\n  reply_to_user: '¿Qué servicio necesitas?' } }];"
+        "jsCode": "const r = $json ?? {};\nif (r.status === 'multiple') {\n  const nombres = (r.candidates || []).map(c => c.name).join(', ');\n  return [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: `¿Para cuál de estos servicios? ${nombres}.` } }];\n}\nreturn [{ json: { ok: true, intent: 'create_appointment', needs_user_reply: true,\n  reply_to_user: 'No encuentro ese servicio. ¿Puedes decírmelo de otra forma?' } }];"
       },
       "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        1060
+      ],
+      "id": "lucia-catalog-out",
+      "name": "Salida · pedir servicio"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "cs",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "single",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
         1620,
         1000
       ],
-      "id": "lucia-catalog-out",
-      "name": "Salida · pedir servicio"
+      "id": "lucia-catalog-single",
+      "name": "¿Servicio único (catálogo)?"
     }
   ],
   "connections": {
@@ -3782,7 +3814,7 @@
       "main": [
         [
           {
-            "node": "Salida · pedir servicio",
+            "node": "¿Servicio único (catálogo)?",
             "type": "main",
             "index": 0
           }
@@ -3794,6 +3826,24 @@
         [
           {
             "node": "Código · outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Servicio único (catálogo)?": {
+      "main": [
+        [
+          {
+            "node": "Construir start_at",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Salida · pedir servicio",
             "type": "main",
             "index": 0
           }
