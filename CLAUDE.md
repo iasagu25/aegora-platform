@@ -261,6 +261,31 @@ Todo lo de abajo está probado conversando, no solo cableado:
   martes"), nunca un filtro que se ignora — eso llegó a cancelar otra cita.
 - Intención `my_appointments` ("¿cuándo es mi próxima cita?").
 
+**Dos bugs encontrados probando por WhatsApp (15/sep/2026), ya corregidos**:
+- `Salida · huecos tras conflicto` decidía "no atiendo ese día" comparando la hora
+  pedida contra el rango de **huecos libres que quedan** ese día (`primera`/`ultima`
+  de los slots), no contra el horario real. Si el día ya estaba parcialmente
+  ocupado, el primer hueco libre caía más tarde que la hora pedida aunque esa hora
+  sí estuviera dentro de horario → decía "no atiendo a las 10:00" y en la misma
+  frase citaba un horario que SÍ incluye las 10:00. Corregido: un único mensaje
+  neutro ("no me queda hueco ese día"), verdadero se deba a cierre real o a que
+  ya esté todo cogido — no se intenta distinguir ambos casos por huecos libres.
+- "horario" es ambiguo en español (horario de atención del negocio vs. huecos
+  para reservar) y el propio prompt lo usaba en el título de la regla de
+  `list_availability` ("Listar horarios"), sesgando la clasificación: "¿cuál es
+  vuestro horario?" se clasificó como `list_availability` en vez de `knowledge`.
+  Añadida una regla explícita de desambiguación en ambos prompts
+  (`n8n/prompts/lucia-core.md` y el `systemMessage` inline del nodo `AI Agent -
+  Core`) — mantenerlos en paralelo si se vuelve a tocar.
+
+Pendiente de confirmar: un aviso de privacidad (botón CTA-url) y la respuesta
+real llegaron en orden invertido en WhatsApp en una prueba — probablemente
+Meta no garantiza el orden de entrega entre dos envíos consecutivos de tipos
+distintos aunque n8n los mande en orden. Mitigación aplicada (no confirmada
+en real): `batching` (`batchSize: 1`, `batchInterval: 1200`ms) en
+`HTTP · WhatsApp sendText` de `WHATSAPP-Adapter.json`, para dar margen al
+primer mensaje antes de mandar el segundo.
+
 **Lección de la sesión de depuración** (vale para cualquier rama nueva): casi
 todos los bugs fueron de dos tipos, y conviene revisarlos antes de dar algo por
 bueno:

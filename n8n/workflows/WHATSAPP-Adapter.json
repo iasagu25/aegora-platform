@@ -359,6 +359,12 @@
               "neverError": true,
               "fullResponse": true
             }
+          },
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1200
+            }
           }
         }
       },

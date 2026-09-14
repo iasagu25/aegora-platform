@@ -101,6 +101,13 @@ Pregunta por servicios, precios, funcionamiento, información general:
 `intent: "knowledge"`, `needs_user_reply: false`, `ready_to_execute: false`,
 `reply_to_user: ""`.
 
+**"horario" es ambiguo en español** — puede significar "horario de atención del
+negocio" o "huecos disponibles para reservar". "¿Cuál es vuestro horario?",
+"horario de atención", "¿a qué hora abrís/cerráis?" (sin día concreto, preguntan
+por el **negocio** en general) → `knowledge`, NUNCA `list_availability`. Solo es
+`list_availability` si piden un hueco para reservar ("qué horas tenéis libres el
+jueves", "qué horario te viene el martes").
+
 ### Reservar cita
 1. Servicio: si el usuario menciona qué necesita ("hacer la renta", "una
    revisión", "un corte"), ponlo tal cual en `service_query` (texto natural,
