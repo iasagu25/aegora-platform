@@ -171,56 +171,72 @@ documentado sigue siendo cierto.
     añadido por SQL (`directus_permissions` id 20, `permissions` NULL). RAG solo
     si una KB crece de verdad (~>30k tokens). **Probado en `demo`** end-to-end
     (Core → `knowledge` → colección `knowledge` → respuesta del dato correcto).
-### Omnicanal (capa de entrada del cerebro) — decidido, en construcción
-- Patrón: **adaptador fino por canal → `AGENT-Lucia-Entry` compartido → Core**.
-  El adaptador normaliza el payload del canal a un contrato fijo y hace el
-  dispatch de la respuesta; Entry carga/guarda estado de sesión y llama al Core.
-- **V1 = solo webchat.** WhatsApp (WABA Cloud API + Embedded Signup, NO Evolution
-  para tenants de pago) y otros canales, después, sin tocar Core ni Entry.
-- Estado entre turnos: colección Directus `conversation_sessions`
-  (`session_key` único, `canal`, `contact_id`, `flujo_activo`, `state` json,
-  `updated_at`). Deliberadamente mínima: la conversación vive en `Postgres Chat Memory`
-  del Core; aquí solo estado operativo. `state` = `{}` en V1 salvo rate-limit.
-- **Entry es dueño de `canal` + `session_key`**; `sessionID` que llega al Core
-  `=== session_key` (si no, se pierde la memoria).
-- webchat no resuelve contacto por teléfono: `contact_id` sale de la sesión o
-  es `null`; Lucía pide los datos cuando la operación lo exige.
-- Orden: (1) contrato Core congelado ✅ + `Salida · normalizar` ✅ →
-  (2) colección `conversation_sessions` ✅ (creada en `demo` + en `base.yaml`;
-  `contact_id` uuid plano sin relación en V1, `state` json `{}`, `updated_at`
-  special `date-updated`; permisos n8n `read`/`create`/`update` para la policy
-  `c42ccf84` por SQL — `directus_permissions` id 21/22/23) →
-  (3) `AGENT-Lucia-Entry.json` ✅ (id `aegoraAgentLuciaEntry`: Config → Validar
-  → Cargar sesión → Preparar contexto → Execute Core → Fusionar → ¿Sesión
-  existe? → Actualizar/Crear sesión → Salida Entry; 3 nodos HTTP con credencial
-  `Directus · demo`; **sin probar en demo todavía**) →
-  (4) `WEBCHAT-Adapter.json` ✅ (id `aegoraWebchatAdapter`; webhook `POST
-  /webchat`, allowlist `Origin` en el adapter, rate-limit por `session_key`
-  movido **dentro de Entry** con `state.rl`) →
-  (5) widget `n8n/webchat/` ✅ (`widget.js` sin deps + `demo.html` + README) →
-  (6) `SESSION-Cleanup.json` ✅ (id `aegoraSessionCleanup`; schedule diario
-  04:00, purga por `updated_at`/`created_at` < cutoff; necesita permiso
-  `delete` para la policy n8n).
-- **Cadena validada end-to-end en `demo`** vía `POST /webhook/webchat`:
-  webhook → `WEBCHAT · Adapter` → `AGENT · Lucía · Entry` (carga sesión +
-  rate-limit `state.rl`) → `AGENT · Lucía · Core` → tools → Booking API →
-  respuesta. Multi-turno OK (`session_key` estable, `flujo_activo` persiste
-  entre turnos, el Core retoma el flujo). `WEBCHAT · Adapter` activo en `demo`
-  (el webhook de producción responde → está activo).
-- Pendiente:
-  - `SESSION · Cleanup`: conceder `delete` en `conversation_sessions` a la
-    policy n8n `c42ccf84` (SQL) y probarlo/activarlo.
-  - Probar el widget (`n8n/webchat/demo.html`) en navegador contra el host
-    público del n8n de `demo`.
-  - Limpiar filas de prueba en `conversation_sessions`.
-  - Aplicar `base.yaml` (19af460) + `booking-indexes.sql` en `aegora-internal`.
-  - `demo`/`aegora-internal`: crear credencial `Booking API` en n8n, importar el
-    workflow, ajustar el nodo `Config` a `http://<tenant>-booking:3000`.
-  - Limpieza opcional: `DROP DATABASE booking_demo` / `booking_aegora-internal`
-    (+ roles) y quitar sus refs de `config/tenant.env` + `config/backup.manifest.json`.
+### Omnicanal (capa de entrada del cerebro) — V1 funcionando en `demo`
+- Cadena: `WEBCHAT · Adapter` → `AGENT · Lucía · Entry` → `AGENT · Lucía · Core`
+  → tools versionados → Booking API. Validada end-to-end por webchat.
+- **V1 = solo webchat.** WhatsApp irá con WABA Cloud API + Embedded Signup
+  (NO Evolution para tenants de pago: viola ToS y arriesga el número del
+  cliente). Otro adapter, sin tocar Entry ni Core.
+- `conversation_sessions` (Directus) guarda SOLO estado operativo; la
+  conversación vive en `Postgres Chat Memory` del Core (`n8n_<tenant>`).
+  Entry es dueño de `canal` + `session_key`; `sessionID` del Core === `session_key`.
+- Rate-limit por `session_key` en Entry (`state.rl`); allowlist de `Origin` en el adapter.
+- Widget en `n8n/webchat/` (`widget.js` sin dependencias + `demo.html`).
+
+#### Patrón clave: lo que el LLM no puede saber, va en `conversation_sessions.state`
+Repetidamente ha aparecido el mismo fallo: un hecho que **solo conoce la capa
+determinista** (resultado del Booking API, qué cita se localizó, qué servicio se
+resolvió) nunca llega a la memoria del LLM, porque se genera *después* de que el
+Core clasifique el turno. La solución, aplicada ya varias veces, es persistirlo en
+`state` y reinyectarlo como input del Core:
+
+| campo en `state` | para qué | vida |
+|---|---|---|
+| `contact_phone` | identidad del hilo entre intenciones | indefinida |
+| `pending_service_id` | servicio ya resuelto de la reserva en curso | mientras `flujo_activo` |
+| `pending_appointment_id` + `pending_appointment_service_id` | cita localizada en reschedule/cancel (evita re-listar cada turno) | mientras `flujo_activo` |
+| `last_appointment_id` | última cita tocada; resuelve referencias implícitas ("mejor pásala al jueves") | indefinida |
+| `awaiting_slots_offer` + `alt_slots_date`/`alt_slots_time` | guard: nunca reintentar el hueco que acaba de fallar | 1 turno |
+| `awaiting_bulk_confirm` + `bulk_appointment_ids` | cancelación en bloque pendiente de confirmar | 1 turno |
+
+Contrato completo en `n8n/CONTRACT-lucia-core.md`. **Los UUID nunca pasan por el
+LLM**: el Core solo emite significado (`service_query`, `confirmation`, ordinales)
+y el router resuelve identificadores.
+
+#### Redactor (paso 7)
+Todas las ramas producen un **borrador determinista**; `Código · outcome` →
+`¿Necesita Redactor?` → `Redactor` (gpt-4o-mini, solo reescribe tono) →
+`Salida · normalizar`. Se **salta** el Redactor cuando la operación ya se ejecutó
+(`ok && !needs_user_reply`) o el texto ya viene redactado (`_already_styled`):
+paraphrasear "cita confirmada" → "cita pendiente" es inaceptable. También se salta
+cuando se cita el horario literal de la KB.
+
+#### UX conversacional resuelta
+- Franjas con convención española (`tarde` desde las 14:00, no mediodía);
+  el Core emite `daypart` y n8n filtra los slots.
+- Un conflicto de hueco **lista los huecos libres de inmediato**, sin preguntar
+  "¿quieres que te los diga?" (tanto al reservar como al reprogramar), y si la
+  hora pedida cae fuera de servicio cita el horario **literal** de la colección
+  `knowledge` (nunca interpretado: `availability_rules` es por recurso y no sirve
+  para afirmar el horario del negocio).
+- Reprogramar sabe listar disponibilidad del servicio de la cita, excluyéndose a
+  sí misma.
+- Cancelación en bloque con confirmación explícita; reprogramar en bloque no
+  (cada cita necesita su hueco).
+- Intención `my_appointments` ("¿cuándo es mi próxima cita?").
+
+- Pendiente omnicanal / cerebro:
+  - **Personalizar con el nombre del contacto** (no prioritario): cuando el
+    contacto ya está resuelto, tutearle por su nombre — "Paco, a las 8:00 no
+    atendemos ese día…", "Listo Paco, cita confirmada para…". Hoy el nombre se
+    resuelve en los tools pero no vuelve al texto de las `Salida ·`.
+  - `SESSION · Cleanup`: conceder `delete` en `conversation_sessions` a la policy
+    n8n `c42ccf84` (SQL) y activarlo.
+  - Probar el widget en navegador contra el host público del n8n de `demo`.
+  - Parametrizar `http://demo-directus:8055` hardcodeado en los workflows `00-25`.
+  - Aplicar `base.yaml` + `booking-indexes.sql` en `aegora-internal`, y montar
+    allí credenciales n8n + workflows.
   - Migrar build A → imagen en GHCR (CI en `aegora-booking`).
-  - Booking API dueño de create/reschedule/cancel desde n8n (handover §12.3);
-    luego enganchar el toolset al agente.
 
 ## Estilo de trabajo esperado
 - PLAN antes de APPLY siempre. No inventar flags de script sin confirmar

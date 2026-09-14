@@ -1578,7 +1578,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const r = $json ?? {};\nconst tz = $('Output IA → JSON').item.json.tenant_timezone || 'Europe/Madrid';\nif (r.ok === true) {\n  const a = (r.data && r.data.appointment) || {};\n  const cuando = a.start_at ? DateTime.fromISO(a.start_at).setZone(tz).setLocale('es').toFormat(\"cccc d 'de' LLLL 'a las' HH:mm\") : '';\n  return [{ json: { ok: true, intent: 'reschedule_appointment', needs_user_reply: false, reply_to_user: `Hecho, tu cita queda para el ${cuando}.`, appointment: a, last_appointment_id: a.id } }];\n}\nconst st = (r.data && r.data.result && r.data.result.status) || r.status;\nif (st === 'slot_conflict') return [{ json: { ok:false, intent:'reschedule_appointment', needs_user_reply:true, reply_to_user:'Ese horario no está disponible ese día. ¿Te digo los huecos libres?' } }];\nif (st === 'slot_taken')   return [{ json: { ok:false, intent:'reschedule_appointment', needs_user_reply:true, reply_to_user:'Ese horario acaba de ocuparse. ¿Quieres otro?' } }];\nreturn [{ json: { ok:false, intent:'reschedule_appointment', needs_user_reply:true, reply_to_user: r.message || 'No he podido reprogramar la cita.' } }];"
+        "jsCode": "const r = $json ?? {};\nconst core = $('Output IA → JSON').item.json;\nconst m = $('Code · Nuevo start_at').item.json;\nconst tz = core.tenant_timezone || 'Europe/Madrid';\nif (r.ok === true) {\n  const a = (r.data && r.data.appointment) || {};\n  const cuando = a.start_at\n    ? DateTime.fromISO(a.start_at).setZone(tz).setLocale('es').toFormat(\"cccc d 'de' LLLL 'a las' HH:mm\")\n    : '';\n  return [{ json: { ok: true, intent: 'reschedule_appointment', needs_user_reply: false,\n    reply_to_user: `Hecho, tu cita queda para el ${cuando}.`,\n    appointment: a, last_appointment_id: a.id } }];\n}\n// WF24 envuelve el fallo del Booking API: el código real está en data.result.error\nconst code = (r.data && r.data.result && (r.data.result.error || r.data.result.status)) || r.status;\nif (code === 'slot_conflict' || code === 'slot_taken') {\n  // Igual que al reservar: enseñamos los huecos del día, no un error seco.\n  return [{ json: { ok: false, intent: 'reschedule_appointment', needs_user_reply: true,\n    _needs_slots: true,\n    _conflict_kind: code === 'slot_taken' ? 'taken' : 'closed',\n    service_id: m.service_id || null,\n    appointment_id: m.appointment_id || null,\n    date: core.date || null, time: core.time || null,\n    reply_to_user: 'Ese horario no está disponible ese día.' } }];\n}\nreturn [{ json: { ok: false, intent: 'reschedule_appointment', needs_user_reply: true,\n  pending_appointment_id: m.appointment_id || null,\n  pending_appointment_service_id: m.service_id || null,\n  reply_to_user: r.message || 'No he podido reprogramar la cita.' } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2436,7 +2436,8 @@
             "service_id": "={{ $json.service_id }}",
             "date": "={{ $json.date }}",
             "timezone": "={{ $('Output IA → JSON').item.json.tenant_timezone }}",
-            "booking_base_url": "={{ $('Output IA → JSON').item.json.booking_base_url }}"
+            "booking_base_url": "={{ $('Output IA → JSON').item.json.booking_base_url }}",
+            "exclude_appointment_id": "={{ $json.appointment_id }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -2527,7 +2528,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const av = $('Call · Availability (conflicto)').item.json ?? {};\nconst c = $('Salida · reserva').item.json;\nconst core = $('Output IA → JSON').item.json;\nconst tz = core.tenant_timezone || 'Europe/Madrid';\nconst slots = Array.isArray(av.slots) ? av.slots : [];\nconst flags = { pending_service_id: c.service_id || null, awaiting_slots_offer: true, alt_slots_date: c.alt_slots_date, alt_slots_time: c.alt_slots_time };\nconst fecha = av.date\n  ? DateTime.fromISO(av.date).setZone(tz).setLocale('es').toFormat(\"cccc d 'de' LLLL\")\n  : 'ese día';\nconst hora = c.time || 'esa hora';\n\n// Horario de atención: se CITA LITERAL desde la KB, nunca se interpreta ni se resume.\n// Si no hay entrada, simplemente no se menciona.\nconst kbRes = $json ?? {};\nconst kbBody = (kbRes.body ?? kbRes) || {};\nconst kbRows = Array.isArray(kbBody.data) ? kbBody.data : [];\nlet horarioTxt = kbRows.length ? (kbRows[0].body || '').toString() : '';\nhorarioTxt = horarioTxt.replace(/^#+\\s*.*$/gm, '').replace(/[*_`>]/g, '').replace(/\\s+/g, ' ').trim();\nconst horarioFrase = (horarioTxt && horarioTxt.length <= 200) ? ` Nuestro horario: ${horarioTxt}` : '';\n// Si citamos el horario literal, el Redactor NO debe tocar el texto: un horario con dos tramos\n// ('de 9 a 14 y de 16 a 20') es justo lo que un parafraseo estropea.\nconst styled = horarioFrase ? { _already_styled: true } : {};\n\nconst hhmm = s => DateTime.fromISO(s).setZone(tz).toFormat('HH:mm');\n\nif (!slots.length) {\n  return [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n    reply_to_user: `A las ${hora} no puedo, y el ${fecha} no me queda ningún hueco libre.${horarioFrase} ¿Miramos otro día?`,\n    ...flags, ...styled } }];\n}\n\nconst lista = slots.map(s => hhmm(s.start_at)).join(', ');\nconst primera = hhmm(slots[0].start_at);\nconst ultima = hhmm(slots[slots.length - 1].end_at);\n// Comparación lexicográfica de 'HH:mm' -- válida por el formato de ancho fijo\nconst dentroDeHorario = c.time ? (c.time >= primera && c.time <= ultima) : true;\n\nlet cabecera;\nif (c._conflict_kind === 'taken') cabecera = `Las ${hora} ya están cogidas.`;\nelse if (dentroDeHorario) cabecera = `A las ${hora} no me queda hueco.`;\nelse cabecera = `A las ${hora} no atiendo ese día.${horarioFrase}`;\n\nreturn [{ json: { ok: false, intent: 'create_appointment', needs_user_reply: true,\n  reply_to_user: `${cabecera} El ${fecha} tengo libre: ${lista}. ¿Cuál te viene mejor, o prefieres otro día?`,\n  ...flags, ...styled } }];"
+        "jsCode": "const av = $('Call · Availability (conflicto)').item.json ?? {};\nconst desdeReserva = $('Salida · reserva').isExecuted;\nconst c = desdeReserva ? $('Salida · reserva').item.json : $('Salida · reprogramar').item.json;\nconst _intent = desdeReserva ? 'create_appointment' : 'reschedule_appointment';\nconst _cont = desdeReserva\n  ? { pending_service_id: c.service_id || null }\n  : { pending_appointment_id: c.appointment_id || null,\n      pending_appointment_service_id: c.service_id || null };\nconst core = $('Output IA → JSON').item.json;\nconst tz = core.tenant_timezone || 'Europe/Madrid';\nconst slots = Array.isArray(av.slots) ? av.slots : [];\nconst flags = { ..._cont, awaiting_slots_offer: true, alt_slots_date: c.alt_slots_date, alt_slots_time: c.alt_slots_time };\nconst fecha = av.date\n  ? DateTime.fromISO(av.date).setZone(tz).setLocale('es').toFormat(\"cccc d 'de' LLLL\")\n  : 'ese día';\nconst hora = c.time || 'esa hora';\n\n// Horario de atención: se CITA LITERAL desde la KB, nunca se interpreta ni se resume.\n// Si no hay entrada, simplemente no se menciona.\nconst kbRes = $json ?? {};\nconst kbBody = (kbRes.body ?? kbRes) || {};\nconst kbRows = Array.isArray(kbBody.data) ? kbBody.data : [];\nlet horarioTxt = kbRows.length ? (kbRows[0].body || '').toString() : '';\nhorarioTxt = horarioTxt.replace(/^#+\\s*.*$/gm, '').replace(/[*_`>]/g, '').replace(/\\s+/g, ' ').trim();\nconst horarioFrase = (horarioTxt && horarioTxt.length <= 200) ? ` Nuestro horario: ${horarioTxt}` : '';\n// Si citamos el horario literal, el Redactor NO debe tocar el texto: un horario con dos tramos\n// ('de 9 a 14 y de 16 a 20') es justo lo que un parafraseo estropea.\nconst styled = horarioFrase ? { _already_styled: true } : {};\n\nconst hhmm = s => DateTime.fromISO(s).setZone(tz).toFormat('HH:mm');\n\nif (!slots.length) {\n  return [{ json: { ok: false, intent: _intent, needs_user_reply: true,\n    reply_to_user: `A las ${hora} no puedo, y el ${fecha} no me queda ningún hueco libre.${horarioFrase} ¿Miramos otro día?`,\n    ...flags, ...styled } }];\n}\n\nconst lista = slots.map(s => hhmm(s.start_at)).join(', ');\nconst primera = hhmm(slots[0].start_at);\nconst ultima = hhmm(slots[slots.length - 1].end_at);\n// Comparación lexicográfica de 'HH:mm' -- válida por el formato de ancho fijo\nconst dentroDeHorario = c.time ? (c.time >= primera && c.time <= ultima) : true;\n\nlet cabecera;\nif (c._conflict_kind === 'taken') cabecera = `Las ${hora} ya están cogidas.`;\nelse if (dentroDeHorario) cabecera = `A las ${hora} no me queda hueco.`;\nelse cabecera = `A las ${hora} no atiendo ese día.${horarioFrase}`;\n\nreturn [{ json: { ok: false, intent: _intent, needs_user_reply: true,\n  reply_to_user: `${cabecera} El ${fecha} tengo libre: ${lista}. ${desdeReserva ? '¿Cuál te viene mejor, o prefieres otro día?' : '¿A cuál la muevo, o prefieres otro día?'}`,\n  ...flags, ...styled } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2617,6 +2618,39 @@
       ],
       "id": "lucia-svc-known",
       "name": "Code · Usar servicio resuelto"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "ns2",
+              "leftValue": "={{ $json._needs_slots }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2940,
+        360
+      ],
+      "id": "lucia-resched-needslots",
+      "name": "¿Listar huecos (reprogramar)?"
     }
   ],
   "connections": {
@@ -3151,7 +3185,7 @@
       "main": [
         [
           {
-            "node": "Código · outcome",
+            "node": "¿Listar huecos (reprogramar)?",
             "type": "main",
             "index": 0
           }
@@ -3516,6 +3550,24 @@
         [
           {
             "node": "Construir start_at",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Listar huecos (reprogramar)?": {
+      "main": [
+        [
+          {
+            "node": "Call · Availability (conflicto)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Código · outcome",
             "type": "main",
             "index": 0
           }
