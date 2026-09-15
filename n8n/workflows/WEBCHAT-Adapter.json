@@ -196,7 +196,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const e = $json ?? {};\nconst norm = $('Code · Normalizar').item.json;\nreturn [{ json: {\n  reply: e.reply || '',\n  needs_user_reply: e.needs_user_reply === true,\n  session_key: e.session_key || norm.entry.session_key,\n  client_session_id: norm.client_session_id,\n} }];"
+        "jsCode": "const e = $json ?? {};\nconst norm = $('Code · Normalizar').item.json;\nreturn [{ json: {\n  // El aviso de privacidad lo pinta el widget al abrir el chat, así que aquí va la\n  // respuesta SIN él (core_reply). Se cae a `reply` por si el Core no lo separa o si\n  // core_reply viene vacío -- en v1, un saludo genérico detrás del aviso se suprime y\n  // el único texto del turno está en el combinado.\n  reply: (e.core_reply && e.core_reply.trim()) ? e.core_reply : (e.reply || ''),\n  needs_user_reply: e.needs_user_reply === true,\n  session_key: e.session_key || norm.entry.session_key,\n  client_session_id: norm.client_session_id,\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

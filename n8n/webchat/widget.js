@@ -3,10 +3,16 @@
  * Embebido:
  *   <script src="https://TU-CDN/widget.js"
  *           data-endpoint="https://n8n.tu-dominio/webhook/webchat"
- *           data-title="Asistente"></script>
+ *           data-title="Asistente"
+ *           data-privacy-url="https://tu-dominio/legal/privacidad"></script>
  *
  * POST {endpoint}  ->  { session_key, message }
  * respuesta        <-  { reply, needs_user_reply, client_session_id }
+ *
+ * Aviso de privacidad (RGPD art. 13): aquí se enseña al ABRIR el chat, no colgado de la
+ * primera respuesta. En webchat existe ese momento y en WhatsApp no, que es justo por lo
+ * que allí viaja como botón en el primer mensaje. El adapter de webchat manda ya la
+ * respuesta sin el aviso, para que no salga dos veces.
  *
  * Sin dependencias. Guarda el id de hilo en localStorage. Una petición en vuelo.
  */
@@ -16,6 +22,11 @@
   var ENDPOINT = script.getAttribute('data-endpoint');
   var TITLE = script.getAttribute('data-title') || 'Asistente';
   var GREETING = script.getAttribute('data-greeting') || '¡Hola! ¿En qué puedo ayudarte?';
+  var PRIV_URL = script.getAttribute('data-privacy-url') || '';
+  var PRIV_TEXT = script.getAttribute('data-privacy-text') ||
+    'Guardamos tus datos solo para gestionar tu cita.';
+  // Aquí no hay límite de 20 caracteres como en los botones de WhatsApp: cabe el nombre entero.
+  var PRIV_LABEL = script.getAttribute('data-privacy-label') || 'Política de Privacidad';
   if (!ENDPOINT) { console.error('[aegora-webchat] falta data-endpoint'); return; }
 
   var SKEY = 'aegora_webchat_sid';
@@ -39,7 +50,11 @@
     '.agw-form input{flex:1;border:0;padding:12px;font:inherit;outline:none}' +
     '.agw-form button{border:0;background:#1f6feb;color:#fff;padding:0 16px;cursor:pointer;font:inherit}' +
     '.agw-form button:disabled{opacity:.5;cursor:default}' +
-    '.agw-dots{align-self:flex-start;color:#57606a;font-style:italic}';
+    '.agw-dots{align-self:flex-start;color:#57606a;font-style:italic}' +
+    // Nota legal, no un mensaje de Lucía: se distingue a propósito de las burbujas.
+    '.agw-priv{align-self:stretch;color:#57606a;font-size:12px;line-height:1.5;text-align:center;' +
+      'padding:2px 6px 6px}' +
+    '.agw-priv a{color:#1f6feb}';
   var style = document.createElement('style');
   style.textContent = css;
   document.head.appendChild(style);
@@ -76,10 +91,30 @@
     return el;
   }
 
+  function addPrivacy() {
+    var el = document.createElement('div');
+    el.className = 'agw-priv';
+    el.appendChild(document.createTextNode(PRIV_TEXT + ' '));
+    // Solo http(s): un data-privacy-url con javascript: no debe llegar a un href.
+    if (/^https?:\/\//i.test(PRIV_URL)) {
+      var a = document.createElement('a');
+      a.href = PRIV_URL;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.textContent = PRIV_LABEL;
+      el.appendChild(a);
+    }
+    log.appendChild(el);
+  }
+
   function toggle() {
     var open = panel.classList.toggle('agw-open');
     if (open) {
-      if (!greeted) { add(GREETING, 'bot'); greeted = true; }
+      if (!greeted) {
+        addPrivacy();
+        add(GREETING, 'bot');
+        greeted = true;
+      }
       input.focus();
     }
   }
