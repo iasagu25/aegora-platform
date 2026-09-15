@@ -22,6 +22,9 @@
               "name": "telefono"
             },
             {
+              "name": "telefono_dicho"
+            },
+            {
               "name": "session_key"
             },
             {
@@ -47,7 +50,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// telefono y session_key NO los rellena el modelo: los inyecta el agente desde la sesión del\n// canal. El LLM nunca manipula la identidad del contacto (en WhatsApp ya la conocemos).\nconst i = $json ?? {};\nconst clean = v => (v === undefined || v === null) ? '' : String(v).trim();\nconst fecha = clean(i.fecha);\nconst hora = clean(i.hora);\nif (!/^\\d{4}-\\d{2}-\\d{2}$/.test(fecha) || !/^\\d{2}:\\d{2}$/.test(hora)) {\n  return [{ json: { _error: true, ok: false, motivo: 'fecha_u_hora_invalida',\n    detalle: 'Necesito fecha YYYY-MM-DD y hora HH:mm.' } }];\n}\nconst tz = clean(i.tenant_timezone) || 'Europe/Madrid';\nconst start = DateTime.fromISO(fecha + 'T' + hora, { zone: tz });\nif (!start.isValid) {\n  return [{ json: { _error: true, ok: false, motivo: 'fecha_u_hora_invalida',\n    detalle: start.invalidReason || 'No es una fecha/hora real.' } }];\n}\nconst session_key = clean(i.session_key) || 'lucia';\nreturn [{ json: {\n  _error: false,\n  fecha, hora, tenant_timezone: tz,\n  start_at: start.toISO(),\n  fecha_label: start.setLocale('es').toFormat(\"cccc d 'de' LLLL\"),\n  servicio: clean(i.servicio),\n  nombre: clean(i.nombre),\n  telefono: clean(i.telefono),\n  directus_base_url: clean(i.directus_base_url),\n  booking_base_url: clean(i.booking_base_url),\n  // Reintentar la misma reserva no duplica: el Booking API la resuelve por idempotencia.\n  idempotency_key: session_key + '-' + start.toISO(),\n} }];"
+        "jsCode": "// telefono y session_key NO los rellena el modelo: los inyecta el agente desde la sesión del\n// canal. El LLM nunca manipula la identidad del contacto (en WhatsApp ya la conocemos).\nconst i = $json ?? {};\nconst clean = v => (v === undefined || v === null) ? '' : String(v).trim();\nconst fecha = clean(i.fecha);\nconst hora = clean(i.hora);\nif (!/^\\d{4}-\\d{2}-\\d{2}$/.test(fecha) || !/^\\d{2}:\\d{2}$/.test(hora)) {\n  return [{ json: { _error: true, ok: false, motivo: 'fecha_u_hora_invalida',\n    detalle: 'Necesito fecha YYYY-MM-DD y hora HH:mm.' } }];\n}\nconst tz = clean(i.tenant_timezone) || 'Europe/Madrid';\nconst start = DateTime.fromISO(fecha + 'T' + hora, { zone: tz });\nif (!start.isValid) {\n  return [{ json: { _error: true, ok: false, motivo: 'fecha_u_hora_invalida',\n    detalle: start.invalidReason || 'No es una fecha/hora real.' } }];\n}\nconst session_key = clean(i.session_key) || 'lucia';\nreturn [{ json: {\n  _error: false,\n  fecha, hora, tenant_timezone: tz,\n  start_at: start.toISO(),\n  fecha_label: start.setLocale('es').toFormat(\"cccc d 'de' LLLL\"),\n  servicio: clean(i.servicio),\n  nombre: clean(i.nombre),\n  // El teléfono del canal manda; el que diga el cliente solo vale si no hay canal\n  // (webchat). En WhatsApp el modelo no puede suplantar la identidad real.\n  telefono: clean(i.telefono) || clean(i.telefono_dicho),\n  directus_base_url: clean(i.directus_base_url),\n  booking_base_url: clean(i.booking_base_url),\n  // Reintentar la misma reserva no duplica: el Booking API la resuelve por idempotencia.\n  idempotency_key: session_key + '-' + start.toISO(),\n} }];"
       },
       "id": "r-0002",
       "name": "Code · Entrada",

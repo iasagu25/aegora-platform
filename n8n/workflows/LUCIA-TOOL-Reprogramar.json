@@ -22,6 +22,9 @@
               "name": "telefono"
             },
             {
+              "name": "telefono_dicho"
+            },
+            {
               "name": "tenant_timezone"
             }
           ]
@@ -32,7 +35,54 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.2,
       "position": [
+        -260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const i = $json ?? {};\nconst clean = v => (v === undefined || v === null) ? '' : String(v).trim();\nconst delCanal = clean(i.telefono);\nconst dicho = clean(i.telefono_dicho);\nconst telefono = delCanal || dicho;\nreturn [{ json: {\n  _identificado: telefono !== '',\n  telefono,\n  telefono_del_canal: delCanal !== '',\n  fecha: clean(i.fecha),\n  hora: clean(i.hora),\n  fecha_nueva: clean(i.fecha_nueva),\n  hora_nueva: clean(i.hora_nueva),\n  tenant_timezone: clean(i.tenant_timezone) || 'Europe/Madrid',\n} }];"
+      },
+      "id": "p-0002",
+      "name": "Code · Entrada",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
         -40,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "p-0003-c",
+              "leftValue": "={{ $json._identificado }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "p-0003",
+      "name": "¿Sabemos quién es?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        180,
         0
       ]
     },
@@ -51,7 +101,7 @@
             "email": "",
             "query": "",
             "limit": "20",
-            "phone": "={{ $('When Executed by Agent').first().json.telefono }}"
+            "phone": "={{ $('Code · Entrada').first().json.telefono }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -111,72 +161,25 @@
         },
         "options": {}
       },
-      "id": "p-0002",
+      "id": "p-0004",
       "name": "Execute · 23 Appointment List",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        180,
-        0
+        400,
+        -100
       ]
     },
     {
       "parameters": {
-        "jsCode": "const tz = $('When Executed by Agent').first().json.tenant_timezone || 'Europe/Madrid';\nconst dt = s => DateTime.fromISO(s).setZone(tz).setLocale('es');\nconst resumen = a => ({\n  fecha: dt(a.start_at).toFormat('yyyy-LL-dd'),\n  fecha_label: dt(a.start_at).toFormat(\"cccc d 'de' LLLL\"),\n  hora: dt(a.start_at).toFormat('HH:mm'),\n  servicio: a.service_name || null,\n});\nconst r = $json ?? {};\nconst inp = $('When Executed by Agent').first().json;\nconst clean = v => (v === undefined || v === null) ? '' : String(v).trim();\nconst fecha = clean(inp.fecha);\nconst hora = clean(inp.hora);\n\nif (r.ok !== true) {\n  const st = r.status || 'error';\n  const motivo = st === 'not_found' ? 'sin_citas' : (st === 'multiple' ? 'contacto_ambiguo' : 'error_listado');\n  return [{ json: { _found: false, ok: false, motivo } }];\n}\n\nconst vivas = ((r.data && r.data.appointments) || [])\n  .filter(a => a.status === 'scheduled' || a.status === 'confirmed');\nconst delDia = vivas.filter(a => dt(a.start_at).toFormat('yyyy-LL-dd') === fecha);\n\nif (!delDia.length) {\n  return [{ json: { _found: false, ok: false, motivo: 'no_hay_cita_ese_dia',\n    citas: vivas.map(resumen) } }];\n}\n\nlet elegida;\nif (hora) {\n  const exactas = delDia.filter(a => dt(a.start_at).toFormat('HH:mm') === hora);\n  if (!exactas.length) {\n    return [{ json: { _found: false, ok: false, motivo: 'no_hay_cita_a_esa_hora',\n      citas: delDia.map(resumen) } }];\n  }\n  elegida = exactas[0];\n} else {\n  if (delDia.length > 1) {\n    return [{ json: { _found: false, ok: false, motivo: 'varias_ese_dia',\n      citas: delDia.map(resumen) } }];\n  }\n  elegida = delDia[0];\n}\nreturn [{ json: { _found: true, appointment_id: elegida.id, cita: resumen(elegida) } }];"
+        "jsCode": "const tz = $('Code · Entrada').first().json.tenant_timezone;\nconst dt = s => DateTime.fromISO(s).setZone(tz).setLocale('es');\nconst resumen = a => ({\n  fecha: dt(a.start_at).toFormat('yyyy-LL-dd'),\n  fecha_label: dt(a.start_at).toFormat(\"cccc d 'de' LLLL\"),\n  hora: dt(a.start_at).toFormat('HH:mm'),\n  servicio: a.service_name || null,\n});\nconst r = $json ?? {};\nconst inp = $('Code · Entrada').first().json;\nconst fecha = inp.fecha;\nconst hora = inp.hora;\n\nif (r.ok !== true) {\n  const st = r.status || 'error';\n  // validation_error aquí solo puede ser \"sin identificador\": ya lo filtramos antes, pero\n  // si llega, es falta de identidad y NO un fallo técnico.\n  if (st === 'validation_error') return [{ json: { ok: false, motivo: 'falta_identidad', falta: ['telefono'] } }];\n  if (st === 'multiple') return [{ json: { ok: false, motivo: 'contacto_ambiguo',\n    detalle: r.message || null } }];\n  if (st === 'not_found') return [{ json: { _found: false, ok: false, motivo: 'sin_citas' } }];\n  return [{ json: { _found: false, ok: false, motivo: 'error_listado',\n    status_origen: st, detalle: r.message || null } }];\n}\n\nconst vivas = ((r.data && r.data.appointments) || [])\n  .filter(a => a.status === 'scheduled' || a.status === 'confirmed');\nif (!vivas.length) return [{ json: { _found: false, ok: false, motivo: 'sin_citas' } }];\n\nconst delDia = vivas.filter(a => dt(a.start_at).toFormat('yyyy-LL-dd') === fecha);\n// Estricto a propósito: nombrar un día sin citas es un error explícito, nunca un filtro\n// que se ignora (esa tolerancia llegó a cancelar la cita equivocada en v1).\nif (!delDia.length) {\n  return [{ json: { _found: false, ok: false, motivo: 'no_hay_cita_ese_dia',\n    citas: vivas.map(resumen) } }];\n}\n\nlet elegida;\nif (hora) {\n  const exactas = delDia.filter(a => dt(a.start_at).toFormat('HH:mm') === hora);\n  if (!exactas.length) {\n    return [{ json: { _found: false, ok: false, motivo: 'no_hay_cita_a_esa_hora',\n      citas: delDia.map(resumen) } }];\n  }\n  elegida = exactas[0];\n} else if (delDia.length > 1) {\n  return [{ json: { _found: false, ok: false, motivo: 'varias_ese_dia',\n    citas: delDia.map(resumen) } }];\n} else {\n  elegida = delDia[0];\n}\nreturn [{ json: { _found: true, appointment_id: elegida.id, cita: resumen(elegida) } }];"
       },
-      "id": "p-0003",
+      "id": "p-0005",
       "name": "Code · Localizar cita",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        400,
-        0
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose",
-            "version": 3
-          },
-          "conditions": [
-            {
-              "id": "p-0004-c",
-              "leftValue": "={{ $json._found }}",
-              "rightValue": "",
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "p-0004",
-      "name": "¿Localizada?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
         620,
-        0
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const loc = $json ?? {};\nconst inp = $('When Executed by Agent').first().json;\nconst clean = v => (v === undefined || v === null) ? '' : String(v).trim();\nconst tz = clean(inp.tenant_timezone) || 'Europe/Madrid';\nconst fecha = clean(inp.fecha_nueva);\nconst hora = clean(inp.hora_nueva);\nif (!/^\\d{4}-\\d{2}-\\d{2}$/.test(fecha) || !/^\\d{2}:\\d{2}$/.test(hora)) {\n  return [{ json: { _ok: false, ok: false, motivo: 'fecha_u_hora_invalida',\n    detalle: 'Necesito el nuevo día en YYYY-MM-DD y la hora en HH:mm.' } }];\n}\nconst start = DateTime.fromISO(fecha + 'T' + hora, { zone: tz });\nif (!start.isValid) {\n  return [{ json: { _ok: false, ok: false, motivo: 'fecha_u_hora_invalida' } }];\n}\nreturn [{ json: { _ok: true, appointment_id: loc.appointment_id,\n  start_at: start.toISO(),\n  cita_nueva: { fecha, fecha_label: start.setLocale('es').toFormat(\"cccc d 'de' LLLL\"), hora } } }];"
-      },
-      "id": "p-0005",
-      "name": "Code · Nuevo hueco",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        840,
         -100
       ]
     },
@@ -192,7 +195,7 @@
           "conditions": [
             {
               "id": "p-0006-c",
-              "leftValue": "={{ $json._ok }}",
+              "leftValue": "={{ $json._found }}",
               "rightValue": "",
               "operator": {
                 "type": "boolean",
@@ -206,12 +209,59 @@
         "options": {}
       },
       "id": "p-0006",
+      "name": "¿Localizada?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        840,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const loc = $json ?? {};\nconst inp = $('Code · Entrada').first().json;\nconst fecha = inp.fecha_nueva;\nconst hora = inp.hora_nueva;\nif (!/^\\d{4}-\\d{2}-\\d{2}$/.test(fecha) || !/^\\d{2}:\\d{2}$/.test(hora)) {\n  return [{ json: { _ok: false, ok: false, motivo: 'fecha_u_hora_invalida',\n    detalle: 'Necesito el nuevo día en YYYY-MM-DD y la hora en HH:mm.' } }];\n}\nconst start = DateTime.fromISO(fecha + 'T' + hora, { zone: inp.tenant_timezone });\nif (!start.isValid) return [{ json: { _ok: false, ok: false, motivo: 'fecha_u_hora_invalida' } }];\nreturn [{ json: { _ok: true, appointment_id: loc.appointment_id, start_at: start.toISO(),\n  cita_nueva: { fecha, fecha_label: start.setLocale('es').toFormat(\"cccc d 'de' LLLL\"), hora } } }];"
+      },
+      "id": "p-0007",
+      "name": "Code · Nuevo hueco",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1060,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "p-0008-c",
+              "leftValue": "={{ $json._ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "p-0008",
       "name": "¿Hueco válido?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1060,
-        -100
+        1280,
+        -200
       ]
     },
     {
@@ -229,7 +279,7 @@
             "email": "",
             "query": "",
             "end_at": "",
-            "phone": "={{ $('When Executed by Agent').first().json.telefono }}",
+            "phone": "={{ $('Code · Entrada').first().json.telefono }}",
             "appointment_id": "={{ $json.appointment_id }}",
             "start_at": "={{ $json.start_at }}"
           },
@@ -311,52 +361,65 @@
         },
         "options": {}
       },
-      "id": "p-0007",
+      "id": "p-0009",
       "name": "Execute · 24 Appointment Reschedule",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        1280,
-        -200
+        1500,
+        -300
       ]
     },
     {
       "parameters": {
-        "jsCode": "const r = $json ?? {};\nconst antes = $('Code · Localizar cita').first().json.cita;\nconst despues = $('Code · Nuevo hueco').first().json.cita_nueva;\nif (r.ok === true) return [{ json: { ok: true, motivo: 'reprogramada', antes, cita: despues } }];\nconst st = (r.data && r.data.result && r.data.result.error) || r.status || '';\nif (/slot|conflict|taken/i.test(String(st))) {\n  return [{ json: { ok: false, motivo: 'hueco_no_disponible', antes, cita: despues } }];\n}\nreturn [{ json: { ok: false, motivo: 'error_reprogramacion', antes, cita: despues,\n  detalle: r.message || null } }];"
+        "jsCode": "const r = $json ?? {};\nconst antes = $('Code · Localizar cita').first().json.cita;\nconst despues = $('Code · Nuevo hueco').first().json.cita_nueva;\nif (r.ok === true) return [{ json: { ok: true, motivo: 'reprogramada', antes, cita: despues } }];\nconst st = JSON.stringify((r.data && r.data.result) || r.status || '');\nif (/slot|conflict|taken/i.test(st)) {\n  return [{ json: { ok: false, motivo: 'hueco_no_disponible', antes, cita: despues } }];\n}\nreturn [{ json: { ok: false, motivo: 'error_reprogramacion', antes, cita: despues,\n  detalle: r.message || null } }];"
       },
-      "id": "p-0008",
+      "id": "p-0010",
       "name": "Code · Salida",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1500,
-        -200
+        1720,
+        -300
       ]
     },
     {
       "parameters": {
         "jsCode": "return [{ json: $json }];"
       },
-      "id": "p-0009",
+      "id": "p-0011",
       "name": "Code · No localizada",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        840,
-        120
+        1060,
+        20
       ]
     },
     {
       "parameters": {
         "jsCode": "return [{ json: $json }];"
       },
-      "id": "p-0010",
+      "id": "p-0012",
       "name": "Code · Hueco inválido",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1280,
-        20
+        1500,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// No es un error: simplemente todavía no sabemos quién es (webchat no trae teléfono).\n// El agente tiene que pedirlo, no disculparse por un fallo técnico.\nreturn [{ json: { ok: false, motivo: 'falta_identidad', falta: ['telefono'] } }];"
+      },
+      "id": "p-0013",
+      "name": "Code · Falta identidad",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        140
       ]
     }
   ],
@@ -365,7 +428,36 @@
       "main": [
         [
           {
+            "node": "Code · Entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Entrada": {
+      "main": [
+        [
+          {
+            "node": "¿Sabemos quién es?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Sabemos quién es?": {
+      "main": [
+        [
+          {
             "node": "Execute · 23 Appointment List",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Falta identidad",
             "type": "main",
             "index": 0
           }
