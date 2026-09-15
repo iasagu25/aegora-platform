@@ -32,6 +32,9 @@
             },
             {
               "name": "source"
+            },
+            {
+              "name": "assignee_id"
             }
           ]
         }
@@ -134,7 +137,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $json ?? {};\n\nconst clean = (value) => {\n  if (value === undefined || value === null) {\n    return null;\n  }\n\n  const text = String(value).trim();\n  return text === '' ? null : text;\n};\n\n// --------------------------------------------------\n// Contact resolution\n// --------------------------------------------------\n\nconst contactId = clean(input.contact_id);\nconst phone = clean(input.phone);\nconst email = clean(input.email)?.toLowerCase() ?? null;\nconst query = clean(input.query);\n\n// --------------------------------------------------\n// Task\n// --------------------------------------------------\n\nconst title = clean(input.title);\nconst description = clean(input.description);\nconst priority = clean(input.priority) ?? 'normal';\nconst dueAt = clean(input.due_at);\nconst source = clean(input.source) ?? 'ai';\n\nconst allowedPriorities = [\n  'low',\n  'normal',\n  'high',\n  'urgent',\n];\n\n// --------------------------------------------------\n// Validation\n// --------------------------------------------------\n\nconst errors = [];\n\nif (!contactId && !phone && !email && !query) {\n  errors.push(\n    'Es obligatorio indicar contact_id, phone, email o query para identificar al contacto.'\n  );\n}\n\nif (!title) {\n  errors.push(\n    'El título de la tarea es obligatorio.'\n  );\n}\n\nif (!allowedPriorities.includes(priority)) {\n  errors.push(\n    `La prioridad indicada no es válida. Valores permitidos: ${allowedPriorities.join(', ')}.`\n  );\n}\n\nif (\n  dueAt &&\n  Number.isNaN(Date.parse(dueAt))\n) {\n  errors.push(\n    'La fecha límite de la tarea no es válida.'\n  );\n}\n\n// --------------------------------------------------\n// Output\n// --------------------------------------------------\n\nreturn [{\n  json: {\n    valid: errors.length === 0,\n    validation_errors: errors,\n\n    contact_id: contactId,\n    phone,\n    email,\n    query,\n\n    title,\n    description,\n    priority,\n    due_at: dueAt,\n    source,\n  },\n}];"
+        "jsCode": "const input = $json ?? {};\n\nconst clean = (value) => {\n  if (value === undefined || value === null) {\n    return null;\n  }\n\n  const text = String(value).trim();\n  return text === '' ? null : text;\n};\n\n// --------------------------------------------------\n// Contact resolution\n// --------------------------------------------------\n\nconst contactId = clean(input.contact_id);\nconst phone = clean(input.phone);\nconst email = clean(input.email)?.toLowerCase() ?? null;\nconst query = clean(input.query);\n\n// --------------------------------------------------\n// Task\n// --------------------------------------------------\n\nconst title = clean(input.title);\nconst description = clean(input.description);\nconst priority = clean(input.priority) ?? 'normal';\nconst dueAt = clean(input.due_at);\nconst source = clean(input.source) ?? 'ai';\n\nconst allowedPriorities = [\n  'low',\n  'normal',\n  'high',\n  'urgent',\n];\n\n// --------------------------------------------------\n// Validation\n// --------------------------------------------------\n\nconst assigneeId = clean(input.assignee_id);\n\nconst errors = [];\n\nif (!contactId && !phone && !email && !query) {\n  errors.push(\n    'Es obligatorio indicar contact_id, phone, email o query para identificar al contacto.'\n  );\n}\n\nif (!title) {\n  errors.push(\n    'El título de la tarea es obligatorio.'\n  );\n}\n\nif (!allowedPriorities.includes(priority)) {\n  errors.push(\n    `La prioridad indicada no es válida. Valores permitidos: ${allowedPriorities.join(', ')}.`\n  );\n}\n\nif (\n  dueAt &&\n  Number.isNaN(Date.parse(dueAt))\n) {\n  errors.push(\n    'La fecha límite de la tarea no es válida.'\n  );\n}\n\n// --------------------------------------------------\n// Output\n// --------------------------------------------------\n\nreturn [{\n  json: {\n    valid: errors.length === 0,\n    validation_errors: errors,\n\n    contact_id: contactId,\n    phone,\n    email,\n    query,\n\n    title,\n    description,\n    priority,\n    due_at: dueAt,\n    assignee_id: assigneeId,\n    source,\n  },\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -251,7 +254,8 @@
             "description": "={{ $('Code · Normalize Input').item.json.description }}",
             "priority": "={{ $('Code · Normalize Input').item.json.priority }}",
             "due_at": "={{ $('Code · Normalize Input').item.json.due_at }}",
-            "source": "={{ $('Code · Normalize Input').item.json.source }}"
+            "source": "={{ $('Code · Normalize Input').item.json.source }}",
+            "assignee_id": "={{ $('Code · Normalize Input').item.json.assignee_id }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -308,6 +312,16 @@
             {
               "id": "source",
               "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "assignee_id",
+              "displayName": "assignee_id",
               "required": false,
               "defaultMatch": false,
               "display": true,
