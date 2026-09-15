@@ -96,6 +96,9 @@
             },
             {
               "name": "shown_appointment_ids"
+            },
+            {
+              "name": "daypart"
             }
           ]
         }
@@ -220,7 +223,7 @@
     },
     {
       "parameters": {
-        "jsCode": "let raw = ($json.output ?? '').trim();\nif (raw.startsWith('```')) raw = raw.replace(/^```json\\s*/i,'').replace(/^```\\s*/i,'').replace(/\\s*```$/,'');\nlet core;\ntry { core = JSON.parse(raw); } catch (e) { throw new Error('La salida del Core no es JSON válido: ' + raw); }\nconst cfg = $('Config (editar por tenant)').item.json;\nconst trg = $('When Executed by Another Workflow').item.json;\nreturn [{ json: {\n  ...core,\n  intent: core.intent === 'null' ? null : core.intent,\n  contact: core.contact || {},\n  task: core.task || {},\n  sessionID: trg.sessionID, client_id: trg.client_id, canal: trg.canal, message: trg.message,\n  contact_phone: trg.contact_phone || null, contact_name: trg.contact_name || null,\n  pending_appointment_id: trg.pending_appointment_id || null,\n  pending_appointment_service_id: trg.pending_appointment_service_id || null,\n  pending_service_id: trg.pending_service_id || null,\n  awaiting_bulk_confirm: trg.awaiting_bulk_confirm === true,\n  bulk_appointment_ids: trg.bulk_appointment_ids || '',\n  shown_appointment_ids: trg.shown_appointment_ids || '',\n  last_appointment_id: trg.last_appointment_id || null,\n  offered_alt_slots: trg.offered_alt_slots === true,\n  offered_alt_slots_date: trg.offered_alt_slots_date || null,\n  offered_alt_slots_time: trg.offered_alt_slots_time || null,\n  booking_base_url: cfg.booking_base_url, directus_base_url: cfg.directus_base_url, tenant_timezone: cfg.tenant_timezone,\n} }];"
+        "jsCode": "let raw = ($json.output ?? '').trim();\nif (raw.startsWith('```')) raw = raw.replace(/^```json\\s*/i,'').replace(/^```\\s*/i,'').replace(/\\s*```$/,'');\nlet core;\ntry { core = JSON.parse(raw); } catch (e) { throw new Error('La salida del Core no es JSON válido: ' + raw); }\nconst cfg = $('Config (editar por tenant)').item.json;\nconst trg = $('When Executed by Another Workflow').item.json;\nreturn [{ json: {\n  ...core,\n  intent: core.intent === 'null' ? null : core.intent,\n  contact: core.contact || {},\n  task: core.task || {},\n  // Slots arrastrados de turnos anteriores (Entry los guarda en state mientras dure el flujo).\n  // Sin esto el bloque CONTEXTO del prompt decía \"fecha: null · servicio: null\" en CADA turno,\n  // el LLM se lo creía por encima de su memoria y se entraba en bucle preguntando alternando\n  // servicio / día. Lo que diga el usuario ESTE turno siempre gana sobre lo arrastrado.\n  service_query: core.service_query || trg.service_query || null,\n  date: core.date || trg.date || null,\n  // hora y franja son excluyentes: si el usuario da una, la otra arrastrada deja de valer\n  // (\"mañana por la mañana\" detrás de un \"a las 11:30\" es franja, no las 11:30 otra vez).\n  time: core.time || (core.daypart ? null : (trg.time || null)),\n  daypart: core.daypart || (core.time ? null : (trg.daypart || null)),\n  sessionID: trg.sessionID, client_id: trg.client_id, canal: trg.canal, message: trg.message,\n  contact_phone: trg.contact_phone || null, contact_name: trg.contact_name || null,\n  pending_appointment_id: trg.pending_appointment_id || null,\n  pending_appointment_service_id: trg.pending_appointment_service_id || null,\n  pending_service_id: trg.pending_service_id || null,\n  awaiting_bulk_confirm: trg.awaiting_bulk_confirm === true,\n  bulk_appointment_ids: trg.bulk_appointment_ids || '',\n  shown_appointment_ids: trg.shown_appointment_ids || '',\n  last_appointment_id: trg.last_appointment_id || null,\n  offered_alt_slots: trg.offered_alt_slots === true,\n  offered_alt_slots_date: trg.offered_alt_slots_date || null,\n  offered_alt_slots_time: trg.offered_alt_slots_time || null,\n  booking_base_url: cfg.booking_base_url, directus_base_url: cfg.directus_base_url, tenant_timezone: cfg.tenant_timezone,\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1260,7 +1263,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const c = $json ?? {};\nconst intent = (c.intent === 'null' || c.intent === undefined) ? null : (c.intent ?? null);\nlet reply = (c.reply_to_user || '').toString().trim();\nlet needs = c.needs_user_reply === true;\nif (!reply) {\n  // El Core no redactó nada: preguntamos por lo que falte según el flujo.\n  if (intent === 'create_appointment') {\n    if (!c.service_query) reply = '¿Para qué servicio quieres la cita?';\n    else if (!c.date) reply = '¿Qué día te viene bien?';\n    else if (!c.time) reply = '¿A qué hora en concreto?';\n    else reply = '¿Me dices tu nombre y teléfono para la reserva?';\n  } else if (intent === 'list_availability') {\n    reply = '¿Qué día quieres que mire?';\n  } else if (intent === 'reschedule_appointment' || intent === 'cancel_appointment') {\n    reply = '¿De qué cita se trata? Dime el día y la hora.';\n  } else if (intent === 'create_task') {\n    reply = '¿Qué necesitas exactamente?';\n  } else {\n    reply = 'Hola, ¿en qué puedo ayudarte?';\n  }\n  needs = true;\n}\nreturn [{ json: { ok: true, intent, needs_user_reply: needs, reply_to_user: reply } }];"
+        "jsCode": "const c = $json ?? {};\nconst intent = (c.intent === 'null' || c.intent === undefined) ? null : (c.intent ?? null);\nlet reply = (c.reply_to_user || '').toString().trim();\nlet needs = c.needs_user_reply === true;\n// El LLM a veces pregunta por el servicio aunque el router YA lo tenga resuelto\n// (pending_service_id) o el usuario acabe de decirlo. Descartamos esa pregunta y caemos al\n// bloque determinista de abajo, que pide lo que falta DE VERDAD. Mismo principio que en el\n// resto del router: un dato que la capa determinista conoce no se vuelve a pedir.\nif (reply && (c.pending_service_id || c.service_query) && /servici/i.test(reply)) reply = '';\n\nif (!reply) {\n  // El Core no redactó nada: preguntamos por lo que falte según el flujo.\n  if (intent === 'create_appointment') {\n    if (!c.service_query && !c.pending_service_id) reply = '¿Para qué servicio quieres la cita?';\n    else if (!c.date) reply = '¿Qué día te viene bien?';\n    else if (!c.time) reply = '¿A qué hora en concreto?';\n    else reply = '¿Me dices tu nombre y teléfono para la reserva?';\n  } else if (intent === 'list_availability') {\n    reply = '¿Qué día quieres que mire?';\n  } else if (intent === 'reschedule_appointment' || intent === 'cancel_appointment') {\n    reply = '¿De qué cita se trata? Dime el día y la hora.';\n  } else if (intent === 'create_task') {\n    reply = '¿Qué necesitas exactamente?';\n  } else {\n    reply = 'Hola, ¿en qué puedo ayudarte?';\n  }\n  needs = true;\n}\nreturn [{ json: { ok: true, intent, needs_user_reply: needs, reply_to_user: reply } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1761,7 +1764,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Estructura viene del outcome determinista; la prosa la pone el Redactor (si falla, borrador).\nconst s = $('Código · outcome').item.json ?? {};\nconst io = $('Output IA → JSON').item.json ?? {};\nconst prose = ($json && $json.output ? $json.output : '').toString().trim();\nconst ok = s.ok !== false;\nconst intent = (s.intent === undefined || s.intent === 'null') ? null : (s.intent ?? null);\nconst needs = s.needs_user_reply === true;\nconst flujo_activo = (!needs || !intent) ? null : intent;\nconst taskObj = (s.task && s.task.task) ? s.task.task : (s.task || null);\nconst contact_id = s.contact_id\n  ?? (s.appointment && s.appointment.contact_id)\n  ?? (taskObj && taskObj.contact_id)\n  ?? null;\nconst contact_phone = s.contact_phone\n  ?? (io.contact && io.contact.phone)\n  ?? null;\nconst pending_appointment_id = s.pending_appointment_id ?? null;\nconst pending_appointment_service_id = s.pending_appointment_service_id ?? null;\nconst pending_service_id = s.pending_service_id ?? null;\nconst last_appointment_id = s.last_appointment_id ?? null;\nconst awaiting_slots_offer = s.awaiting_slots_offer === true;\nconst alt_slots_date = s.alt_slots_date ?? null;\nconst alt_slots_time = s.alt_slots_time ?? null;\nconst awaiting_bulk_confirm = s.awaiting_bulk_confirm === true;\nconst bulk_appointment_ids = s.bulk_appointment_ids || '';\nconst shown_appointment_ids = s.shown_appointment_ids || '';\nconst result = s.appointment ?? taskObj ?? s.result ?? null;\nreturn [{ json: {\n  ok, intent,\n  reply_to_user: prose || s.reply_to_user || '',\n  needs_user_reply: needs, flujo_activo, contact_id, contact_phone, pending_appointment_id,\n  pending_appointment_service_id, pending_service_id, last_appointment_id,\n  awaiting_slots_offer, alt_slots_date, alt_slots_time,\n  awaiting_bulk_confirm, bulk_appointment_ids, shown_appointment_ids, result,\n} }];"
+        "jsCode": "// Estructura viene del outcome determinista; la prosa la pone el Redactor (si falla, borrador).\nconst s = $('Código · outcome').item.json ?? {};\nconst io = $('Output IA → JSON').item.json ?? {};\nconst prose = ($json && $json.output ? $json.output : '').toString().trim();\nconst ok = s.ok !== false;\nconst intent = (s.intent === undefined || s.intent === 'null') ? null : (s.intent ?? null);\nconst needs = s.needs_user_reply === true;\nconst flujo_activo = (!needs || !intent) ? null : intent;\nconst taskObj = (s.task && s.task.task) ? s.task.task : (s.task || null);\nconst contact_id = s.contact_id\n  ?? (s.appointment && s.appointment.contact_id)\n  ?? (taskObj && taskObj.contact_id)\n  ?? null;\nconst contact_phone = s.contact_phone\n  ?? (io.contact && io.contact.phone)\n  ?? null;\nconst pending_appointment_id = s.pending_appointment_id ?? null;\nconst pending_appointment_service_id = s.pending_appointment_service_id ?? null;\nconst pending_service_id = s.pending_service_id ?? null;\nconst last_appointment_id = s.last_appointment_id ?? null;\nconst awaiting_slots_offer = s.awaiting_slots_offer === true;\nconst alt_slots_date = s.alt_slots_date ?? null;\nconst alt_slots_time = s.alt_slots_time ?? null;\nconst awaiting_bulk_confirm = s.awaiting_bulk_confirm === true;\nconst bulk_appointment_ids = s.bulk_appointment_ids || '';\nconst shown_appointment_ids = s.shown_appointment_ids || '';\n// Slots recogidos hasta ahora en el flujo en curso: Entry los persiste y los reinyecta,\n// para que el CONTEXTO del prompt diga la verdad en el turno siguiente.\nconst slot_service_query = io.service_query ?? null;\nconst slot_date = io.date ?? null;\nconst slot_time = io.time ?? null;\nconst slot_daypart = io.daypart ?? null;\nconst result = s.appointment ?? taskObj ?? s.result ?? null;\nreturn [{ json: {\n  ok, intent,\n  reply_to_user: prose || s.reply_to_user || '',\n  needs_user_reply: needs, flujo_activo, contact_id, contact_phone, pending_appointment_id,\n  pending_appointment_service_id, pending_service_id, last_appointment_id,\n  awaiting_slots_offer, alt_slots_date, alt_slots_time,\n  awaiting_bulk_confirm, bulk_appointment_ids, shown_appointment_ids,\n  slot_service_query, slot_date, slot_time, slot_daypart, result,\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2523,7 +2526,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const av = $('Call · Availability (conflicto)').item.json ?? {};\nconst desdeReserva = $('Salida · reserva').isExecuted;\nconst c = desdeReserva ? $('Salida · reserva').item.json : $('Salida · reprogramar').item.json;\nconst _intent = desdeReserva ? 'create_appointment' : 'reschedule_appointment';\nconst _cont = desdeReserva\n  ? { pending_service_id: c.service_id || null }\n  : { pending_appointment_id: c.appointment_id || null,\n      pending_appointment_service_id: c.service_id || null };\nconst core = $('Output IA → JSON').item.json;\nconst tz = core.tenant_timezone || 'Europe/Madrid';\nconst slots = Array.isArray(av.slots) ? av.slots : [];\nconst flags = { ..._cont, awaiting_slots_offer: true, alt_slots_date: c.alt_slots_date, alt_slots_time: c.alt_slots_time };\nconst fecha = av.date\n  ? DateTime.fromISO(av.date).setZone(tz).setLocale('es').toFormat(\"cccc d 'de' LLLL\")\n  : 'ese día';\nconst hora = c.time || 'esa hora';\n\n// Horario de atención: se CITA LITERAL desde la KB, nunca se interpreta ni se resume.\n// Si no hay entrada, simplemente no se menciona.\nconst kbRes = $json ?? {};\nconst kbBody = (kbRes.body ?? kbRes) || {};\nconst kbRows = Array.isArray(kbBody.data) ? kbBody.data : [];\nlet horarioTxt = kbRows.length ? (kbRows[0].body || '').toString() : '';\nhorarioTxt = horarioTxt.replace(/^#+\\s*.*$/gm, '').replace(/[*_`>]/g, '').replace(/\\s+/g, ' ').trim();\nconst horarioFrase = (horarioTxt && horarioTxt.length <= 200) ? ` Nuestro horario: ${horarioTxt}` : '';\n// El Redactor NO debe tocar este texto en ningún caso: son horas concretas (huecos u\n// horario con dos tramos, 'de 9 a 14 y de 16 a 20') y un parafraseo es justo lo que las\n// estropea o inventa.\nconst styled = { _already_styled: true };\n\nconst hhmm = s => DateTime.fromISO(s).setZone(tz).toFormat('HH:mm');\n\nif (!slots.length) {\n  return [{ json: { ok: false, intent: _intent, needs_user_reply: true,\n    reply_to_user: `A las ${hora} no puedo, y el ${fecha} no me queda ningún hueco libre.${horarioFrase} ¿Miramos otro día?`,\n    ...flags, ...styled } }];\n}\n\nconst lista = slots.map(s => hhmm(s.start_at)).join(', ');\n\n// Ni \"ese día\" ni horarioFrase aquí: la frase siguiente ya lista huecos LIBRES ese\n// mismo día (\"El jueves tengo libre: 10:00, 10:30\"). Decir \"no hueco ese día\" se\n// contradice dos frases después, y repetir el horario completo del negocio es\n// redundante en cuanto ya se ofrecen alternativas concretas -- el horario solo aporta\n// algo cuando NO hay ninguna alternativa que dar (rama !slots.length, arriba).\nlet cabecera;\nif (c._conflict_kind === 'taken') cabecera = `Las ${hora} ya están cogidas.`;\nelse cabecera = `A las ${hora} no me queda hueco.`;\n\nreturn [{ json: { ok: false, intent: _intent, needs_user_reply: true,\n  reply_to_user: `${cabecera} El ${fecha} tengo libre: ${lista}. ${desdeReserva ? '¿Cuál te viene mejor, o prefieres otro día?' : '¿A cuál la muevo, o prefieres otro día?'}`,\n  ...flags, ...styled } }];"
+        "jsCode": "const av = $('Call · Availability (conflicto)').item.json ?? {};\nconst desdeReserva = $('Salida · reserva').isExecuted;\nconst c = desdeReserva ? $('Salida · reserva').item.json : $('Salida · reprogramar').item.json;\nconst _intent = desdeReserva ? 'create_appointment' : 'reschedule_appointment';\nconst _cont = desdeReserva\n  ? { pending_service_id: c.service_id || null }\n  : { pending_appointment_id: c.appointment_id || null,\n      pending_appointment_service_id: c.service_id || null };\nconst core = $('Output IA → JSON').item.json;\nconst tz = core.tenant_timezone || 'Europe/Madrid';\nconst slots = Array.isArray(av.slots) ? av.slots : [];\nconst flags = { ..._cont, awaiting_slots_offer: true, alt_slots_date: c.alt_slots_date, alt_slots_time: c.alt_slots_time };\nconst fecha = av.date\n  ? DateTime.fromISO(av.date).setZone(tz).setLocale('es').toFormat(\"cccc d 'de' LLLL\")\n  : 'ese día';\nconst hora = c.time || 'esa hora';\n\n// El horario de atención (KB) ya NO se recita aquí: si quedan huecos se ofrecen esos, y si\n// no queda ninguno lo útil es proponer otro día, no soltar el horario semanal entero. La\n// pregunta explícita por el horario la sirve la rama `knowledge`.\n// El Redactor no toca este texto: son horas concretas y un parafraseo es justo lo que las\n// estropea o inventa.\nconst styled = { _already_styled: true };\n\nconst hhmm = s => DateTime.fromISO(s).setZone(tz).toFormat('HH:mm');\n\nif (!slots.length) {\n  return [{ json: { ok: false, intent: _intent, needs_user_reply: true,\n    reply_to_user: `A las ${hora} no puedo, y el ${fecha} no me queda ningún hueco libre. ¿Miramos otro día?`,\n    ...flags, ...styled } }];\n}\n\nconst lista = slots.map(s => hhmm(s.start_at)).join(', ');\n\n// Sin \"ese día\": la frase siguiente ya lista huecos LIBRES ese mismo día (\"El jueves\n// tengo libre: 10:00, 10:30\"), así que decirlo aquí se contradice dos frases después.\n// Esto es sobre la HORA pedida, no sobre el día.\nlet cabecera;\nif (c._conflict_kind === 'taken') cabecera = `Las ${hora} ya están cogidas.`;\nelse cabecera = `A las ${hora} no me queda hueco.`;\n\nreturn [{ json: { ok: false, intent: _intent, needs_user_reply: true,\n  reply_to_user: `${cabecera} El ${fecha} tengo libre: ${lista}. ${desdeReserva ? '¿Cuál te viene mejor, o prefieres otro día?' : '¿A cuál la muevo, o prefieres otro día?'}`,\n  ...flags, ...styled } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2533,40 +2536,6 @@
       ],
       "id": "lucia-conf-slots",
       "name": "Salida · huecos tras conflicto"
-    },
-    {
-      "parameters": {
-        "method": "GET",
-        "url": "={{ $('Output IA → JSON').item.json.directus_base_url }}/items/knowledge",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendQuery": true,
-        "specifyQuery": "json",
-        "jsonQuery": "={{ JSON.stringify({ 'filter[active][_eq]': 'true', 'filter[title][_icontains]': 'horario', fields: 'title,body', limit: 1 }) }}",
-        "options": {
-          "response": {
-            "response": {
-              "neverError": true,
-              "fullResponse": true
-            }
-          }
-        }
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [
-        3080,
-        -100
-      ],
-      "id": "lucia-conf-horario",
-      "name": "HTTP · Horario (knowledge)",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "CFY5g7INvQxRg8EB",
-          "name": "Directus · demo"
-        }
-      },
-      "notes": "Horario de atención del negocio, citado LITERAL. Si no hay entrada 'horario' en la KB, no se menciona."
     },
     {
       "parameters": {
@@ -3687,7 +3656,7 @@
       "main": [
         [
           {
-            "node": "HTTP · Horario (knowledge)",
+            "node": "Salida · huecos tras conflicto",
             "type": "main",
             "index": 0
           }
@@ -3699,17 +3668,6 @@
         [
           {
             "node": "Código · outcome",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "HTTP · Horario (knowledge)": {
-      "main": [
-        [
-          {
-            "node": "Salida · huecos tras conflicto",
             "type": "main",
             "index": 0
           }

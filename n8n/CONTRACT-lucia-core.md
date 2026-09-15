@@ -30,7 +30,8 @@ la capa de canal/entrada y el cerebro. **No se cambia sin actualizar Entry.**
 | `awaiting_bulk_confirm` | boolean | true mientras esté pendiente confirmar una cancelación en bloque. |
 | `bulk_appointment_ids` | string | IDs (coma-separados) de las citas propuestas para cancelar en bloque. **Los fija el router, nunca el LLM**; el Core solo emite `confirmation: true/false`. |
 | `shown_appointment_ids` | string | IDs de la lista que se le enseñó al usuario en el turno anterior. "todas" / "la 2" se resuelven **contra esa lista**, no contra todas las citas del contacto. |
-| `service_query`, `date`, `time`, `appointment_ref`, `appointment_date`, `appointment_time` | string\|null | **V1: Entry NO los envía.** La continuidad de slots la da `Postgres Chat Memory` + la regla CONTINUIDAD del prompt del Core. Se mantienen como inputs del trigger para paso explícito de slots en el futuro. |
+| `service_query`, `date`, `time`, `daypart` | string\|null | **Slots del flujo en curso, los envía Entry** desde `state.slot_*`. Confiar solo en `Postgres Chat Memory` NO funcionó: el bloque CONTEXTO del prompt mostraba `fecha: null · servicio: null` en cada turno, el LLM se lo creía por encima de su memoria y la conversación entraba en bucle (pedía servicio → día → servicio…). Lo que el usuario diga en el turno actual siempre gana sobre lo arrastrado; `time` y `daypart` son excluyentes (dar uno invalida el otro arrastrado). |
+| `appointment_ref`, `appointment_date`, `appointment_time` | string\|null | **Entry NO los envía.** La continuidad aquí la dan `pending_appointment_id` + `Postgres Chat Memory`. |
 | `texto_usuario` | string\|null | alias legacy de `message`; el prompt usa `texto_usuario || message`. |
 
 ## Salida (Core → Entry) — un único item
@@ -53,6 +54,7 @@ borrador con tono natural, sin tocar datos; `onError` → borrador) →
 | `awaiting_slots_offer` | boolean | true solo en el turno del slot_taken/slot_conflict; Entry lo guarda y lo reinyecta UNA vez, luego se limpia solo (cada turno lo sobreescribe con su propio valor, no hay `_prev`) |
 | `awaiting_bulk_confirm` / `bulk_appointment_ids` | boolean / string | propuesta de cancelación en bloque pendiente de confirmar; misma vida de un turno |
 | `contact_phone` | string\|null | teléfono que el Core extrajo del usuario este turno; Entry lo guarda en `state.contact_phone` y lo re-inyecta como `contact_phone` en turnos siguientes (así la identidad persiste entre intenciones) |
+| `slot_service_query` / `slot_date` / `slot_time` / `slot_daypart` | string\|null | los slots ya fusionados (lo dicho este turno + lo arrastrado). Entry los persiste en `state.slot_*` mientras `flujo_activo` siga abierto y los devuelve como `service_query`/`date`/`time`/`daypart` en el turno siguiente |
 | `result` | object\|null | payload estructurado opcional (`appointment` / `task`) para logging |
 
 ### Regla única de `flujo_activo`

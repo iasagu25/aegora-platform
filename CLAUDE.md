@@ -198,6 +198,7 @@ Core clasifique el turno. La solución, aplicada ya varias veces, es persistirlo
 |---|---|---|
 | `contact_phone` | identidad del hilo entre intenciones | indefinida |
 | `pending_service_id` | servicio ya resuelto de la reserva en curso | mientras `flujo_activo` |
+| `slot_service_query` + `slot_date` + `slot_time` + `slot_daypart` | los datos que el usuario ya ha ido dando (servicio/día/hora/franja) | mientras `flujo_activo` |
 | `pending_appointment_id` + `pending_appointment_service_id` | cita localizada en reschedule/cancel (evita re-listar cada turno) | mientras `flujo_activo` |
 | `last_appointment_id` | última cita tocada; resuelve referencias implícitas ("mejor pásala al jueves") | indefinida |
 | `awaiting_slots_offer` + `alt_slots_date`/`alt_slots_time` | guard: nunca reintentar el hueco que acaba de fallar | 1 turno |
@@ -287,12 +288,21 @@ en real): `batching` (`batchSize: 1`, `batchInterval: 1200`ms) en
 primer mensaje antes de mandar el segundo.
 
 **Lección de la sesión de depuración** (vale para cualquier rama nueva): casi
-todos los bugs fueron de dos tipos, y conviene revisarlos antes de dar algo por
+todos los bugs fueron de estos tipos, y conviene revisarlos antes de dar algo por
 bueno:
 1. Un hecho que solo conoce la capa determinista no llega a la memoria del LLM
    → hay que persistirlo en `state` (tabla de arriba).
 2. Un filtro "tolerante" (`if (hayResultados) aplica`) que ante 0 coincidencias
    se ignora en silencio y deja actuar sobre lo que no era.
+3. **Un bloque de contexto que miente es peor que no tenerlo.** El prompt
+   enseñaba `fecha: null · servicio: null` en cada turno porque Entry no enviaba
+   esos campos; el LLM se creyó el contexto antes que su propia memoria y la
+   conversación entró en bucle (servicio → día → servicio…). Si un campo aparece
+   en el bloque CONTEXTO, Entry TIENE que enviarlo de verdad.
+4. **El router no debe repetir al usuario una pregunta cuya respuesta ya tiene.**
+   `Salida · respuesta directa` relevaba tal cual el `reply_to_user` del LLM,
+   incluida una pregunta por el servicio que el router ya tenía resuelto. Ahora
+   descarta esa pregunta y pide lo que falta de verdad.
 
 - Pendiente omnicanal / cerebro:
   - **WhatsApp**: `WHATSAPP-Adapter.json` en producción en `demo` (verificación
