@@ -220,6 +220,12 @@ el prompt: el Core produce un único texto y cada canal lo adapta a lo suyo
 (`**x**` → `*x*` en WhatsApp, render o `strip` en webchat). Que no se le escapen
 asteriscos raros al cliente.
 
+Con ese mismo cambio: **las listas de huecos van en bullets, no en una frase**. "Tengo
+estos huecos: 10:00, 10:30, 12:30, 13:00, 13:30, 14:00, y 14:30" se lee fatal; en lista
+se escanea de un vistazo. Es una regla de redacción, así que va en el prompt de v2
+(`n8n/prompts/lucia-v2.md`), pero el formato concreto de la lista lo decide el adapter
+según el canal — y en voz, que no habrá lista, habrá que decir dos o tres y ofrecer más.
+
 Estado: tools `Disponibilidad` / `Reservar` / `Info` escritas
 (`n8n/workflows/LUCIA-TOOL-*.json`) + prompt (`n8n/prompts/lucia-v2.md`).
 Falta el workflow del agente, y después las tools de `mis_citas` / `reprogramar` /
