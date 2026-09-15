@@ -301,8 +301,15 @@ bueno:
    en el bloque CONTEXTO, Entry TIENE que enviarlo de verdad.
 4. **El router no debe repetir al usuario una pregunta cuya respuesta ya tiene.**
    `Salida · respuesta directa` relevaba tal cual el `reply_to_user` del LLM,
-   incluida una pregunta por el servicio que el router ya tenía resuelto. Ahora
-   descarta esa pregunta y pide lo que falta de verdad.
+   incluida una pregunta por el servicio que el router ya tenía resuelto, o por
+   el teléfono que WhatsApp manda en cada mensaje. Ahora descarta esas preguntas
+   y pide lo que falta de verdad.
+5. **Una decisión que el router puede tomar con datos no se delega al LLM.**
+   `ready_to_execute` (juicio del modelo) era la única puerta de entrada a
+   reservar, y fallaba pidiendo datos ya conocidos. Ahora `¿Reserva lista?`
+   entra también si hay día + hora + (teléfono o nombre), y `¿Lista lista?` con
+   solo tener el día. Entrar "de más" es seguro: `Construir start_at` revalida y
+   `Salida · pedir datos reserva` pide exactamente lo que falte.
 
 - Pendiente omnicanal / cerebro:
   - **WhatsApp**: `WHATSAPP-Adapter.json` en producción en `demo` (verificación

@@ -480,7 +480,7 @@
           "conditions": [
             {
               "id": "r",
-              "leftValue": "={{ $json.ready_to_execute }}",
+              "leftValue": "={{ $json.ready_to_execute === true || !!$json.date }}",
               "rightValue": "",
               "operator": {
                 "type": "boolean",
@@ -790,7 +790,7 @@
           "conditions": [
             {
               "id": "r",
-              "leftValue": "={{ $json.ready_to_execute }}",
+              "leftValue": "={{ $json.ready_to_execute === true || (!!$json.date && !!$json.time && !!($json.contact_phone || ($json.contact && $json.contact.phone) || $json.contact_name || ($json.contact && $json.contact.name))) }}",
               "rightValue": "",
               "operator": {
                 "type": "boolean",
@@ -1263,7 +1263,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const c = $json ?? {};\nconst intent = (c.intent === 'null' || c.intent === undefined) ? null : (c.intent ?? null);\nlet reply = (c.reply_to_user || '').toString().trim();\nlet needs = c.needs_user_reply === true;\n// El LLM a veces pregunta por el servicio aunque el router YA lo tenga resuelto\n// (pending_service_id) o el usuario acabe de decirlo. Descartamos esa pregunta y caemos al\n// bloque determinista de abajo, que pide lo que falta DE VERDAD. Mismo principio que en el\n// resto del router: un dato que la capa determinista conoce no se vuelve a pedir.\nif (reply && (c.pending_service_id || c.service_query) && /servici/i.test(reply)) reply = '';\n\nif (!reply) {\n  // El Core no redactó nada: preguntamos por lo que falte según el flujo.\n  if (intent === 'create_appointment') {\n    if (!c.service_query && !c.pending_service_id) reply = '¿Para qué servicio quieres la cita?';\n    else if (!c.date) reply = '¿Qué día te viene bien?';\n    else if (!c.time) reply = '¿A qué hora en concreto?';\n    else reply = '¿Me dices tu nombre y teléfono para la reserva?';\n  } else if (intent === 'list_availability') {\n    reply = '¿Qué día quieres que mire?';\n  } else if (intent === 'reschedule_appointment' || intent === 'cancel_appointment') {\n    reply = '¿De qué cita se trata? Dime el día y la hora.';\n  } else if (intent === 'create_task') {\n    reply = '¿Qué necesitas exactamente?';\n  } else {\n    reply = 'Hola, ¿en qué puedo ayudarte?';\n  }\n  needs = true;\n}\nreturn [{ json: { ok: true, intent, needs_user_reply: needs, reply_to_user: reply } }];"
+        "jsCode": "const c = $json ?? {};\nconst intent = (c.intent === 'null' || c.intent === undefined) ? null : (c.intent ?? null);\nlet reply = (c.reply_to_user || '').toString().trim();\nlet needs = c.needs_user_reply === true;\nconst tienePhone = !!(c.contact_phone || (c.contact && c.contact.phone));\n// Para el NOMBRE solo cuenta el que el usuario haya dicho: contact_name es el nombre de\n// perfil del canal y no vale como identidad de su ficha (misma regla que en\n// Construir start_at). Si hiciera falta, se pregunta.\nconst tieneNombre = !!(c.contact && c.contact.name);\n// El LLM a veces pregunta por el servicio aunque el router YA lo tenga resuelto\n// (pending_service_id) o el usuario acabe de decirlo. Descartamos esa pregunta y caemos al\n// bloque determinista de abajo, que pide lo que falta DE VERDAD. Mismo principio que en el\n// resto del router: un dato que la capa determinista conoce no se vuelve a pedir.\nif (reply && (c.pending_service_id || c.service_query) && /servici/i.test(reply)) reply = '';\n// Mismo caso con el teléfono: en WhatsApp lo conocemos por el canal desde el primer\n// mensaje, así que una pregunta del LLM pidiéndolo es ruido -- se descarta.\nif (reply && tienePhone && /tel[eé]fono|m[oó]vil/i.test(reply)) reply = '';\n\nif (!reply) {\n  // El Core no redactó nada: preguntamos por lo que falte según el flujo.\n  if (intent === 'create_appointment') {\n    if (!c.service_query && !c.pending_service_id) reply = '¿Para qué servicio quieres la cita?';\n    else if (!c.date) reply = '¿Qué día te viene bien?';\n    else if (!c.time) reply = '¿A qué hora en concreto?';\n    // El teléfono lo conocemos por el canal (WhatsApp) o de turnos anteriores: no se pide\n    // otra vez. Solo se pregunta lo que de verdad falta.\n    else if (!tienePhone && !tieneNombre) reply = '¿Me dices tu nombre y un teléfono para la reserva?';\n    else if (!tienePhone) reply = '¿Me dejas un teléfono de contacto para la reserva?';\n    else if (!tieneNombre) reply = '¿A qué nombre la pongo?';\n    else reply = '¿Te la reservo entonces?';\n  } else if (intent === 'list_availability') {\n    reply = '¿Qué día quieres que mire?';\n  } else if (intent === 'reschedule_appointment' || intent === 'cancel_appointment') {\n    reply = '¿De qué cita se trata? Dime el día y la hora.';\n  } else if (intent === 'create_task') {\n    reply = '¿Qué necesitas exactamente?';\n  } else {\n    reply = 'Hola, ¿en qué puedo ayudarte?';\n  }\n  needs = true;\n}\nreturn [{ json: { ok: true, intent, needs_user_reply: needs, reply_to_user: reply } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
