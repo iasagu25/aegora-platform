@@ -170,8 +170,8 @@
           "mappingMode": "defineBelow",
           "value": {
             "fecha": "={{ $fromAI('fecha', 'Día a consultar en formato YYYY-MM-DD, ya resuelto por ti a partir de lo que dijo el cliente', 'string') }}",
-            "franja": "={{ $fromAI('franja', 'Franja del día si el cliente la pidió: manana, mediodia, tarde o noche. Vacío si dio una hora concreta o no dijo franja', 'string') }}",
-            "servicio": "={{ $fromAI('servicio', 'Servicio que quiere, en texto natural. Vacío si no lo ha dicho', 'string') }}",
+            "franja": "={{ $fromAI('franja', 'Franja del día si el cliente la pidió: manana, mediodia, tarde o noche. Vacío si dio una hora concreta o no dijo franja', 'string', '') }}",
+            "servicio": "={{ $fromAI('servicio', 'Servicio que quiere, en texto natural. Vacío si no lo ha dicho', 'string', '') }}",
             "directus_base_url": "={{ $('Config (editar por tenant)').first().json.directus_base_url }}",
             "booking_base_url": "={{ $('Config (editar por tenant)').first().json.booking_base_url }}",
             "tenant_timezone": "={{ $('Config (editar por tenant)').first().json.tenant_timezone }}"
@@ -267,14 +267,14 @@
           "value": {
             "fecha": "={{ $fromAI('fecha', 'Día de la cita en formato YYYY-MM-DD', 'string') }}",
             "hora": "={{ $fromAI('hora', 'Hora de la cita en formato HH:mm, 24h', 'string') }}",
-            "servicio": "={{ $fromAI('servicio', 'Servicio en texto natural. Vacío si no lo ha dicho', 'string') }}",
-            "nombre": "={{ $fromAI('nombre', 'Nombre del cliente SOLO si te lo ha dicho en esta conversación. Vacío si no', 'string') }}",
+            "servicio": "={{ $fromAI('servicio', 'Servicio en texto natural. Vacío si no lo ha dicho', 'string', '') }}",
+            "nombre": "={{ $fromAI('nombre', 'Nombre del cliente SOLO si te lo ha dicho en esta conversación. Vacío si no', 'string', '') }}",
             "telefono": "={{ $('When Executed by Another Workflow').first().json.contact_phone }}",
             "session_key": "={{ $('When Executed by Another Workflow').first().json.sessionID }}",
             "directus_base_url": "={{ $('Config (editar por tenant)').first().json.directus_base_url }}",
             "booking_base_url": "={{ $('Config (editar por tenant)').first().json.booking_base_url }}",
             "tenant_timezone": "={{ $('Config (editar por tenant)').first().json.tenant_timezone }}",
-            "telefono_dicho": "={{ $fromAI('telefono_dicho', 'Teléfono que el cliente te haya dado en la conversación. Déjalo vacío si no te lo ha dicho: si el canal ya lo conoce, se usa ese', 'string') }}"
+            "telefono_dicho": "={{ $fromAI('telefono_dicho', 'Teléfono que el cliente te haya dado en la conversación. Déjalo vacío si no te lo ha dicho: si el canal ya lo conoce, se usa ese', 'string', '') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -472,7 +472,7 @@
           "value": {
             "telefono": "={{ $('When Executed by Another Workflow').first().json.contact_phone }}",
             "tenant_timezone": "={{ $('Config (editar por tenant)').first().json.tenant_timezone }}",
-            "telefono_dicho": "={{ $fromAI('telefono_dicho', 'Teléfono que el cliente te haya dado en la conversación. Déjalo vacío si no te lo ha dicho: si el canal ya lo conoce, se usa ese', 'string') }}"
+            "telefono_dicho": "={{ $fromAI('telefono_dicho', 'Teléfono que el cliente te haya dado en la conversación. Déjalo vacío si no te lo ha dicho: si el canal ya lo conoce, se usa ese', 'string', '') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -534,10 +534,10 @@
           "mappingMode": "defineBelow",
           "value": {
             "fecha": "={{ $fromAI('fecha', 'Día de la cita a cancelar, en formato YYYY-MM-DD', 'string') }}",
-            "hora": "={{ $fromAI('hora', 'Hora de la cita a cancelar en formato HH:mm. Vacío si el cliente no la dijo', 'string') }}",
+            "hora": "={{ $fromAI('hora', 'Hora de la cita a cancelar en formato HH:mm. Vacío si el cliente no la dijo', 'string', '') }}",
             "telefono": "={{ $('When Executed by Another Workflow').first().json.contact_phone }}",
             "tenant_timezone": "={{ $('Config (editar por tenant)').first().json.tenant_timezone }}",
-            "telefono_dicho": "={{ $fromAI('telefono_dicho', 'Teléfono que el cliente te haya dado en la conversación. Déjalo vacío si no te lo ha dicho: si el canal ya lo conoce, se usa ese', 'string') }}"
+            "telefono_dicho": "={{ $fromAI('telefono_dicho', 'Teléfono que el cliente te haya dado en la conversación. Déjalo vacío si no te lo ha dicho: si el canal ya lo conoce, se usa ese', 'string', '') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -619,12 +619,12 @@
           "mappingMode": "defineBelow",
           "value": {
             "fecha": "={{ $fromAI('fecha', 'Día de la cita que YA existe, en formato YYYY-MM-DD', 'string') }}",
-            "hora": "={{ $fromAI('hora', 'Hora de la cita que YA existe en formato HH:mm. Vacío si el cliente no la dijo y solo tiene una ese día', 'string') }}",
+            "hora": "={{ $fromAI('hora', 'Hora de la cita que YA existe en formato HH:mm. Vacío si el cliente no la dijo y solo tiene una ese día', 'string', '') }}",
             "fecha_nueva": "={{ $fromAI('fecha_nueva', 'Día nuevo al que se mueve, en formato YYYY-MM-DD', 'string') }}",
             "hora_nueva": "={{ $fromAI('hora_nueva', 'Hora nueva en formato HH:mm', 'string') }}",
             "telefono": "={{ $('When Executed by Another Workflow').first().json.contact_phone }}",
             "tenant_timezone": "={{ $('Config (editar por tenant)').first().json.tenant_timezone }}",
-            "telefono_dicho": "={{ $fromAI('telefono_dicho', 'Teléfono que el cliente te haya dado en la conversación. Déjalo vacío si no te lo ha dicho: si el canal ya lo conoce, se usa ese', 'string') }}"
+            "telefono_dicho": "={{ $fromAI('telefono_dicho', 'Teléfono que el cliente te haya dado en la conversación. Déjalo vacío si no te lo ha dicho: si el canal ya lo conoce, se usa ese', 'string', '') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -726,12 +726,12 @@
           "mappingMode": "defineBelow",
           "value": {
             "asunto": "={{ $fromAI('asunto', 'Qué hay que hacer, en una frase. Incluye nombres de terceros si son parte del recado', 'string') }}",
-            "tipo": "={{ $fromAI('tipo', 'callback si piden que les llamen, review_doc si hay que revisar algo, email, admin para gestiones. Vacío si no encaja', 'string') }}",
-            "prioridad": "={{ $fromAI('prioridad', 'low, normal, high o urgent. urgent solo si dicen que es urgente; high si meten prisa', 'string') }}",
-            "fecha_limite": "={{ $fromAI('fecha_limite', 'Fecha límite en YYYY-MM-DD si la dan. Vacío si no', 'string') }}",
-            "hora_limite": "={{ $fromAI('hora_limite', 'Hora límite en HH:mm si la dan. Vacío si no', 'string') }}",
+            "tipo": "={{ $fromAI('tipo', 'callback si piden que les llamen, review_doc si hay que revisar algo, email, admin para gestiones. Vacío si no encaja', 'string', '') }}",
+            "prioridad": "={{ $fromAI('prioridad', 'low, normal, high o urgent. urgent solo si dicen que es urgente; high si meten prisa', 'string', '') }}",
+            "fecha_limite": "={{ $fromAI('fecha_limite', 'Fecha límite en YYYY-MM-DD si la dan. Vacío si no', 'string', '') }}",
+            "hora_limite": "={{ $fromAI('hora_limite', 'Hora límite en HH:mm si la dan. Vacío si no', 'string', '') }}",
             "telefono": "={{ $('When Executed by Another Workflow').first().json.contact_phone }}",
-            "telefono_dicho": "={{ $fromAI('telefono_dicho', 'Teléfono que el cliente te haya dado en la conversación. Vacío si no te lo ha dicho', 'string') }}",
+            "telefono_dicho": "={{ $fromAI('telefono_dicho', 'Teléfono que el cliente te haya dado en la conversación. Vacío si no te lo ha dicho', 'string', '') }}",
             "tenant_timezone": "={{ $('Config (editar por tenant)').first().json.tenant_timezone }}"
           },
           "matchingColumns": [],
