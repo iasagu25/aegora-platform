@@ -187,6 +187,37 @@ documentado sigue siendo cierto.
 - Rate-limit por `session_key` en Entry (`state.rl`); allowlist de `Origin` en el adapter.
 - Widget en `n8n/webchat/` (`widget.js` sin dependencias + `demo.html`).
 
+#### Lucía v2 — reescritura del Core en curso (decidida el 15/sep/2026)
+El Core v1 (`AGENT-Lucia-Core.json`) llegó a **75 nodos: 4 LLMs, 21 puertas de
+routing, 19 ramas de salida, 29 nodos de código** y lleva días con el mismo ciclo:
+se arregla un camino y se rompe otro. El diagnóstico NO es "bugs sueltos", son tres
+fallos estructurales:
+1. El estado de la conversación vive en tres sitios que pueden contradecirse (memoria
+   del LLM, `state`, JSON del turno). El prompt pinta `state` como hecho, así que
+   cuando `state` no llega el prompt **contradice** a la memoria y el modelo se cree
+   el prompt. Todos los bucles han sido esto.
+2. El control de flujo depende de juicios del LLM (`ready_to_execute`, `intent` de
+   etiqueta única). Cuando el juicio falla, el router hace lo incorrecto y se le
+   añade un guard — parche sobre la misma causa.
+3. "Qué falta y qué preguntar" está implementado en 4 sitios que derivan entre sí.
+
+Y el coste de mantenimiento: añadir un campo de slot = **6 ediciones coordinadas en 4
+ficheros**, con fallo silencioso si te dejas una (pasó: commit 3a525f2).
+
+**v2 = un solo agente con tools.** El LLM entiende, decide qué preguntar y redacta;
+las tools tienen todos los hechos y todas las escrituras. Una llamada a tool es la
+única forma de que un dato entre en la conversación. Reglas que conservan lo aprendido:
+ningún UUID en el contexto del agente, hechos solo de tools, identidad inyectada
+server-side (nunca se pregunta el teléfono que da el canal), y las tools responden
+qué falta de forma estructurada (`{ok:false, motivo:'varios_servicios', opciones:[…]}`).
+
+Estado: tools `Disponibilidad` / `Reservar` / `Info` escritas
+(`n8n/workflows/LUCIA-TOOL-*.json`) + prompt (`n8n/prompts/lucia-v2.md`).
+Falta el workflow del agente, y después las tools de `mis_citas` / `reprogramar` /
+`cancelar` / `anotar_tarea`. `toolWorkflow` está disponible en el n8n de `demo`
+(verificado). **v1 se queda intacto y activo hasta que v2 pase las pruebas**; Entry
+elegirá v1/v2 con un campo del `Config`.
+
 #### Patrón clave: lo que el LLM no puede saber, va en `conversation_sessions.state`
 Repetidamente ha aparecido el mismo fallo: un hecho que **solo conoce la capa
 determinista** (resultado del Booking API, qué cita se localizó, qué servicio se

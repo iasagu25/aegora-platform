@@ -1,0 +1,102 @@
+{
+  "name": "LUCÍA · TOOL · Info",
+  "id": "aegoraLuciaToolInfo",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "pregunta"
+            },
+            {
+              "name": "directus_base_url"
+            }
+          ]
+        }
+      },
+      "id": "t-0001",
+      "name": "When Executed by Agent",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -40,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.directus_base_url }}/items/knowledge",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ 'filter[active][_eq]': 'true', fields: 'title,body', sort: 'sort', limit: -1 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "i-0002",
+      "name": "HTTP · Directus knowledge",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        180,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus · demo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// KB V1 sin RAG: la colección es pequeña, se devuelve entera y responde el agente.\n// El texto va TAL CUAL: horarios, precios y condiciones no se resumen ni se reinterpretan.\nconst r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 300 || body.errors) {\n  return [{ json: { ok: false, motivo: 'error_kb',\n    detalle: JSON.stringify(body.errors || body).slice(0, 300) } }];\n}\nconst rows = Array.isArray(body.data) ? body.data : [];\nif (!rows.length) {\n  return [{ json: { ok: true, hay_info: false, texto: '' } }];\n}\nconst texto = rows.map(x => '## ' + (x.title || '') + '\\n' + (x.body || '')).join('\\n\\n');\nreturn [{ json: { ok: true, hay_info: true, texto } }];"
+      },
+      "id": "i-0003",
+      "name": "Code · Salida",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "When Executed by Agent": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Directus knowledge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Directus knowledge": {
+      "main": [
+        [
+          {
+            "node": "Code · Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

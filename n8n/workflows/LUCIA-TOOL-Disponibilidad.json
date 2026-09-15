@@ -1,0 +1,413 @@
+{
+  "name": "LUCÍA · TOOL · Disponibilidad",
+  "id": "aegoraLuciaToolDispo",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "fecha"
+            },
+            {
+              "name": "franja"
+            },
+            {
+              "name": "servicio"
+            },
+            {
+              "name": "directus_base_url"
+            },
+            {
+              "name": "booking_base_url"
+            },
+            {
+              "name": "tenant_timezone"
+            }
+          ]
+        }
+      },
+      "id": "t-0001",
+      "name": "When Executed by Agent",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -40,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// El agente ya ha resuelto \"el viernes\" / \"mañana\" a una fecha concreta: aquí solo se valida.\n// La tool DEVUELVE la fecha que ha entendido (fecha_label) para que el agente la cite y el\n// usuario pueda corregirla si el agente se equivocó de día.\nconst i = $json ?? {};\nconst clean = v => (v === undefined || v === null) ? '' : String(v).trim();\nconst fecha = clean(i.fecha);\nconst franja = clean(i.franja).toLowerCase();\nif (!/^\\d{4}-\\d{2}-\\d{2}$/.test(fecha)) {\n  return [{ json: { _error: true, ok: false, motivo: 'fecha_invalida',\n    detalle: 'Necesito la fecha en formato YYYY-MM-DD.' } }];\n}\nreturn [{ json: {\n  _error: false,\n  fecha,\n  franja: ['manana', 'mediodia', 'tarde', 'noche'].includes(franja) ? franja : '',\n  servicio: clean(i.servicio),\n  directus_base_url: clean(i.directus_base_url),\n  booking_base_url: clean(i.booking_base_url),\n  tenant_timezone: clean(i.tenant_timezone) || 'Europe/Madrid',\n} }];"
+      },
+      "id": "d-0002",
+      "name": "Code · Entrada",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        180,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d-0003-c",
+              "leftValue": "={{ $json._error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d-0003",
+      "name": "¿Entrada válida?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraToolResolveService",
+          "mode": "list",
+          "cachedResultName": "26 · TOOL · Resolve Service"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "service_query": "={{ $('Code · Entrada').item.json.servicio }}",
+            "service_id": "",
+            "directus_base_url": "={{ $('Code · Entrada').item.json.directus_base_url }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "service_query",
+              "displayName": "service_query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "service_id",
+              "displayName": "service_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "directus_base_url",
+              "displayName": "directus_base_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "d-0004",
+      "name": "Execute · 26 Resolve Service",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        620,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d-0005-c",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "single",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d-0005",
+      "name": "¿Servicio único?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        840,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraApptAvailabilityV1",
+          "mode": "list",
+          "cachedResultName": "APPOINTMENT Availability"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "service_id": "={{ $json.service_id }}",
+            "date": "={{ $('Code · Entrada').item.json.fecha }}",
+            "timezone": "={{ $('Code · Entrada').item.json.tenant_timezone }}",
+            "booking_base_url": "={{ $('Code · Entrada').item.json.booking_base_url }}",
+            "location_id": "",
+            "resource_id": "",
+            "exclude_appointment_id": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "service_id",
+              "displayName": "service_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "timezone",
+              "displayName": "timezone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "booking_base_url",
+              "displayName": "booking_base_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "location_id",
+              "displayName": "location_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "resource_id",
+              "displayName": "resource_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "exclude_appointment_id",
+              "displayName": "exclude_appointment_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "d-0006",
+      "name": "Execute · Availability",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1060,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Convención española de franjas, igual que en v1: es una regla de negocio, no lingüística.\nconst FRANJAS = { manana: [6, 14], mediodia: [13, 16], tarde: [14, 21], noche: [21, 24] };\nconst av = $json ?? {};\nconst inp = $('Code · Entrada').item.json;\nconst svc = $('Execute · 26 Resolve Service').item.json;\nconst tz = inp.tenant_timezone;\nconst hhmm = s => DateTime.fromISO(s).setZone(tz).toFormat('HH:mm');\nconst fecha_label = DateTime.fromISO(inp.fecha).setZone(tz).setLocale('es')\n  .toFormat(\"cccc d 'de' LLLL\");\n\nif (av.available === false && av.error) {\n  return [{ json: { ok: false, motivo: 'error_disponibilidad', detalle: av.message || av.error } }];\n}\n\nconst todos = (Array.isArray(av.slots) ? av.slots : []).map(s => hhmm(s.start_at));\nlet huecos = todos;\nif (inp.franja) {\n  const [desde, hasta] = FRANJAS[inp.franja];\n  huecos = todos.filter(h => { const hh = parseInt(h.slice(0, 2), 10); return hh >= desde && hh < hasta; });\n}\n\n// Se devuelven las dos listas: el agente decide si ofrecer otra franja cuando la pedida\n// está vacía. Esa decisión es conversacional, no hace falta cablearla aquí.\nreturn [{ json: {\n  ok: true,\n  fecha: inp.fecha,\n  fecha_label,\n  servicio: svc.service_name || null,\n  franja: inp.franja || null,\n  huecos,\n  hay_huecos: huecos.length > 0,\n  huecos_del_dia: todos,\n  hay_huecos_en_el_dia: todos.length > 0,\n} }];"
+      },
+      "id": "d-0007",
+      "name": "Code · Salida",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json ?? {};\nif (r.status === 'multiple') {\n  return [{ json: { ok: false, motivo: 'varios_servicios',\n    opciones: (r.candidates || []).map(c => c.name) } }];\n}\nreturn [{ json: { ok: false, motivo: 'servicio_desconocido',\n  detalle: 'No hay ningún servicio que encaje con eso.' } }];"
+      },
+      "id": "d-0008",
+      "name": "Code · Servicio ambiguo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1060,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: $json }];"
+      },
+      "id": "d-0009",
+      "name": "Code · Error entrada",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        140
+      ]
+    }
+  ],
+  "connections": {
+    "When Executed by Agent": {
+      "main": [
+        [
+          {
+            "node": "Code · Entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Entrada": {
+      "main": [
+        [
+          {
+            "node": "¿Entrada válida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Entrada válida?": {
+      "main": [
+        [
+          {
+            "node": "Execute · 26 Resolve Service",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Error entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · 26 Resolve Service": {
+      "main": [
+        [
+          {
+            "node": "¿Servicio único?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Servicio único?": {
+      "main": [
+        [
+          {
+            "node": "Execute · Availability",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Servicio ambiguo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · Availability": {
+      "main": [
+        [
+          {
+            "node": "Code · Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}
