@@ -211,20 +211,16 @@ ningún UUID en el contexto del agente, hechos solo de tools, identidad inyectad
 server-side (nunca se pregunta el teléfono que da el canal), y las tools responden
 qué falta de forma estructurada (`{ok:false, motivo:'varios_servicios', opciones:[…]}`).
 
-**Pendiente en v2 — markdown por canal.** El agente redacta libremente y usa markdown
-(`**negrita**`, listas con `-`). Cada canal lo interpreta distinto y ninguno entiende el
-de los demás: WhatsApp usa `*negrita*` de un solo asterisco (y `_cursiva_`, `~tachado~`),
-el widget de webchat hoy no renderiza nada (se ven los asteriscos crudos), y en voz el
-markdown directamente sobra. Hay que normalizar **en cada adapter**, no en el Core ni en
-el prompt: el Core produce un único texto y cada canal lo adapta a lo suyo
-(`**x**` → `*x*` en WhatsApp, render o `strip` en webchat). Que no se le escapen
-asteriscos raros al cliente.
-
-Con ese mismo cambio: **las listas de huecos van en bullets, no en una frase**. "Tengo
-estos huecos: 10:00, 10:30, 12:30, 13:00, 13:30, 14:00, y 14:30" se lee fatal; en lista
-se escanea de un vistazo. Es una regla de redacción, así que va en el prompt de v2
-(`n8n/prompts/lucia-v2.md`), pero el formato concreto de la lista lo decide el adapter
-según el canal — y en voz, que no habrá lista, habrá que decir dos o tres y ofrecer más.
+**Markdown por canal — hecho.** El agente redacta con markdown y cada canal lo adapta,
+en el adapter y nunca en el Core ni en el prompt (el Core produce UN texto):
+- WhatsApp (`Code · Preparar envío`): a su dialecto — `**x**` → `*x*`, `__x__` → `_x_`,
+  `## t` → `*t*`, `[t](url)` → `t: url`, backticks fuera, viñetas `*`/`+` → `-`.
+- Webchat (`widget.js`): se renderiza de verdad (negrita, cursiva, listas, enlaces,
+  `code`). Se escapa SIEMPRE antes de inyectar, y los `href` salen de un patrón que solo
+  acepta http(s) — el texto del modelo no puede colar etiquetas.
+- Voz (futuro): ahí no habrá markdown ni listas; tocará decir dos o tres huecos y ofrecer
+  más, como haría una persona por teléfono.
+La regla de redacción (huecos en lista, uno por línea) vive en `n8n/prompts/lucia-v2.md`.
 
 Estado: tools `Disponibilidad` / `Reservar` / `Info` escritas
 (`n8n/workflows/LUCIA-TOOL-*.json`) + prompt (`n8n/prompts/lucia-v2.md`).

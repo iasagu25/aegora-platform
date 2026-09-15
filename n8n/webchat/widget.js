@@ -45,7 +45,14 @@
     '.agw-log{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;background:#f6f8fa}' +
     '.agw-msg{max-width:80%;padding:8px 11px;border-radius:12px;white-space:pre-wrap;word-wrap:break-word}' +
     '.agw-user{align-self:flex-end;background:#1f6feb;color:#fff;border-bottom-right-radius:3px}' +
-    '.agw-bot{align-self:flex-start;background:#fff;border:1px solid #d0d7de;border-bottom-left-radius:3px}' +
+    // El texto del bot se renderiza (negritas, listas, enlaces), así que los saltos ya van
+    // en <br>/<li> y pre-wrap sobraría: duplicaría el espaciado.
+    '.agw-bot{align-self:flex-start;background:#fff;border:1px solid #d0d7de;border-bottom-left-radius:3px;' +
+      'white-space:normal}' +
+    '.agw-bot ul{margin:4px 0;padding-left:18px}' +
+    '.agw-bot li{margin:1px 0}' +
+    '.agw-bot code{background:#f0f2f4;border-radius:4px;padding:0 3px;font-size:.92em}' +
+    '.agw-bot a{color:#1f6feb}' +
     '.agw-form{display:flex;border-top:1px solid #d0d7de;background:#fff}' +
     '.agw-form input{flex:1;border:0;padding:12px;font:inherit;outline:none}' +
     '.agw-form button{border:0;background:#1f6feb;color:#fff;padding:0 16px;cursor:pointer;font:inherit}' +
@@ -82,10 +89,52 @@
   var sendBtn = form.querySelector('button');
   var greeted = false;
 
+  function esc(s) {
+    return s.replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  /*
+   * Markdown mínimo del texto de Lucía. El agente redacta libre y usa markdown; sin esto
+   * se ven los asteriscos crudos. SIEMPRE se escapa primero y solo después se inyecta el
+   * HTML que generamos aquí, así que el texto del modelo nunca puede traer etiquetas.
+   * Los href salen de un patrón que solo acepta http(s).
+   */
+  function render(text) {
+    var t = esc(text)
+      .replace(/^#{1,6}\s*(.+)$/gm, '<b>$1</b>')
+      .replace(/\*\*\*(.+?)\*\*\*/g, '<b><i>$1</i></b>')
+      .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+      .replace(/(^|[\s(])_(.+?)_(?=[\s.,;:!?)]|$)/g, '$1<i>$2</i>')
+      .replace(/`(.+?)`/g, '<code>$1</code>')
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
+               '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+      .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g,
+               '$1<a href="$2" target="_blank" rel="noopener noreferrer">$2</a>');
+
+    var html = '';
+    var enLista = false;
+    t.split('\n').forEach(function (ln) {
+      var punto = ln.match(/^\s*[-*+]\s+(.*)$/) || ln.match(/^\s*\d+[.)]\s+(.*)$/);
+      if (punto) {
+        if (!enLista) { html += '<ul>'; enLista = true; }
+        html += '<li>' + punto[1] + '</li>';
+      } else {
+        if (enLista) { html += '</ul>'; enLista = false; }
+        html += ln ? ln + '<br>' : '<br>';
+      }
+    });
+    if (enLista) html += '</ul>';
+    return html.replace(/(<br>)+$/, '');
+  }
+
   function add(text, who) {
     var el = document.createElement('div');
     el.className = 'agw-msg ' + (who === 'user' ? 'agw-user' : 'agw-bot');
-    el.textContent = text;
+    // Lo que escribe el usuario nunca se renderiza: va tal cual.
+    if (who === 'user') el.textContent = text;
+    else el.innerHTML = render(text);
     log.appendChild(el);
     log.scrollTop = log.scrollHeight;
     return el;
