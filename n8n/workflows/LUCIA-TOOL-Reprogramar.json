@@ -1,0 +1,460 @@
+{
+  "name": "LUCÍA · TOOL · Reprogramar",
+  "id": "aegoraLuciaToolReprogramar",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "fecha"
+            },
+            {
+              "name": "hora"
+            },
+            {
+              "name": "fecha_nueva"
+            },
+            {
+              "name": "hora_nueva"
+            },
+            {
+              "name": "telefono"
+            },
+            {
+              "name": "tenant_timezone"
+            }
+          ]
+        }
+      },
+      "id": "t-0001",
+      "name": "When Executed by Agent",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -40,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "NrfGIvdDxyV8ps6a",
+          "mode": "list",
+          "cachedResultName": "23 · TOOL · Appointment List"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "",
+            "email": "",
+            "query": "",
+            "limit": "20",
+            "phone": "={{ $('When Executed by Agent').first().json.telefono }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "query",
+              "displayName": "query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "limit",
+              "displayName": "limit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "p-0002",
+      "name": "Execute · 23 Appointment List",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        180,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const tz = $('When Executed by Agent').first().json.tenant_timezone || 'Europe/Madrid';\nconst dt = s => DateTime.fromISO(s).setZone(tz).setLocale('es');\nconst resumen = a => ({\n  fecha: dt(a.start_at).toFormat('yyyy-LL-dd'),\n  fecha_label: dt(a.start_at).toFormat(\"cccc d 'de' LLLL\"),\n  hora: dt(a.start_at).toFormat('HH:mm'),\n  servicio: a.service_name || null,\n});\nconst r = $json ?? {};\nconst inp = $('When Executed by Agent').first().json;\nconst clean = v => (v === undefined || v === null) ? '' : String(v).trim();\nconst fecha = clean(inp.fecha);\nconst hora = clean(inp.hora);\n\nif (r.ok !== true) {\n  const st = r.status || 'error';\n  const motivo = st === 'not_found' ? 'sin_citas' : (st === 'multiple' ? 'contacto_ambiguo' : 'error_listado');\n  return [{ json: { _found: false, ok: false, motivo } }];\n}\n\nconst vivas = ((r.data && r.data.appointments) || [])\n  .filter(a => a.status === 'scheduled' || a.status === 'confirmed');\nconst delDia = vivas.filter(a => dt(a.start_at).toFormat('yyyy-LL-dd') === fecha);\n\nif (!delDia.length) {\n  return [{ json: { _found: false, ok: false, motivo: 'no_hay_cita_ese_dia',\n    citas: vivas.map(resumen) } }];\n}\n\nlet elegida;\nif (hora) {\n  const exactas = delDia.filter(a => dt(a.start_at).toFormat('HH:mm') === hora);\n  if (!exactas.length) {\n    return [{ json: { _found: false, ok: false, motivo: 'no_hay_cita_a_esa_hora',\n      citas: delDia.map(resumen) } }];\n  }\n  elegida = exactas[0];\n} else {\n  if (delDia.length > 1) {\n    return [{ json: { _found: false, ok: false, motivo: 'varias_ese_dia',\n      citas: delDia.map(resumen) } }];\n  }\n  elegida = delDia[0];\n}\nreturn [{ json: { _found: true, appointment_id: elegida.id, cita: resumen(elegida) } }];"
+      },
+      "id": "p-0003",
+      "name": "Code · Localizar cita",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "p-0004-c",
+              "leftValue": "={{ $json._found }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "p-0004",
+      "name": "¿Localizada?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        620,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const loc = $json ?? {};\nconst inp = $('When Executed by Agent').first().json;\nconst clean = v => (v === undefined || v === null) ? '' : String(v).trim();\nconst tz = clean(inp.tenant_timezone) || 'Europe/Madrid';\nconst fecha = clean(inp.fecha_nueva);\nconst hora = clean(inp.hora_nueva);\nif (!/^\\d{4}-\\d{2}-\\d{2}$/.test(fecha) || !/^\\d{2}:\\d{2}$/.test(hora)) {\n  return [{ json: { _ok: false, ok: false, motivo: 'fecha_u_hora_invalida',\n    detalle: 'Necesito el nuevo día en YYYY-MM-DD y la hora en HH:mm.' } }];\n}\nconst start = DateTime.fromISO(fecha + 'T' + hora, { zone: tz });\nif (!start.isValid) {\n  return [{ json: { _ok: false, ok: false, motivo: 'fecha_u_hora_invalida' } }];\n}\nreturn [{ json: { _ok: true, appointment_id: loc.appointment_id,\n  start_at: start.toISO(),\n  cita_nueva: { fecha, fecha_label: start.setLocale('es').toFormat(\"cccc d 'de' LLLL\"), hora } } }];"
+      },
+      "id": "p-0005",
+      "name": "Code · Nuevo hueco",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "p-0006-c",
+              "leftValue": "={{ $json._ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "p-0006",
+      "name": "¿Hueco válido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1060,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "2ehpGE2LwB7jhGAv",
+          "mode": "list",
+          "cachedResultName": "24 · TOOL · Appointment Reschedule"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "",
+            "email": "",
+            "query": "",
+            "end_at": "",
+            "phone": "={{ $('When Executed by Agent').first().json.telefono }}",
+            "appointment_id": "={{ $json.appointment_id }}",
+            "start_at": "={{ $json.start_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "query",
+              "displayName": "query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "end_at",
+              "displayName": "end_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "appointment_id",
+              "displayName": "appointment_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "start_at",
+              "displayName": "start_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "p-0007",
+      "name": "Execute · 24 Appointment Reschedule",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1280,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json ?? {};\nconst antes = $('Code · Localizar cita').first().json.cita;\nconst despues = $('Code · Nuevo hueco').first().json.cita_nueva;\nif (r.ok === true) return [{ json: { ok: true, motivo: 'reprogramada', antes, cita: despues } }];\nconst st = (r.data && r.data.result && r.data.result.error) || r.status || '';\nif (/slot|conflict|taken/i.test(String(st))) {\n  return [{ json: { ok: false, motivo: 'hueco_no_disponible', antes, cita: despues } }];\n}\nreturn [{ json: { ok: false, motivo: 'error_reprogramacion', antes, cita: despues,\n  detalle: r.message || null } }];"
+      },
+      "id": "p-0008",
+      "name": "Code · Salida",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: $json }];"
+      },
+      "id": "p-0009",
+      "name": "Code · No localizada",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: $json }];"
+      },
+      "id": "p-0010",
+      "name": "Code · Hueco inválido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        20
+      ]
+    }
+  ],
+  "connections": {
+    "When Executed by Agent": {
+      "main": [
+        [
+          {
+            "node": "Execute · 23 Appointment List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · 23 Appointment List": {
+      "main": [
+        [
+          {
+            "node": "Code · Localizar cita",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Localizar cita": {
+      "main": [
+        [
+          {
+            "node": "¿Localizada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Localizada?": {
+      "main": [
+        [
+          {
+            "node": "Code · Nuevo hueco",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · No localizada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Nuevo hueco": {
+      "main": [
+        [
+          {
+            "node": "¿Hueco válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hueco válido?": {
+      "main": [
+        [
+          {
+            "node": "Execute · 24 Appointment Reschedule",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Hueco inválido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · 24 Appointment Reschedule": {
+      "main": [
+        [
+          {
+            "node": "Code · Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

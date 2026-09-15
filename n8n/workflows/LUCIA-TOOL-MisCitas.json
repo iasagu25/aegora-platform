@@ -1,0 +1,153 @@
+{
+  "name": "LUCÍA · TOOL · Mis citas",
+  "id": "aegoraLuciaToolMisCitas",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "telefono"
+            },
+            {
+              "name": "tenant_timezone"
+            }
+          ]
+        }
+      },
+      "id": "t-0001",
+      "name": "When Executed by Agent",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -40,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "NrfGIvdDxyV8ps6a",
+          "mode": "list",
+          "cachedResultName": "23 · TOOL · Appointment List"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "",
+            "email": "",
+            "query": "",
+            "limit": "20",
+            "phone": "={{ $('When Executed by Agent').first().json.telefono }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "query",
+              "displayName": "query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "limit",
+              "displayName": "limit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "m-0002",
+      "name": "Execute · 23 Appointment List",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        180,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const tz = $('When Executed by Agent').first().json.tenant_timezone || 'Europe/Madrid';\nconst dt = s => DateTime.fromISO(s).setZone(tz).setLocale('es');\nconst resumen = a => ({\n  fecha: dt(a.start_at).toFormat('yyyy-LL-dd'),\n  fecha_label: dt(a.start_at).toFormat(\"cccc d 'de' LLLL\"),\n  hora: dt(a.start_at).toFormat('HH:mm'),\n  servicio: a.service_name || null,\n});\nconst r = $json ?? {};\nif (r.ok !== true) {\n  const st = r.status || 'error';\n  // \"not_found\" aquí = el contacto no existe todavía, o sea que no tiene citas.\n  if (st === 'not_found') return [{ json: { ok: true, hay_citas: false, citas: [] } }];\n  return [{ json: { ok: false,\n    motivo: st === 'multiple' ? 'contacto_ambiguo' : 'error_listado' } }];\n}\nconst citas = ((r.data && r.data.appointments) || [])\n  .filter(a => a.status === 'scheduled' || a.status === 'confirmed')\n  .map(resumen);\nreturn [{ json: { ok: true, hay_citas: citas.length > 0, citas } }];"
+      },
+      "id": "m-0003",
+      "name": "Code · Salida",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "When Executed by Agent": {
+      "main": [
+        [
+          {
+            "node": "Execute · 23 Appointment List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · 23 Appointment List": {
+      "main": [
+        [
+          {
+            "node": "Code · Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}
