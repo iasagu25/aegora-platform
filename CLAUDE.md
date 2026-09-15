@@ -222,12 +222,16 @@ en el adapter y nunca en el Core ni en el prompt (el Core produce UN texto):
   más, como haría una persona por teléfono.
 La regla de redacción (huecos en lista, uno por línea) vive en `n8n/prompts/lucia-v2.md`.
 
-Estado: tools `Disponibilidad` / `Reservar` / `Info` escritas
-(`n8n/workflows/LUCIA-TOOL-*.json`) + prompt (`n8n/prompts/lucia-v2.md`).
-Falta el workflow del agente, y después las tools de `mis_citas` / `reprogramar` /
-`cancelar` / `anotar_tarea`. `toolWorkflow` está disponible en el n8n de `demo`
-(verificado). **v1 se queda intacto y activo hasta que v2 pase las pruebas**; Entry
-elegirá v1/v2 con un campo del `Config`.
+Estado: **v2 es el Core por defecto** (`core_version: v2` en el `Config` de Entry) tras
+validarlo por webchat en toda la superficie de v1: reservar, conflicto de hueco con
+alternativas, listar citas, cancelar con confirmación (y un "no" que no toca nada),
+reprogramar, horario y dirección desde la KB, e identidad por teléfono en un canal que no
+lo trae. 7 tools (`n8n/workflows/LUCIA-TOOL-*.json`) + prompt (`n8n/prompts/lucia-v2.md`,
+del que el nodo lee el `systemMessage` al construir el JSON, para que no puedan divergir).
+
+**v1 sigue importable y sin tocar**: `core_version: v1` en el `Config` de Entry lo devuelve
+al router determinista. No borrarlo todavía — es la red de seguridad hasta que v2 acumule
+rodaje por WhatsApp, no solo por webchat.
 
 #### Patrón clave: lo que el LLM no puede saber, va en `conversation_sessions.state`
 Repetidamente ha aparecido el mismo fallo: un hecho que **solo conoce la capa

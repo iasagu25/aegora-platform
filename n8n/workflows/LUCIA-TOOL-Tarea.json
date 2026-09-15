@@ -1,0 +1,304 @@
+{
+  "name": "LUCÍA · TOOL · Anotar tarea",
+  "id": "aegoraLuciaToolTarea",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "asunto"
+            },
+            {
+              "name": "tipo"
+            },
+            {
+              "name": "prioridad"
+            },
+            {
+              "name": "fecha_limite"
+            },
+            {
+              "name": "hora_limite"
+            },
+            {
+              "name": "telefono"
+            },
+            {
+              "name": "telefono_dicho"
+            },
+            {
+              "name": "tenant_timezone"
+            }
+          ]
+        }
+      },
+      "id": "t-0001",
+      "name": "When Executed by Agent",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const i = $json ?? {};\nconst clean = v => (v === undefined || v === null) ? '' : String(v).trim();\n// El teléfono del canal manda; el que diga el cliente solo vale si el canal no da ninguno.\nconst telefono = clean(i.telefono) || clean(i.telefono_dicho);\nconst asunto = clean(i.asunto);\nconst tz = clean(i.tenant_timezone) || 'Europe/Madrid';\n\nif (!asunto) {\n  return [{ json: { _ok: false, ok: false, motivo: 'faltan_datos',\n    detalle: 'Necesito saber qué hay que anotar.' } }];\n}\nif (!telefono) {\n  return [{ json: { _ok: false, ok: false, motivo: 'falta_identidad', falta: ['telefono'] } }];\n}\n\n// Mismo prefijo por tipo que en v1: quien lo lea en Directus ve de un vistazo qué es.\nconst PREFIJO = { callback: 'Llamar', review_doc: 'Revisar', admin: 'Gestión', email: 'Email' };\nconst tipo = clean(i.tipo).toLowerCase();\nconst prefijo = PREFIJO[tipo] || null;\nconst title = prefijo ? (prefijo + ': ' + asunto) : asunto;\n\nconst PRIORIDADES = ['low', 'normal', 'high', 'urgent'];\nconst p = clean(i.prioridad).toLowerCase();\nconst priority = PRIORIDADES.includes(p) ? p : 'normal';\n\n// due_at es opcional. Sin hora se asume final de la mañana, como hacía v1.\nlet due_at = '';\nlet fecha_limite_label = null;\nconst fecha = clean(i.fecha_limite);\nif (/^\\d{4}-\\d{2}-\\d{2}$/.test(fecha)) {\n  const hora = /^\\d{2}:\\d{2}$/.test(clean(i.hora_limite)) ? clean(i.hora_limite) : '13:00';\n  const dt = DateTime.fromISO(fecha + 'T' + hora, { zone: tz });\n  if (dt.isValid) {\n    due_at = dt.toISO();\n    fecha_limite_label = dt.setLocale('es').toFormat(\"cccc d 'de' LLLL\");\n  }\n}\n\nreturn [{ json: { _ok: true, telefono, title, priority, due_at, fecha_limite_label,\n  asunto, description: asunto } }];"
+      },
+      "id": "t-0002",
+      "name": "Code · Entrada",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -40,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "t-ok",
+              "leftValue": "={{ $json._ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "t-0003",
+      "name": "¿Datos suficientes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        180,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "n60GQzDdvZUbICDI",
+          "mode": "list",
+          "cachedResultName": "19 · TOOL · Task Create"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "",
+            "email": "",
+            "query": "",
+            "phone": "={{ $json.telefono }}",
+            "title": "={{ $json.title }}",
+            "description": "={{ $json.description }}",
+            "priority": "={{ $json.priority }}",
+            "due_at": "={{ $json.due_at }}",
+            "source": "ai"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "query",
+              "displayName": "query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "priority",
+              "displayName": "priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "due_at",
+              "displayName": "due_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "t-0004",
+      "name": "Execute · 19 Task Create",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        400,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json ?? {};\nconst inp = $('Code · Entrada').first().json;\nconst tarea = { asunto: inp.asunto, prioridad: inp.priority,\n                fecha_limite_label: inp.fecha_limite_label };\nif (r.ok === true) {\n  return [{ json: { ok: true, motivo: 'anotada', tarea, telefono_usado: inp.telefono } }];\n}\nconst st = r.status || 'error';\nif (st === 'not_found') {\n  // El contacto no existe: para una tarea hace falta a quién asociarla.\n  return [{ json: { ok: false, motivo: 'falta_identidad', falta: ['nombre'] } }];\n}\nif (st === 'multiple') return [{ json: { ok: false, motivo: 'contacto_ambiguo',\n  detalle: r.message || null } }];\nreturn [{ json: { ok: false, motivo: 'error_tarea',\n  status_origen: st, detalle: r.message || null } }];"
+      },
+      "id": "t-0005",
+      "name": "Code · Salida",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: $json }];"
+      },
+      "id": "t-0006",
+      "name": "Code · Datos insuficientes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        120
+      ]
+    }
+  ],
+  "connections": {
+    "When Executed by Agent": {
+      "main": [
+        [
+          {
+            "node": "Code · Entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Entrada": {
+      "main": [
+        [
+          {
+            "node": "¿Datos suficientes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Datos suficientes?": {
+      "main": [
+        [
+          {
+            "node": "Execute · 19 Task Create",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Datos insuficientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · 19 Task Create": {
+      "main": [
+        [
+          {
+            "node": "Code · Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}
