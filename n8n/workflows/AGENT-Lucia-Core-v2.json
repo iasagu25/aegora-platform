@@ -1,0 +1,544 @@
+{
+  "name": "AGENT · Lucía · Core v2",
+  "id": "aegoraAgentLuciaCoreV2",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "message"
+            },
+            {
+              "name": "sessionID"
+            },
+            {
+              "name": "client_id"
+            },
+            {
+              "name": "canal"
+            },
+            {
+              "name": "contact_phone"
+            },
+            {
+              "name": "contact_name"
+            },
+            {
+              "name": "contact_id"
+            },
+            {
+              "name": "booking_base_url"
+            },
+            {
+              "name": "directus_base_url"
+            },
+            {
+              "name": "tenant_timezone"
+            }
+          ]
+        }
+      },
+      "id": "v2-0001",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c1",
+              "name": "booking_base_url",
+              "type": "string",
+              "value": "={{ ($json.booking_base_url && $json.booking_base_url.toString().trim()) || 'http://demo-booking:3000' }}"
+            },
+            {
+              "id": "c2",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "={{ ($json.directus_base_url && $json.directus_base_url.toString().trim()) || 'http://demo-directus:8055' }}"
+            },
+            {
+              "id": "c3",
+              "name": "tenant_timezone",
+              "type": "string",
+              "value": "={{ ($json.tenant_timezone && $json.tenant_timezone.toString().trim()) || 'Europe/Madrid' }}"
+            },
+            {
+              "id": "c4",
+              "name": "tenant_display_name",
+              "type": "string",
+              "value": "Aegora Demo"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "v2-0002",
+      "name": "Config (editar por tenant)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        20,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "=## LUCÍA\n\nAHORA: {{ $now.setZone($json.tenant_timezone || 'Europe/Madrid').toFormat(\"cccc dd LLLL yyyy HH:mm\") }}\nZONA HORARIA: {{ $json.tenant_timezone || 'Europe/Madrid' }}\nCANAL: {{ $json.canal || 'webchat' }}\nNEGOCIO: {{ $json.tenant_display_name || 'el negocio' }}\n\nEres Lucía, la asistente de {{ $json.tenant_display_name || 'este negocio' }}. Estás\natendiendo a un cliente. Tu trabajo es entender qué necesita y resolvérselo con tus\nherramientas.\n\n## CÓMO HABLAS\n- Español de España, natural y breve. Frases cortas. Sin emojis salvo que los use el cliente.\n- Una sola pregunta por mensaje. Nunca pidas una lista de datos de golpe.\n- No menciones nunca herramientas, sistemas, bases de datos, identificadores ni nada\n  interno. El cliente habla con una persona del negocio, no con un software.\n\n## REGLAS QUE NO PUEDES ROMPER\n1. **No inventes hechos.** Horarios de atención, huecos libres, precios, servicios y\n   confirmaciones de cita salen SIEMPRE de una herramienta, en esta misma conversación.\n   Si no tienes el dato, llama a la herramienta. Si la herramienta no lo da, dilo.\n2. **Cita el día tal y como te lo devuelve la herramienta** (`fecha_label`), no como lo\n   calculaste tú. Si te equivocaste de día, así el cliente lo ve y te corrige.\n3. **Una cita solo está hecha si una herramienta te ha devuelto `ok: true`** con motivo\n   `reservada` o `ya_estaba_reservada`. Nunca des por hecho algo que no ha vuelto de una\n   herramienta, ni digas \"te la reservo\" como si ya estuviera.\n4. **No pidas datos que ya tienes.** El teléfono del cliente lo conoces por el canal:\n   no lo preguntes nunca, ni lo repitas.\n5. **Todavía no puedes reprogramar ni cancelar citas, ni consultar las citas que el\n   cliente ya tiene.** Si te lo piden, dilo con naturalidad y ofrécele hablarlo\n   directamente con el negocio. No lo simules ni prometas hacerlo luego.\n\n## FECHAS Y HORAS\nTú resuelves el lenguaje natural a una fecha concreta (`YYYY-MM-DD`) usando AHORA y la\nzona horaria: \"mañana\", \"el jueves\", \"la semana que viene\", \"el día 10\", \"pasado mañana\".\nSi es genuinamente ambiguo (dicen \"el martes\" y hoy es martes), pregunta cuál.\n\nLas franjas van en el parámetro `franja`, con estos valores exactos:\n`manana` | `mediodia` | `tarde` | `noche`. Convención de España: mañana hasta las 14:00,\ntarde desde las 14:00, mediodía sobre 13–16, noche desde las 21:00.\nSi el cliente da una hora concreta (\"a las 11\", \"10:30\", \"las nueve y media\"), usa `hora`\ny NO uses `franja`.\n\n## HERRAMIENTAS\n- `consultar_disponibilidad(fecha, franja, servicio)` — qué huecos libres hay ese día.\n  Devuelve `huecos` (los de la franja pedida) y `huecos_del_dia` (todos). Si la franja que\n  pidió está vacía pero el día tiene huecos en otro momento, ofréceselos.\n- `reservar_cita(fecha, hora, servicio, nombre)` — reserva de verdad. Solo con hora\n  concreta. `nombre` solo si el cliente te lo ha dicho en la conversación.\n- `consultar_info(pregunta)` — información del negocio: horario de atención, servicios,\n  precios, cómo funciona. Te devuelve el texto tal cual: da el dato sin reinterpretarlo\n  ni resumir de más (un horario con dos tramos se estropea al parafrasearlo).\n\nDeja `servicio` vacío si el cliente no ha dicho cuál quiere: si el negocio solo tiene uno,\nla herramienta lo resuelve sola. Si hay varios, te devolverá `varios_servicios` con las\nopciones y entonces sí preguntas.\n\n## CUANDO UNA HERRAMIENTA DEVUELVE `ok: false`\nMira el `motivo`:\n- `varios_servicios` → pregunta para cuál, usando las `opciones` que te da.\n- `hueco_no_disponible` → llama a `consultar_disponibilidad` de ese mismo día y ofrécele\n  lo que haya, en el mismo mensaje. No le hagas preguntar dos veces.\n- `falta_identidad` → pide solo lo que venga en `falta` (normalmente el nombre).\n- `servicio_desconocido` → dile que no lo ofrecéis y pregúntale qué necesita.\n- `fecha_invalida`, `faltan_datos` → pregunta lo que falte.\n- `error_reserva`, `error_disponibilidad`, `error_kb` → discúlpate en una línea y ofrece\n  intentarlo de otra forma. No des detalles técnicos.\n\n## CASOS HABITUALES\n- Piden cita con día y hora concretos → `reservar_cita` directamente.\n- Piden cita con día pero sin hora, o con franja → `consultar_disponibilidad` y ofreces.\n- Eligen uno de los huecos que acabas de ofrecer → `reservar_cita` con esa hora.\n- Preguntan por horarios, precios o servicios → `consultar_info`.\n- Saludo suelto, sin petición → saluda y pregunta en qué puedes ayudar. Sin herramientas."
+        }
+      },
+      "id": "v2-0003",
+      "name": "AI Agent · Lucía",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        260,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "id": "v2-0004",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        140,
+        240
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "EFrzfrCY52epDU2a",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.sessionID }}",
+        "tableName": "n8n_chat_histories",
+        "contextWindowLength": 10
+      },
+      "id": "v2-0005",
+      "name": "Postgres Chat Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        300,
+        240
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "IAtHlC09QTN4mgc2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "consultar_disponibilidad",
+        "description": "Huecos libres para reservar en un día concreto. Devuelve `huecos` (los de la franja pedida) y `huecos_del_dia` (todos los del día), con `fecha_label` = el día tal y como hay que nombrarlo al cliente. Úsala siempre antes de afirmar que algo está libre.",
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraLuciaToolDispo",
+          "mode": "list",
+          "cachedResultName": "LUCÍA · TOOL · Disponibilidad"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fecha": "={{ $fromAI('fecha', 'Día a consultar en formato YYYY-MM-DD, ya resuelto por ti a partir de lo que dijo el cliente', 'string') }}",
+            "franja": "={{ $fromAI('franja', 'Franja del día si el cliente la pidió: manana, mediodia, tarde o noche. Vacío si dio una hora concreta o no dijo franja', 'string') }}",
+            "servicio": "={{ $fromAI('servicio', 'Servicio que quiere, en texto natural. Vacío si no lo ha dicho', 'string') }}",
+            "directus_base_url": "={{ $('Config (editar por tenant)').first().json.directus_base_url }}",
+            "booking_base_url": "={{ $('Config (editar por tenant)').first().json.booking_base_url }}",
+            "tenant_timezone": "={{ $('Config (editar por tenant)').first().json.tenant_timezone }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "franja",
+              "displayName": "franja",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "servicio",
+              "displayName": "servicio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "directus_base_url",
+              "displayName": "directus_base_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "booking_base_url",
+              "displayName": "booking_base_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "tenant_timezone",
+              "displayName": "tenant_timezone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        }
+      },
+      "id": "v2-0006",
+      "name": "consultar_disponibilidad",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        460,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "name": "reservar_cita",
+        "description": "Reserva una cita de verdad. Solo con una hora concreta. Devuelve ok:true con motivo `reservada` o `ya_estaba_reservada` cuando la cita existe; si no, un `motivo` que dice qué pasó (hueco_no_disponible, varios_servicios, falta_identidad…). No digas nunca que una cita está hecha sin un ok:true de aquí.",
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraLuciaToolReservar",
+          "mode": "list",
+          "cachedResultName": "LUCÍA · TOOL · Reservar"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fecha": "={{ $fromAI('fecha', 'Día de la cita en formato YYYY-MM-DD', 'string') }}",
+            "hora": "={{ $fromAI('hora', 'Hora de la cita en formato HH:mm, 24h', 'string') }}",
+            "servicio": "={{ $fromAI('servicio', 'Servicio en texto natural. Vacío si no lo ha dicho', 'string') }}",
+            "nombre": "={{ $fromAI('nombre', 'Nombre del cliente SOLO si te lo ha dicho en esta conversación. Vacío si no', 'string') }}",
+            "telefono": "={{ $('When Executed by Another Workflow').first().json.contact_phone }}",
+            "session_key": "={{ $('When Executed by Another Workflow').first().json.sessionID }}",
+            "directus_base_url": "={{ $('Config (editar por tenant)').first().json.directus_base_url }}",
+            "booking_base_url": "={{ $('Config (editar por tenant)').first().json.booking_base_url }}",
+            "tenant_timezone": "={{ $('Config (editar por tenant)').first().json.tenant_timezone }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "hora",
+              "displayName": "hora",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "servicio",
+              "displayName": "servicio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "nombre",
+              "displayName": "nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "telefono",
+              "displayName": "telefono",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "session_key",
+              "displayName": "session_key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "directus_base_url",
+              "displayName": "directus_base_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "booking_base_url",
+              "displayName": "booking_base_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "tenant_timezone",
+              "displayName": "tenant_timezone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        }
+      },
+      "id": "v2-0007",
+      "name": "reservar_cita",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        620,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "name": "consultar_info",
+        "description": "Información del negocio: horario de atención, servicios, precios, cómo funciona. Devuelve el texto tal cual; da el dato sin reinterpretarlo ni resumir de más.",
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraLuciaToolInfo",
+          "mode": "list",
+          "cachedResultName": "LUCÍA · TOOL · Info"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "pregunta": "={{ $fromAI('pregunta', 'Lo que quiere saber el cliente, en sus palabras', 'string') }}",
+            "directus_base_url": "={{ $('Config (editar por tenant)').first().json.directus_base_url }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "pregunta",
+              "displayName": "pregunta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "directus_base_url",
+              "displayName": "directus_base_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        }
+      },
+      "id": "v2-0008",
+      "name": "consultar_info",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Contrato con Entry. v2 no necesita estado en conversation_sessions: la continuidad la\n// lleva la memoria del agente, así que flujo_activo y los pending_*/slot_* van a null y Entry\n// los limpia solos. `intent` NO puede ser null: Entry lo usa para decidir si el saludo\n// genérico es redundante detrás del aviso de privacidad, y aquí no hay saludo enlatado.\nconst out = $json ?? {};\nconst reply = (out.output ?? '').toString().trim();\nif (!reply) {\n  console.log('Core v2: el agente no devolvió texto. ' + JSON.stringify(out).slice(0, 300));\n}\nreturn [{ json: {\n  ok: true,\n  intent: 'v2',\n  reply_to_user: reply || 'Perdona, se me ha cruzado un cable. ¿Me lo repites?',\n  needs_user_reply: true,\n  flujo_activo: null,\n  contact_id: null,\n  result: null,\n} }];"
+      },
+      "id": "v2-0009",
+      "name": "Code · Salida v2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "AI Agent · Lucía",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent · Lucía": {
+      "main": [
+        [
+          {
+            "node": "Code · Salida v2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent · Lucía",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent · Lucía",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_disponibilidad": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent · Lucía",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "reservar_cita": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent · Lucía",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_info": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent · Lucía",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}
