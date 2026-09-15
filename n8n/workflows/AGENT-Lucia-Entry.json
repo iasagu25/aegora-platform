@@ -244,7 +244,11 @@
             "awaiting_bulk_confirm": "={{ $json.core_in.awaiting_bulk_confirm }}",
             "bulk_appointment_ids": "={{ $json.core_in.bulk_appointment_ids }}",
             "pending_service_id": "={{ $json.core_in.pending_service_id }}",
-            "shown_appointment_ids": "={{ $json.core_in.shown_appointment_ids }}"
+            "shown_appointment_ids": "={{ $json.core_in.shown_appointment_ids }}",
+            "service_query": "={{ $json.core_in.service_query }}",
+            "date": "={{ $json.core_in.date }}",
+            "time": "={{ $json.core_in.time }}",
+            "daypart": "={{ $json.core_in.daypart }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -541,6 +545,16 @@
             {
               "id": "shown_appointment_ids",
               "displayName": "shown_appointment_ids",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "daypart",
+              "displayName": "daypart",
               "required": false,
               "defaultMatch": false,
               "display": true,
