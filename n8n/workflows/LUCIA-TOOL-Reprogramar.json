@@ -372,7 +372,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const r = $json ?? {};\nconst antes = $('Code · Localizar cita').first().json.cita;\nconst despues = $('Code · Nuevo hueco').first().json.cita_nueva;\nif (r.ok === true) return [{ json: { ok: true, motivo: 'reprogramada', antes, cita: despues } }];\nconst st = JSON.stringify((r.data && r.data.result) || r.status || '');\nif (/slot|conflict|taken/i.test(st)) {\n  return [{ json: { ok: false, motivo: 'hueco_no_disponible', antes, cita: despues } }];\n}\nreturn [{ json: { ok: false, motivo: 'error_reprogramacion', antes, cita: despues,\n  detalle: r.message || null } }];"
+        "jsCode": "const r = $json ?? {};\nconst antes = $('Code · Localizar cita').first().json.cita;\nconst despues = $('Code · Nuevo hueco').first().json.cita_nueva;\nif (r.ok === true) return [{ json: { ok: true, motivo: 'reprogramada', antes, cita: despues,\n  telefono_usado: $('Code · Entrada').first().json.telefono, } }];\nconst st = JSON.stringify((r.data && r.data.result) || r.status || '');\nif (/slot|conflict|taken/i.test(st)) {\n  return [{ json: { ok: false, motivo: 'hueco_no_disponible', antes, cita: despues } }];\n}\nreturn [{ json: { ok: false, motivo: 'error_reprogramacion', antes, cita: despues,\n  detalle: r.message || null } }];"
       },
       "id": "p-0010",
       "name": "Code · Salida",
@@ -385,7 +385,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: $json }];"
+        "jsCode": "return [{ json: { ...$json,\n  telefono_usado: $('Code · Entrada').first().json.telefono, } }];"
       },
       "id": "p-0011",
       "name": "Code · No localizada",
@@ -398,7 +398,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: $json }];"
+        "jsCode": "return [{ json: { ...$json,\n  telefono_usado: $('Code · Entrada').first().json.telefono, } }];"
       },
       "id": "p-0012",
       "name": "Code · Hueco inválido",

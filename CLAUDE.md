@@ -211,6 +211,15 @@ ningún UUID en el contexto del agente, hechos solo de tools, identidad inyectad
 server-side (nunca se pregunta el teléfono que da el canal), y las tools responden
 qué falta de forma estructurada (`{ok:false, motivo:'varios_servicios', opciones:[…]}`).
 
+**Pendiente en v2 — markdown por canal.** El agente redacta libremente y usa markdown
+(`**negrita**`, listas con `-`). Cada canal lo interpreta distinto y ninguno entiende el
+de los demás: WhatsApp usa `*negrita*` de un solo asterisco (y `_cursiva_`, `~tachado~`),
+el widget de webchat hoy no renderiza nada (se ven los asteriscos crudos), y en voz el
+markdown directamente sobra. Hay que normalizar **en cada adapter**, no en el Core ni en
+el prompt: el Core produce un único texto y cada canal lo adapta a lo suyo
+(`**x**` → `*x*` en WhatsApp, render o `strip` en webchat). Que no se le escapen
+asteriscos raros al cliente.
+
 Estado: tools `Disponibilidad` / `Reservar` / `Info` escritas
 (`n8n/workflows/LUCIA-TOOL-*.json`) + prompt (`n8n/prompts/lucia-v2.md`).
 Falta el workflow del agente, y después las tools de `mis_citas` / `reprogramar` /

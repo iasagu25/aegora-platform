@@ -297,7 +297,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const r = $json ?? {};\nconst cita = $('Code · Localizar cita').first().json.cita;\nif (r.ok === true) return [{ json: { ok: true, motivo: 'cancelada', cita } }];\nreturn [{ json: { ok: false, motivo: 'error_cancelacion', cita, detalle: r.message || null } }];"
+        "jsCode": "const r = $json ?? {};\nconst cita = $('Code · Localizar cita').first().json.cita;\nif (r.ok === true) return [{ json: { ok: true, motivo: 'cancelada', cita,\n  telefono_usado: $('Code · Entrada').first().json.telefono, } }];\nreturn [{ json: { ok: false, motivo: 'error_cancelacion', cita, detalle: r.message || null } }];"
       },
       "id": "c-0008",
       "name": "Code · Salida",
@@ -310,7 +310,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: $json }];"
+        "jsCode": "return [{ json: { ...$json,\n  telefono_usado: $('Code · Entrada').first().json.telefono, } }];"
       },
       "id": "c-0009",
       "name": "Code · No localizada",
