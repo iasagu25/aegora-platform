@@ -1,0 +1,26 @@
+[
+  {
+    "sort": 1,
+    "active": true,
+    "title": "Sobre Vitalis",
+    "body": "Vitalis es un espacio exclusivo de entrenamiento personal. Entrenar aquí no es solo hacer ejercicio: es invertir en salud y en calidad de vida.\n\nTrabajamos con planes de entrenamiento individualizados, trato personal y seguimiento constante, con el objetivo de mejorar la postura, ganar fuerza y prevenir lesiones.\n\nLa ubicación es privada y el ambiente tranquilo, con pocas personas entrenando a la vez: aquí no eres uno más.\n\nCreemos que el ejercicio físico es la auténtica poli-píldora para mejorar nuestra salud."
+  },
+  {
+    "sort": 2,
+    "active": true,
+    "title": "A quién va dirigido",
+    "body": "Apto para todos los públicos.\n\nLos más jóvenes pueden iniciarse de la mano de un profesional, y las personas mayores pueden sumar calidad de vida a la vez que años.\n\nAyudamos a empezar a entrenar después de años con dolor (hernias, condromalacia, lesiones) y a mejorar patologías a las que no se les ve solución (osteoporosis, lumbalgia).\n\nEl objetivo es que disfrutes entrenando, progreses de manera segura y sientas que cada sesión suma en tu bienestar."
+  },
+  {
+    "sort": 3,
+    "active": true,
+    "title": "Servicios",
+    "body": "Entrenamiento personal con planes individualizados y seguimiento constante.\n\nContamos con nutricionistas, con orientación hacia la salud integral.\n\nPróximamente: fisioterapia y osteopatía."
+  },
+  {
+    "sort": 4,
+    "active": true,
+    "title": "Contacto",
+    "body": "Teléfono: +34 622 65 86 53\nCorreo: cutoque@gmail.com\n\nTambién estamos en Instagram."
+  }
+]
