@@ -60,16 +60,25 @@ done
 
 command -v docker >/dev/null 2>&1 || fail "Falta docker."
 
-TENANT_CONFIG="${TENANTS_ROOT}/${TENANT}/config/tenant.env"
+TENANT_ROOT="${TENANTS_ROOT}/${TENANT}"
+TENANT_CONFIG="${TENANT_ROOT}/config/tenant.env"
+PROVISIONING_SECRET="${TENANT_ROOT}/secrets/directus-provisioning.env"
+
 [[ -f "$TENANT_CONFIG" ]] || fail "No existe ${TENANT_CONFIG}"
+[[ -f "$PROVISIONING_SECRET" ]] ||
+  fail "Falta la credencial técnica: ${PROVISIONING_SECRET}
+Créala con: directus/provision-directus-access.sh --tenant ${TENANT} --apply"
 
 set -a
 # shellcheck disable=SC1090
 source "$TENANT_CONFIG"
+# shellcheck disable=SC1090
+source "$PROVISIONING_SECRET"
 set +a
 
 : "${TENANT_ID:?Falta TENANT_ID}"
 : "${DIRECTUS_CONTAINER:?Falta DIRECTUS_CONTAINER}"
+: "${DIRECTUS_PROVISIONING_TOKEN:?Falta DIRECTUS_PROVISIONING_TOKEN}"
 
 [[ "$TENANT_ID" == "$TENANT" ]] ||
   fail "TENANT_ID (${TENANT_ID}) no coincide con --tenant (${TENANT})."
@@ -149,6 +158,7 @@ STATE_LINE="$(
   docker exec -i \
     -e AEGORA_POLICY_NAME="$POLICY_NAME" \
     -e AEGORA_ROLE_NAME="$ROLE_NAME" \
+    -e DIRECTUS_PROVISIONING_TOKEN="$DIRECTUS_PROVISIONING_TOKEN" \
     "$DIRECTUS_CONTAINER" \
     node --input-type=module <<'NODE'
 const BASE = 'http://127.0.0.1:8055';
@@ -187,7 +197,10 @@ const permissionModel = {
   calendars: { read: ALL },
 };
 
-let token = null;
+// Token estático del usuario técnico de provisioning. NO se usa ADMIN_EMAIL/
+// ADMIN_PASSWORD del contenedor: esas variables son las del bootstrap inicial y no
+// tienen por qué seguir siendo la contraseña real (en demo ya no lo son).
+const token = process.env.DIRECTUS_PROVISIONING_TOKEN;
 
 async function api(method, path, body) {
   const headers = { Accept: 'application/json' };
@@ -213,12 +226,6 @@ async function findOne(path) {
   const r = await api('GET', path);
   return Array.isArray(r?.data) && r.data.length ? r.data[0] : null;
 }
-
-const login = await api('POST', '/auth/login', {
-  email: process.env.ADMIN_EMAIL,
-  password: process.env.ADMIN_PASSWORD,
-});
-token = login.data.access_token;
 
 // ---------------------------------------------------------------- policy
 let policy = await findOne(
