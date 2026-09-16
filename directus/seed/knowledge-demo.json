@@ -26,6 +26,12 @@
   {
     "sort": 5,
     "active": true,
+    "title": "Dónde estamos",
+    "body": "Avenida de la Berzosilla 4, 28250 Torrelodones (Madrid)."
+  },
+  {
+    "sort": 6,
+    "active": true,
     "title": "Contacto",
     "body": "Teléfono: +34 622 65 86 53\nCorreo: cutoque@gmail.com\n\nTambién estamos en Instagram."
   }
