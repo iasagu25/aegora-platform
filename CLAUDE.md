@@ -103,6 +103,24 @@ Directus (`directus_presets.refresh_interval`) no hace nada — el temporizador 
 nadie a quien llamar. Y `dist/` es lo que carga Directus: tras tocar `src/` hay que
 `npm run build` y copiar el `dist` al contenedor.
 
+### Cuando el Booking API no devuelve huecos, mirar el dato antes que el código
+`/api/availability` no dice POR QUÉ un día sale vacío, así que una regla mal configurada es
+indistinguible de un día lleno. Comprobado en `aegora-booking/lib/booking/availability.ts`:
+los slots avanzan **por duración desde el inicio de la ventana** (`cursor = slotEnd`), sin
+rejilla de ningún tipo — una clase a las 09:15 es perfectamente expresable, basta con que la
+regla empiece a las 09:15. Los buffers NO entran en la condición de que el slot quepa en la
+ventana; solo se usan para detectar choques con citas existentes (y se aplican a los dos
+lados, así que una cita de 09:00-09:50 con `buffer_after` 10 bloquea hasta las 10:00).
+
+Orden de sospechas cuando no hay huecos y "debería haberlos" (16/sep/2026: fue la tercera):
+1. **`valid_from` / `valid_until` de la regla.** Una validez caducada no da error: la regla
+   simplemente deja de existir para esa fecha.
+2. `active` en regla, recurso o servicio.
+3. Falta la fila en `service_resources` que une servicio y recurso.
+4. `day_of_week`: 1 = lunes … 7 = domingo.
+5. Una cita existente que bloquea por buffers.
+6. `minimum_notice_minutes` / `maximum_booking_days` del servicio.
+
 ## Modelo de booking en Directus — decisiones ya tomadas
 - Semántica V1 simple: `service_resources` = pool OR de recursos alternativos
   por servicio. `appointment_resources` = recursos asociados a una cita
