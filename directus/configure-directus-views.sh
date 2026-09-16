@@ -106,7 +106,11 @@ Orden del menú:
   15  Reglas de disponibilidad (availability_rules)
   16  Excepciones              (availability_exceptions)
 
-Estado de las citas, como etiquetas de color:
+Orden de campos al abrir una cita:
+  Estado · Título · Notas · Contacto · Inicio/Fin · Origen · ...
+  (los identificadores y las marcas de tiempo, al final)
+
+Estado de las citas, en color tanto en la lista como al editar:
   Programada (azul) · Confirmada (verde) · Completada (gris)
   Cancelada (rojo) · No presentado (ámbar)
 
@@ -173,11 +177,48 @@ const comoSeLlaman = {
 // Los cinco estados, con su texto en español y colores coherentes: azul lo que
 // está por venir, verde lo confirmado, gris lo ya pasado, rojo lo anulado y
 // ámbar el plantón, que no es un fallo pero hay que verlo.
+// Orden y ancho de los campos al abrir una cita. Lo primero que quiere ver quien
+// la abre es EN QUÉ ESTADO está, y con quién es. Los identificadores técnicos y
+// las marcas de tiempo, al final.
+const ordenDeCampos = {
+  appointments: [
+    ['id', 'full'],
+    ['status', 'half'],
+    ['title', 'full'],
+    ['notes', 'full'],
+    ['contact_id', 'full'],
+    ['start_at', 'half'],
+    ['end_at', 'half'],
+    ['source', 'half'],
+    ['service_id', 'full'],
+    ['calendar_id', 'full'],
+    ['location_id', 'full'],
+    ['external_provider', 'half'],
+    ['external_event_id', 'full'],
+    ['created_at', 'half'],
+    ['updated_at', 'half'],
+    ['idempotency_key', 'full'],
+  ],
+};
+
 const displaysDeCampo = [
   {
     collection: 'appointments',
     field: 'status',
     display: 'labels',
+    // Los mismos colores en el desplegable de edición: al abrir la cita se ve el
+    // estado de un golpe, no hay que leerlo. `value` no se toca nunca -- lo que
+    // se guarda sigue siendo scheduled/confirmed/... y de eso depende el Booking
+    // API y Lucía.
+    options: {
+      choices: [
+        { value: 'scheduled', text: 'Programada',    color: '#3399FF', icon: 'event' },
+        { value: 'confirmed', text: 'Confirmada',    color: '#2ECDA7', icon: 'check_circle' },
+        { value: 'completed', text: 'Completada',    color: '#A2B5CD', icon: 'task_alt' },
+        { value: 'cancelled', text: 'Cancelada',     color: '#E35169', icon: 'cancel' },
+        { value: 'no_show',   text: 'No presentado', color: '#FFA439', icon: 'person_off' },
+      ],
+    },
     display_options: {
       format: false,
       choices: [
@@ -237,10 +278,20 @@ for (const [collection, display_template] of Object.entries(comoSeLlaman)) {
 
 for (const d of displaysDeCampo) {
   if (!existentes.has(d.collection)) continue;
-  await api('PATCH', `/fields/${d.collection}/${d.field}`, {
-    meta: { display: d.display, display_options: d.display_options },
-  });
+  const meta = { display: d.display, display_options: d.display_options };
+  if (d.options) meta.options = d.options;
+  await api('PATCH', `/fields/${d.collection}/${d.field}`, { meta });
   console.log(`Display     ${d.collection}.${d.field} -> ${d.display}`);
+}
+
+for (const [collection, campos] of Object.entries(ordenDeCampos)) {
+  if (!existentes.has(collection)) continue;
+  let n = 0;
+  for (const [field, width] of campos) {
+    n += 1;
+    await api('PATCH', `/fields/${collection}/${field}`, { meta: { sort: n, width } });
+  }
+  console.log(`Orden campos ${collection} (${n})`);
 }
 
 for (const collection of ocultas) {

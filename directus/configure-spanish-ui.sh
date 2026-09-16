@@ -387,13 +387,13 @@ const collectionTranslations = {
   availability_rules: {
     singular: 'Disponibilidad',
     plural: 'Disponibilidad',
-    translation: 'Disponibilidad empleados',
+    translation: 'Disponibilidad',
   },
 
   availability_exceptions: {
-    singular: 'Excepción',
-    plural: 'Excepciones',
-    translation: 'Vacaciones y cierres',
+    singular: 'Ausencia',
+    plural: 'Ausencias',
+    translation: 'Ausencias',
   },
 
   knowledge: {
