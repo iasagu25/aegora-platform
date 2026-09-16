@@ -132,6 +132,10 @@ Configuración del negocio:
   calendars              read
   appointment_resources  read
 
+Biblioteca de archivos:
+  directus_files         create / read / update   (sin borrar)
+  directus_folders       read
+
 Sin permiso (invisibles para el gestor):
   conversation_sessions · languages
 
@@ -203,6 +207,13 @@ const permissionModel = {
   service_resources: { create: ALL, read: ALL, update: ALL, delete: ALL },
   appointment_resources: { read: ALL },
   calendars: { read: ALL },
+
+  // --- intercambio de ficheros con Aegora -----------------------------------
+  // Para pasarse documentación durante la implantación y luego con los cambios.
+  // Sin `delete` a propósito: borrar un fichero que otro esperaba es peor que
+  // acumular alguno de más, y no hay papelera de la que recuperarlo.
+  directus_files: { create: ALL, read: ALL, update: ALL },
+  directus_folders: { read: ALL },
 };
 
 // Token estático del usuario técnico de provisioning. NO se usa ADMIN_EMAIL/

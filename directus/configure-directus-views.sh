@@ -106,6 +106,10 @@ Orden del menú:
   15  Reglas de disponibilidad (availability_rules)
   16  Excepciones              (availability_exceptions)
 
+Estado de las citas, como etiquetas de color:
+  Programada (azul) · Confirmada (verde) · Completada (gris)
+  Cancelada (rojo) · No presentado (ámbar)
+
 Cómo se nombra cada registro al referenciarlo (hoy salen UUIDs):
   employees -> {{first_name}} {{last_name}}
   services / resources / calendars / locations -> {{name}}
@@ -164,6 +168,29 @@ const comoSeLlaman = {
   locations: '{{name}}',
 };
 
+// Cómo se pinta un campo concreto. El estado de una cita en monocromo no dice
+// nada de un vistazo; con etiquetas de color se lee la agenda de un golpe.
+// Los cinco estados, con su texto en español y colores coherentes: azul lo que
+// está por venir, verde lo confirmado, gris lo ya pasado, rojo lo anulado y
+// ámbar el plantón, que no es un fallo pero hay que verlo.
+const displaysDeCampo = [
+  {
+    collection: 'appointments',
+    field: 'status',
+    display: 'labels',
+    display_options: {
+      format: false,
+      choices: [
+        { value: 'scheduled', text: 'Programada',    background: '#3399FF', foreground: '#FFFFFF', icon: 'event' },
+        { value: 'confirmed', text: 'Confirmada',    background: '#2ECDA7', foreground: '#FFFFFF', icon: 'check_circle' },
+        { value: 'completed', text: 'Completada',    background: '#A2B5CD', foreground: '#FFFFFF', icon: 'task_alt' },
+        { value: 'cancelled', text: 'Cancelada',     background: '#E35169', foreground: '#FFFFFF', icon: 'cancel' },
+        { value: 'no_show',   text: 'No presentado', background: '#FFA439', foreground: '#FFFFFF', icon: 'person_off' },
+      ],
+    },
+  },
+];
+
 // Fuera del menú. No es un permiso: siguen accesibles por URL y desde el modelo
 // de datos, simplemente no se navega a ellas.
 const ocultas = [
@@ -206,6 +233,14 @@ for (const [collection, display_template] of Object.entries(comoSeLlaman)) {
   if (!existentes.has(collection)) continue;
   await api('PATCH', `/collections/${collection}`, { meta: { display_template } });
   console.log(`Nombre      ${collection} -> ${display_template}`);
+}
+
+for (const d of displaysDeCampo) {
+  if (!existentes.has(d.collection)) continue;
+  await api('PATCH', `/fields/${d.collection}/${d.field}`, {
+    meta: { display: d.display, display_options: d.display_options },
+  });
+  console.log(`Display     ${d.collection}.${d.field} -> ${d.display}`);
 }
 
 for (const collection of ocultas) {

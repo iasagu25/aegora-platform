@@ -535,6 +535,24 @@ todos, incluido el admin**, a propósito — la hora de una cita la decide el Bo
 editarla a mano en Directus siempre está mal. No es un apaño por no tener permisos por
 campo (ver el quirk de Directus arriba), es dónde está la verdad.
 
+## Pendientes de la UI de Directus
+- **Traducciones incompletas.** El menú mezcla español e inglés: "Citas" y "Tareas"
+  conviven con "Appointment Resources", "Availability Rules", "Knowledge", "Locations",
+  "Services"… Hay traducciones puestas campo a campo (`meta.translations`) pero a medias, y
+  los nombres de colección se ven en crudo. Hace falta una pasada completa —nombres de
+  colección y de campo— y que viva en un script como el resto, no a mano en la UI, o se
+  pierde en el próximo tenant. `configure-spanish-ui.sh` ya existe y es donde debería ir.
+- **¿La KB en una sola entrada o en secciones?** (planteado 16/sep/2026, sin decidir)
+  Hoy `knowledge` son varias filas y `LUCÍA · TOOL · Info` las concatena como
+  `## título\nbody`, así que **para el agente ya es un único documento**: partirla no le
+  cambia nada. La diferencia está en quien la mantiene. A favor de mantener secciones:
+  editar un markdown gigante en un campo de Directus es incómodo, `active` por sección
+  permite apagar un trozo (una promoción que caducó) sin borrarlo, y los títulos que se
+  concatenan le dan estructura al modelo para encontrar el dato. A favor de una sola:
+  menos clics para un negocio con cuatro cosas que contar. **Recomendación: mantener
+  secciones**, pero es decisión de producto y conviene cerrarla antes de que haya tenants
+  reales con KB cargada, porque migrar después es tocar datos del cliente.
+
 ## Deuda de esquema conocida (no urgente)
 - `calendars`, `locations`, `resources` y `services` llevan **dos pares de timestamps**:
   `created_at`/`updated_at` (convención del negocio) y `date_created`/`date_updated`
