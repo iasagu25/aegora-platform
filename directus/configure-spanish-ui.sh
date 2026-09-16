@@ -356,6 +356,73 @@ const collectionTranslations = {
     plural: 'Citas',
     translation: 'Citas',
   },
+
+  services: {
+    singular: 'Servicio',
+    plural: 'Servicios',
+    translation: 'Servicios',
+  },
+
+  resources: {
+    singular: 'Recurso',
+    plural: 'Recursos',
+    translation: 'Recursos',
+  },
+
+  locations: {
+    singular: 'Ubicación',
+    plural: 'Ubicaciones',
+    translation: 'Ubicaciones',
+  },
+
+  calendars: {
+    singular: 'Calendario',
+    plural: 'Calendarios',
+    translation: 'Calendarios',
+  },
+
+  availability_rules: {
+    singular: 'Horario',
+    plural: 'Horarios',
+    translation: 'Horarios de atención',
+  },
+
+  availability_exceptions: {
+    singular: 'Excepción',
+    plural: 'Excepciones',
+    translation: 'Vacaciones y cierres',
+  },
+
+  knowledge: {
+    singular: 'Información',
+    plural: 'Información',
+    translation: 'Información del negocio',
+  },
+
+  // Ocultas del menú, pero aparecen al editar su colección padre.
+  service_resources: {
+    singular: 'Recurso del servicio',
+    plural: 'Recursos del servicio',
+    translation: 'Recursos del servicio',
+  },
+
+  appointment_resources: {
+    singular: 'Recurso de la cita',
+    plural: 'Recursos de la cita',
+    translation: 'Recursos de la cita',
+  },
+
+  conversation_sessions: {
+    singular: 'Conversación',
+    plural: 'Conversaciones',
+    translation: 'Conversaciones',
+  },
+
+  languages: {
+    singular: 'Idioma',
+    plural: 'Idiomas',
+    translation: 'Idiomas',
+  },
 };
 
 const fieldTranslations = {
@@ -430,6 +497,120 @@ const fieldTranslations = {
     external_event_id: 'ID del evento externo',
     created_at: 'Fecha de creación',
     updated_at: 'Última modificación',
+  },
+
+  services: {
+    id: 'ID',
+    name: 'Nombre',
+    description: 'Descripción',
+    duration_minutes: 'Duración (minutos)',
+    buffer_before_minutes: 'Margen antes (minutos)',
+    buffer_after_minutes: 'Margen después (minutos)',
+    booking_mode: 'Modo de reserva',
+    minimum_notice_minutes: 'Antelación mínima (minutos)',
+    maximum_booking_days: 'Se puede reservar con (días)',
+    requires_confirmation: 'Requiere confirmación',
+    active: 'Activo',
+    created_at: 'Fecha de creación',
+    updated_at: 'Última modificación',
+  },
+
+  resources: {
+    id: 'ID',
+    name: 'Nombre',
+    resource_type: 'Tipo',
+    employee_id: 'Empleado',
+    location_id: 'Ubicación',
+    calendar_id: 'Calendario',
+    capacity: 'Capacidad',
+    active: 'Activo',
+    created_at: 'Fecha de creación',
+    updated_at: 'Última modificación',
+  },
+
+  locations: {
+    id: 'ID',
+    name: 'Nombre',
+    code: 'Código',
+    address: 'Dirección',
+    phone: 'Teléfono',
+    email: 'Correo electrónico',
+    timezone: 'Zona horaria',
+    active: 'Activa',
+    calendars: 'Calendarios',
+    resources: 'Recursos',
+    created_at: 'Fecha de creación',
+    updated_at: 'Última modificación',
+  },
+
+  calendars: {
+    id: 'ID',
+    name: 'Nombre',
+    location_id: 'Ubicación',
+    timezone: 'Zona horaria',
+    active: 'Activo',
+    resources: 'Recursos',
+    created_at: 'Fecha de creación',
+    updated_at: 'Última modificación',
+  },
+
+  availability_rules: {
+    id: 'ID',
+    resource_id: 'Recurso',
+    day_of_week: 'Día de la semana',
+    start_time: 'Hora de inicio',
+    end_time: 'Hora de fin',
+    valid_from: 'Vigente desde',
+    valid_until: 'Vigente hasta',
+    active: 'Activo',
+  },
+
+  availability_exceptions: {
+    id: 'ID',
+    resource_id: 'Recurso',
+    exception_type: 'Tipo',
+    start_at: 'Desde',
+    end_at: 'Hasta',
+    reason: 'Motivo',
+    active: 'Activa',
+  },
+
+  knowledge: {
+    id: 'ID',
+    sort: 'Orden',
+    title: 'Título',
+    body: 'Contenido',
+    active: 'Activa',
+  },
+
+  service_resources: {
+    id: 'ID',
+    service_id: 'Servicio',
+    resource_id: 'Recurso',
+  },
+
+  appointment_resources: {
+    id: 'ID',
+    appointment_id: 'Cita',
+    resource_id: 'Recurso',
+    role: 'Papel',
+  },
+
+  conversation_sessions: {
+    id: 'ID',
+    session_key: 'Identificador de sesión',
+    canal: 'Canal',
+    contact_id: 'Contacto',
+    flujo_activo: 'Flujo activo',
+    state: 'Estado interno',
+    created_at: 'Fecha de creación',
+    updated_at: 'Última modificación',
+  },
+
+  languages: {
+    code: 'Código',
+    name: 'Nombre',
+    direction: 'Dirección del texto',
   },
 };
 
