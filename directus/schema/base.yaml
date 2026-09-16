@@ -23,7 +23,11 @@ collections:
       sort: null
       sort_field: null
       status: active
-      translations: null
+      translations:
+        - language: es-ES
+          plural: Recursos de la cita
+          singular: Recurso de la cita
+          translation: Recursos de la cita
       unarchive_value: null
       versioning: false
     schema:
@@ -79,7 +83,11 @@ collections:
       sort: 16
       sort_field: null
       status: active
-      translations: null
+      translations:
+        - language: es-ES
+          plural: Ausencias
+          singular: Ausencia
+          translation: Ausencias
       unarchive_value: null
       versioning: false
     schema:
@@ -105,7 +113,11 @@ collections:
       sort: 15
       sort_field: null
       status: active
-      translations: null
+      translations:
+        - language: es-ES
+          plural: Disponibilidad
+          singular: Disponibilidad
+          translation: Disponibilidad
       unarchive_value: null
       versioning: false
     schema:
@@ -131,7 +143,11 @@ collections:
       sort: 14
       sort_field: null
       status: active
-      translations: null
+      translations:
+        - language: es-ES
+          plural: Calendarios
+          singular: Calendario
+          translation: Calendarios
       unarchive_value: null
       versioning: false
     schema:
@@ -219,7 +235,11 @@ collections:
       sort: null
       sort_field: null
       status: active
-      translations: null
+      translations:
+        - language: es-ES
+          plural: Conversaciones
+          singular: Conversación
+          translation: Conversaciones
       unarchive_value: null
       versioning: false
     schema:
@@ -275,7 +295,11 @@ collections:
       sort: 4
       sort_field: sort
       status: active
-      translations: null
+      translations:
+        - language: es-ES
+          plural: Información
+          singular: Información
+          translation: Información del negocio
       unarchive_value: null
       versioning: false
     schema:
@@ -301,7 +325,11 @@ collections:
       sort: null
       sort_field: null
       status: active
-      translations: null
+      translations:
+        - language: es-ES
+          plural: Idiomas
+          singular: Idioma
+          translation: Idiomas
       unarchive_value: null
       versioning: false
     schema:
@@ -327,7 +355,11 @@ collections:
       sort: 13
       sort_field: null
       status: active
-      translations: null
+      translations:
+        - language: es-ES
+          plural: Ubicaciones
+          singular: Ubicación
+          translation: Ubicaciones
       unarchive_value: null
       versioning: false
     schema:
@@ -353,7 +385,11 @@ collections:
       sort: 12
       sort_field: null
       status: active
-      translations: null
+      translations:
+        - language: es-ES
+          plural: Recursos
+          singular: Recurso
+          translation: Recursos
       unarchive_value: null
       versioning: false
     schema:
@@ -379,7 +415,11 @@ collections:
       sort: null
       sort_field: null
       status: active
-      translations: null
+      translations:
+        - language: es-ES
+          plural: Recursos del servicio
+          singular: Recurso del servicio
+          translation: Recursos del servicio
       unarchive_value: null
       versioning: false
     schema:
@@ -405,7 +445,11 @@ collections:
       sort: 10
       sort_field: null
       status: active
-      translations: null
+      translations:
+        - language: es-ES
+          plural: Servicios
+          singular: Servicio
+          translation: Servicios
       unarchive_value: null
       versioning: false
     schema:
@@ -461,7 +505,9 @@ fields:
       sort: 1
       special:
         - uuid
-      translations: null
+      translations:
+        - language: es-ES
+          translation: ID
       validation: null
       validation_message: null
       width: full
@@ -587,7 +633,9 @@ fields:
       sort: 4
       special:
         - m2o
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Cita
       validation: null
       validation_message: null
       width: full
@@ -629,7 +677,9 @@ fields:
       sort: 5
       special:
         - m2o
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Recurso
       validation: null
       validation_message: null
       width: full
@@ -674,7 +724,9 @@ fields:
       searchable: true
       sort: 6
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Papel
       validation: null
       validation_message: null
       width: full
@@ -755,7 +807,7 @@ fields:
       readonly: true
       required: false
       searchable: true
-      sort: 2
+      sort: 5
       special:
         - m2o
       translations:
@@ -840,7 +892,7 @@ fields:
       readonly: true
       required: true
       searchable: true
-      sort: 5
+      sort: 6
       special: null
       translations:
         - language: es-ES
@@ -882,7 +934,7 @@ fields:
       readonly: true
       required: true
       searchable: true
-      sort: 6
+      sort: 7
       special: null
       translations:
         - language: es-ES
@@ -913,8 +965,35 @@ fields:
     meta:
       collection: appointments
       conditions: null
-      display: null
-      display_options: null
+      display: labels
+      display_options:
+        choices:
+          - background: '#3399FF'
+            foreground: '#FFFFFF'
+            icon: event
+            text: Programada
+            value: scheduled
+          - background: '#2ECDA7'
+            foreground: '#FFFFFF'
+            icon: check_circle
+            text: Confirmada
+            value: confirmed
+          - background: '#A2B5CD'
+            foreground: '#FFFFFF'
+            icon: task_alt
+            text: Completada
+            value: completed
+          - background: '#E35169'
+            foreground: '#FFFFFF'
+            icon: cancel
+            text: Cancelada
+            value: cancelled
+          - background: '#FFA439'
+            foreground: '#FFFFFF'
+            icon: person_off
+            text: No presentado
+            value: no_show
+        format: false
       field: status
       group: null
       hidden: false
@@ -922,20 +1001,30 @@ fields:
       note: null
       options:
         choices:
-          - text: Programada
+          - color: '#3399FF'
+            icon: event
+            text: Programada
             value: scheduled
-          - text: Confirmada
+          - color: '#2ECDA7'
+            icon: check_circle
+            text: Confirmada
             value: confirmed
-          - text: Cancelada
-            value: cancelled
-          - text: Completada
+          - color: '#A2B5CD'
+            icon: task_alt
+            text: Completada
             value: completed
-          - text: No presentado
+          - color: '#E35169'
+            icon: cancel
+            text: Cancelada
+            value: cancelled
+          - color: '#FFA439'
+            icon: person_off
+            text: No presentado
             value: no_show
       readonly: false
       required: true
       searchable: true
-      sort: 7
+      sort: 2
       special: null
       translations:
         - language: es-ES
@@ -1407,7 +1496,9 @@ fields:
       sort: 1
       special:
         - uuid
-      translations: null
+      translations:
+        - language: es-ES
+          translation: ID
       validation: null
       validation_message: null
       width: full
@@ -1534,7 +1625,9 @@ fields:
       sort: 4
       special:
         - m2o
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Recurso
       validation: null
       validation_message: null
       width: full
@@ -1579,7 +1672,9 @@ fields:
       searchable: true
       sort: 5
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Tipo
       validation: null
       validation_message: null
       width: full
@@ -1620,7 +1715,9 @@ fields:
       searchable: true
       sort: 6
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Desde
       validation: null
       validation_message: null
       width: full
@@ -1661,7 +1758,9 @@ fields:
       searchable: true
       sort: 7
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Hasta
       validation: null
       validation_message: null
       width: full
@@ -1701,7 +1800,9 @@ fields:
       searchable: true
       sort: 8
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Motivo
       validation: null
       validation_message: null
       width: full
@@ -1743,7 +1844,9 @@ fields:
       sort: 9
       special:
         - cast-boolean
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Activa
       validation: null
       validation_message: null
       width: full
@@ -1784,7 +1887,9 @@ fields:
       sort: 1
       special:
         - uuid
-      translations: null
+      translations:
+        - language: es-ES
+          translation: ID
       validation: null
       validation_message: null
       width: full
@@ -1911,7 +2016,9 @@ fields:
       sort: 4
       special:
         - m2o
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Recurso
       validation: null
       validation_message: null
       width: full
@@ -1991,7 +2098,9 @@ fields:
       searchable: true
       sort: 5
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Día de la semana
       validation: null
       validation_message: null
       width: full
@@ -2031,7 +2140,9 @@ fields:
       searchable: true
       sort: 8
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Vigente desde
       validation: null
       validation_message: null
       width: full
@@ -2071,7 +2182,9 @@ fields:
       searchable: true
       sort: 9
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Vigente hasta
       validation: null
       validation_message: null
       width: full
@@ -2113,7 +2226,9 @@ fields:
       sort: 10
       special:
         - cast-boolean
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Activo
       validation: null
       validation_message: null
       width: full
@@ -2153,7 +2268,9 @@ fields:
       searchable: true
       sort: 6
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Hora de inicio
       validation: null
       validation_message: null
       width: full
@@ -2193,7 +2310,9 @@ fields:
       searchable: true
       sort: 7
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Hora de fin
       validation: null
       validation_message: null
       width: full
@@ -2234,7 +2353,9 @@ fields:
       sort: 1
       special:
         - uuid
-      translations: null
+      translations:
+        - language: es-ES
+          translation: ID
       validation: null
       validation_message: null
       width: full
@@ -2358,7 +2479,9 @@ fields:
       searchable: true
       sort: 4
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Nombre
       validation: null
       validation_message: null
       width: full
@@ -2401,7 +2524,9 @@ fields:
       sort: 5
       special:
         - m2o
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Ubicación
       validation: null
       validation_message: null
       width: full
@@ -2441,7 +2566,9 @@ fields:
       searchable: true
       sort: 6
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Zona horaria
       validation: null
       validation_message: null
       width: full
@@ -2483,7 +2610,9 @@ fields:
       sort: 8
       special:
         - cast-boolean
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Activo
       validation: null
       validation_message: null
       width: full
@@ -2524,7 +2653,9 @@ fields:
       sort: 9
       special:
         - date-created
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Fecha de creación
       validation: null
       validation_message: null
       width: full
@@ -2565,7 +2696,9 @@ fields:
       sort: 10
       special:
         - date-updated
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Última modificación
       validation: null
       validation_message: null
       width: full
@@ -2608,7 +2741,9 @@ fields:
       sort: 7
       special:
         - o2m
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Recursos
       validation: null
       validation_message: null
       width: full
@@ -3487,7 +3622,9 @@ fields:
       sort: 1
       special:
         - uuid
-      translations: null
+      translations:
+        - language: es-ES
+          translation: ID
       validation: null
       validation_message: null
       width: full
@@ -3528,7 +3665,9 @@ fields:
       searchable: true
       sort: 2
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Identificador de sesión
       validation: null
       validation_message: null
       width: full
@@ -3568,7 +3707,9 @@ fields:
       searchable: true
       sort: 3
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Canal
       validation: null
       validation_message: null
       width: half
@@ -3608,7 +3749,9 @@ fields:
       searchable: true
       sort: 4
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Contacto
       validation: null
       validation_message: null
       width: half
@@ -3648,7 +3791,9 @@ fields:
       searchable: true
       sort: 5
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Flujo activo
       validation: null
       validation_message: null
       width: half
@@ -3690,7 +3835,9 @@ fields:
       sort: 6
       special:
         - cast-json
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Estado interno
       validation: null
       validation_message: null
       width: full
@@ -3731,7 +3878,9 @@ fields:
       sort: 7
       special:
         - date-updated
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Última modificación
       validation: null
       validation_message: null
       width: full
@@ -3772,7 +3921,9 @@ fields:
       sort: 8
       special:
         - date-created
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Fecha de creación
       validation: null
       validation_message: null
       width: full
@@ -4354,7 +4505,9 @@ fields:
       sort: 1
       special:
         - uuid
-      translations: null
+      translations:
+        - language: es-ES
+          translation: ID
       validation: null
       validation_message: null
       width: full
@@ -4394,7 +4547,9 @@ fields:
       searchable: true
       sort: 2
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Orden
       validation: null
       validation_message: null
       width: full
@@ -4434,7 +4589,9 @@ fields:
       searchable: true
       sort: 3
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Activa
       validation: null
       validation_message: null
       width: half
@@ -4475,7 +4632,9 @@ fields:
       searchable: true
       sort: 4
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Título
       validation: null
       validation_message: null
       width: full
@@ -4515,7 +4674,9 @@ fields:
       searchable: true
       sort: 5
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Contenido
       validation: null
       validation_message: null
       width: full
@@ -4555,7 +4716,9 @@ fields:
       searchable: true
       sort: 1
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Código
       validation: null
       validation_message: null
       width: full
@@ -4595,7 +4758,9 @@ fields:
       searchable: true
       sort: 2
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Nombre
       validation: null
       validation_message: null
       width: full
@@ -4646,7 +4811,9 @@ fields:
       searchable: true
       sort: 3
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Dirección del texto
       validation: null
       validation_message: null
       width: full
@@ -4687,7 +4854,9 @@ fields:
       sort: 1
       special:
         - uuid
-      translations: null
+      translations:
+        - language: es-ES
+          translation: ID
       validation: null
       validation_message: null
       width: full
@@ -4811,7 +4980,9 @@ fields:
       searchable: true
       sort: 4
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Nombre
       validation: null
       validation_message: null
       width: full
@@ -4851,7 +5022,9 @@ fields:
       searchable: true
       sort: 5
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Código
       validation: null
       validation_message: null
       width: full
@@ -4891,7 +5064,9 @@ fields:
       searchable: true
       sort: 7
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Dirección
       validation: null
       validation_message: null
       width: full
@@ -4931,7 +5106,9 @@ fields:
       searchable: true
       sort: 8
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Teléfono
       validation: null
       validation_message: null
       width: half
@@ -4971,7 +5148,9 @@ fields:
       searchable: true
       sort: 9
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Correo electrónico
       validation: null
       validation_message: null
       width: half
@@ -5013,7 +5192,9 @@ fields:
       sort: 12
       special:
         - cast-boolean
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Activa
       validation: null
       validation_message: null
       width: full
@@ -5054,7 +5235,9 @@ fields:
       sort: 13
       special:
         - date-created
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Fecha de creación
       validation: null
       validation_message: null
       width: full
@@ -5095,7 +5278,9 @@ fields:
       sort: 14
       special:
         - date-updated
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Última modificación
       validation: null
       validation_message: null
       width: full
@@ -5135,7 +5320,9 @@ fields:
       searchable: true
       sort: 6
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Zona horaria
       validation: null
       validation_message: null
       width: full
@@ -5178,7 +5365,9 @@ fields:
       sort: 10
       special:
         - o2m
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Calendarios
       validation: null
       validation_message: null
       width: full
@@ -5204,7 +5393,9 @@ fields:
       sort: 11
       special:
         - o2m
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Recursos
       validation: null
       validation_message: null
       width: full
@@ -5228,7 +5419,9 @@ fields:
       sort: 1
       special:
         - uuid
-      translations: null
+      translations:
+        - language: es-ES
+          translation: ID
       validation: null
       validation_message: null
       width: full
@@ -5352,7 +5545,9 @@ fields:
       searchable: true
       sort: 4
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Nombre
       validation: null
       validation_message: null
       width: full
@@ -5405,7 +5600,9 @@ fields:
       searchable: true
       sort: 5
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Tipo
       validation: null
       validation_message: null
       width: full
@@ -5448,7 +5645,9 @@ fields:
       sort: 6
       special:
         - m2o
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Empleado
       validation: null
       validation_message: null
       width: full
@@ -5491,7 +5690,9 @@ fields:
       sort: 7
       special:
         - m2o
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Ubicación
       validation: null
       validation_message: null
       width: full
@@ -5534,7 +5735,9 @@ fields:
       sort: 8
       special:
         - m2o
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Calendario
       validation: null
       validation_message: null
       width: full
@@ -5574,7 +5777,9 @@ fields:
       searchable: true
       sort: 10
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Capacidad
       validation:
         _and:
           - capacity:
@@ -5619,7 +5824,9 @@ fields:
       sort: 11
       special:
         - cast-boolean
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Activo
       validation: null
       validation_message: null
       width: full
@@ -5660,7 +5867,9 @@ fields:
       sort: 12
       special:
         - date-created
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Fecha de creación
       validation: null
       validation_message: null
       width: full
@@ -5701,7 +5910,9 @@ fields:
       sort: 13
       special:
         - date-updated
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Última modificación
       validation: null
       validation_message: null
       width: full
@@ -5742,7 +5953,9 @@ fields:
       sort: 1
       special:
         - uuid
-      translations: null
+      translations:
+        - language: es-ES
+          translation: ID
       validation: null
       validation_message: null
       width: full
@@ -5870,7 +6083,9 @@ fields:
       sort: 4
       special:
         - m2o
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Servicio
       validation: null
       validation_message: null
       width: full
@@ -5913,7 +6128,9 @@ fields:
       sort: 5
       special:
         - m2o
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Recurso
       validation: null
       validation_message: null
       width: full
@@ -5954,7 +6171,9 @@ fields:
       sort: 1
       special:
         - uuid
-      translations: null
+      translations:
+        - language: es-ES
+          translation: ID
       validation: null
       validation_message: null
       width: full
@@ -6078,7 +6297,9 @@ fields:
       searchable: true
       sort: 4
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Nombre
       validation: null
       validation_message: null
       width: full
@@ -6118,7 +6339,9 @@ fields:
       searchable: true
       sort: 5
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Descripción
       validation: null
       validation_message: null
       width: full
@@ -6158,7 +6381,9 @@ fields:
       searchable: true
       sort: 6
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Duración (minutos)
       validation:
         _and:
           - duration_minutes:
@@ -6201,7 +6426,9 @@ fields:
       searchable: true
       sort: 7
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Margen antes (minutos)
       validation: null
       validation_message: null
       width: half
@@ -6241,7 +6468,9 @@ fields:
       searchable: true
       sort: 8
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Margen después (minutos)
       validation: null
       validation_message: null
       width: half
@@ -6284,7 +6513,9 @@ fields:
       searchable: true
       sort: 10
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Modo de reserva
       validation: null
       validation_message: null
       width: full
@@ -6326,7 +6557,9 @@ fields:
       sort: 11
       special:
         - cast-boolean
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Activo
       validation: null
       validation_message: null
       width: full
@@ -6367,7 +6600,9 @@ fields:
       sort: 12
       special:
         - date-created
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Fecha de creación
       validation: null
       validation_message: null
       width: full
@@ -6408,7 +6643,9 @@ fields:
       sort: 13
       special:
         - date-updated
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Última modificación
       validation: null
       validation_message: null
       width: full
@@ -6449,7 +6686,9 @@ fields:
       searchable: true
       sort: 14
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Antelación mínima (minutos)
       validation: null
       validation_message: null
       width: full
@@ -6490,7 +6729,9 @@ fields:
       searchable: true
       sort: 15
       special: null
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Se puede reservar con (días)
       validation: null
       validation_message: null
       width: full
@@ -6531,7 +6772,9 @@ fields:
       sort: 16
       special:
         - cast-boolean
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Requiere confirmación
       validation: null
       validation_message: null
       width: full
