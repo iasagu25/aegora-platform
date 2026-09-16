@@ -54,6 +54,15 @@ documentado sigue siendo cierto.
 - Directus fijado en 12.2.0 a propósito (no actualizar a 12.3.x todavía,
   hasta estabilizar provisioning).
 - Health check: usar `/server/ping`, NO `/server/health` (devuelve 403 en 12.2.0).
+- **Permisos por campo NO están disponibles** (verificado 16/sep/2026 en `demo`):
+  crear un permiso con `fields` distinto de `['*']` devuelve
+  `403 custom_permission_rules_enabled is a restricted resource`. Afecta también,
+  previsiblemente, a filtros (`permissions`), validaciones y presets propios en un permiso:
+  son todos "custom permission rules" y están capados en esta edición. Consecuencia
+  práctica: un rol tiene sobre cada colección **todo o nada** por acción. Lo que se quería
+  restringir a un campo (p.ej. que el gestor solo tocara `appointments.status`) hay que
+  resolverlo en la interfaz (campos `readonly`) o con un Flow, sabiendo que eso es un
+  guardarraíl y no una barrera: por API se puede cambiar igual.
 - Permisos (12.2): modelo Role → Policies → Permissions. Un permiso `read` con
   `permissions: {}` (filtro vacío, lo que escribe la UI si no tocas el filtro)
   se evalúa como "no matchea nada" → 403 "no tienes permiso o no existe". Usar

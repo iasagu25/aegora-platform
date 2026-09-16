@@ -119,7 +119,7 @@ Uso diario:
   contact_phones         create / read / update   (se editan dentro del contacto)
   tasks                  create / read / update / delete
   knowledge              create / read / update
-  appointments           read + update SOLO del campo 'status'
+  appointments           read / update   (*)
 
 Configuración del negocio:
   services               create / read / update
@@ -136,9 +136,11 @@ Sin permiso (invisibles para el gestor):
   conversation_sessions · languages
 
 Notas:
-  - Mover o cancelar una cita se hace por el Booking API, que valida solape y
-    buffers. Por eso 'appointments' es de solo lectura salvo el estado.
   - Borrar solo donde no destruye historial: tareas y reglas de horario.
+  (*) Se quería update solo del campo 'status', para que mover o cancelar pasara
+      siempre por el Booking API (el que valida solapes y buffers). Esta edición
+      de Directus NO permite permisos por campo, así que el update es completo.
+      Impedir que toquen la hora a mano queda para la interfaz, no para aquí.
 
 Modo:
   $([[ "$APPLY" == true ]] && echo apply || echo plan)
@@ -175,9 +177,15 @@ const permissionModel = {
   contact_phones: { create: ALL, read: ALL, update: ALL },
   tasks: { create: ALL, read: ALL, update: ALL, delete: ALL },
   knowledge: { create: ALL, read: ALL, update: ALL },
-  // Las citas se leen, pero solo se les cambia el estado: mover o cancelar pasa
-  // por el Booking API, que es quien valida solapes, buffers y avisos.
-  appointments: { read: ALL, update: ['status'] },
+  // Aquí queríamos update SOLO del campo 'status', pero esta edición de Directus
+  // devuelve 403 'custom_permission_rules_enabled is a restricted resource' en
+  // cuanto un permiso lleva campos concretos: los permisos por campo (y los
+  // filtros, validaciones y presets propios) están capados. Así que o todo o
+  // nada. Se da update completo para que el gestor pueda marcar 'completada' o
+  // 'no presentado', que es trabajo diario, y la barrera contra tocar la hora se
+  // pone en la interfaz (campos readonly), NO aquí. Es un guardarraíl, no un
+  // límite de seguridad: quien llame a la API puede cambiar lo que quiera.
+  appointments: { read: ALL, update: ALL },
 
   // --- configuración del negocio -------------------------------------------
   services: { create: ALL, read: ALL, update: ALL },
