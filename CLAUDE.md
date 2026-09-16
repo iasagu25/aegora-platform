@@ -60,9 +60,15 @@ documentado sigue siendo cierto.
   `permissions: null`. Editar `directus_permissions` por API puede dar 403
   incluso con token admin; se arregla por SQL (`UPDATE ... SET permissions =
   NULL`) + reiniciar el contenedor (caché de permisos). El rol n8n
-  (`Aegora · n8n Service`, policy `c42ccf84-…` en demo) tiene ahora `read` sobre
-  `services/resources/service_resources/availability_rules/availability_exceptions/calendars/locations`;
-  `configure-n8n-service.sh` los declara en `permissionModel`.
+  (`Aegora · n8n Service`, policy `c42ccf84-…` en demo) tiene `read` sobre
+  `services/resources/service_resources/availability_rules/availability_exceptions/calendars/locations`
+  + `knowledge` + `employees`, y CRUD sobre `conversation_sessions`.
+  **`configure-n8n-service.sh` (`permissionModel`) es la fuente de verdad**: si falta un
+  permiso se añade ahí y se re-ejecuta el script (`--apply`, idempotente, crea con
+  `permissions: null`), nunca por SQL a mano. Cuidado al declarar una colección: el bloque
+  de saneo borra las acciones NO listadas de las colecciones que sí están declaradas, así
+  que hay que listar todas las que necesite. Tras aplicar, reiniciar el contenedor Directus
+  (caché de permisos).
 
 ## Modelo de booking en Directus — decisiones ya tomadas
 - Semántica V1 simple: `service_resources` = pool OR de recursos alternativos
@@ -370,8 +376,8 @@ bueno:
   - **Personalizar con el nombre del contacto** (no prioritario): "Paco, a las
     8:00 no atendemos ese día…". El nombre lo resuelven los tools pero no vuelve
     al texto de las `Salida ·` — mismo patrón: tendría que viajar en el outcome.
-  - `SESSION · Cleanup`: conceder `delete` en `conversation_sessions` a la policy
-    n8n `c42ccf84` (SQL) y activarlo.
+  - `SESSION · Cleanup`: el permiso `delete` ya lo declara
+    `configure-n8n-service.sh`; queda probarlo y activarlo.
   - Probar el widget en navegador contra el host público del n8n de `demo`.
   - Parametrizar `http://demo-directus:8055` hardcodeado en los workflows `00-25`
     (bloqueante real para un segundo tenant).

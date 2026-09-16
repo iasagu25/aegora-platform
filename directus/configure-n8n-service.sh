@@ -20,6 +20,12 @@ IFS=$'\n\t'
 #          +-- contact_phones  create/read/update · all fields
 #          +-- tasks           create/read/update · all fields
 #          +-- appointments    create/read/update · all fields
+#          +-- conversation_sessions  create/read/update/delete
+#          +-- solo lectura: services, resources, service_resources,
+#              availability_rules, availability_exceptions, calendars,
+#              locations, knowledge, employees
+#
+# La lista viva es `permissionModel`, más abajo: esto es solo el resumen.
 #
 # Directus 12.2.0 in this installation rejects nested policy relation writes
 # with HTTP 403. The role<->policy assignment is therefore written directly
@@ -333,8 +339,14 @@ Permissions:
   tasks           create / read / update · all fields
   appointments    create / read / update · all fields
 
+  conversation_sessions  create / read / update / delete
+
+  solo lectura (config de booking, KB y personal):
+  services · resources · service_resources · availability_rules
+  availability_exceptions · calendars · locations · knowledge · employees
+
 Not granted:
-  delete
+  delete (salvo conversation_sessions, que lo purga SESSION · Cleanup)
   share
   admin access
   Data Studio access
@@ -419,6 +431,13 @@ const permissionModel = {
   // Base de conocimiento del negocio (colección editable por el gestor).
   // La rama `knowledge` del cerebro la lee entera (context-stuffing, sin RAG).
   knowledge: ['read'],
+  // Personal del negocio: se lee para asignar una tarea a quien nombra el cliente
+  // ("dile a Arturo que me llame"). Solo lectura: el id lo resuelve la tool, nunca el LLM.
+  employees: ['read'],
+  // Estado de conversación de la capa omnicanal. OJO: declarar TODAS las acciones que
+  // necesita -- el bloque de saneo de abajo borra las acciones no listadas de una colección
+  // que sí esté declarada. `delete` lo usa SESSION · Cleanup para purgar sesiones viejas.
+  conversation_sessions: ['create', 'read', 'update', 'delete'],
 };
 
 async function rawRequest(method, path, body = undefined, token = adminToken) {
