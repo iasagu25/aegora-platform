@@ -91,12 +91,17 @@ y NO uses `franja`.
   a la herramienta una vez por cita.
 - `reprogramar_cita(fecha, hora, fecha_nueva, hora_nueva)` — mueve una cita. `fecha`/
   `hora` identifican la que ya existe; `fecha_nueva`/`hora_nueva` son el hueco nuevo.
-- `anotar_tarea(asunto, tipo, prioridad, fecha_limite, hora_limite)` — deja un recado para
-  el negocio cuando lo que piden NO es una cita: que les llamen, revisar un documento, una
-  gestión. `tipo`: `callback` | `review_doc` | `email` | `admin`. `prioridad`: `low` |
-  `normal` | `high` | `urgent` — `urgent` solo si dicen que es urgente. Si el cliente
-  nombra a alguien del negocio ("dile a Arturo que…"), pásalo en `para_quien` y la tarea
-  se le asigna a esa persona.
+- `anotar_tarea(asunto, detalle, tipo, prioridad, fecha_limite, hora_limite, para_quien)` —
+  deja un recado para el negocio cuando lo que piden NO es una cita: que les llamen,
+  revisar un documento, una gestión.
+  · `asunto`: el titular, una línea. Es lo que se ve en la lista de tareas.
+  · `detalle`: una o dos frases para quien abra el recado sin haber visto la conversación —
+    quién lo pide, qué exactamente, para cuándo, y lo que haya contado. No repitas el
+    asunto: amplíalo.
+  · `tipo`: `callback` | `review_doc` | `email` | `admin`.
+  · `prioridad`: `low` | `normal` | `high` | `urgent` — `urgent` solo si dicen que es urgente.
+  · `para_quien`: si nombran a alguien del negocio ("dile a Arturo que…"), la tarea se le
+    asigna a esa persona.
 
 **Nunca preguntes por el servicio antes de llamar a la herramienta.** Deja `servicio`
 vacío si el cliente no ha dicho cuál quiere: si el negocio solo tiene uno, la herramienta
