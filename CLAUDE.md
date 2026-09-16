@@ -442,7 +442,44 @@ Fases, por orden de valor:
 3. **Bidireccional real**: mover en Outlook actualiza Aegora. Conflictos, webhooks,
    renovación de tokens. No antes de que un cliente la pida.
 
-Pendiente de decidir: la forma del OAuth (ver más abajo), que condiciona todo lo demás.
+**Forma del OAuth — decidido en dos tiempos.** El problema no es el protocolo (sería
+OAuth 2.1, o sea 2.0 con PKCE obligatorio y sin flujo implícito ni password grant: eso es
+*cómo* se implementa, no *quién registra la app*), sino **quién es dueño del registro**:
+
+1. **Ahora — app en el directorio del propio cliente, registrada por Aegora** durante el
+   onboarding (no la registra el cliente: se le ayuda). Al ser una app interna de su
+   organización **no pasa por la verificación de Google**, que es lo que bloquearía el
+   producto semanas. Además el radio de explosión es menor: unas credenciales filtradas
+   afectan a un cliente, no a toda la cartera.
+   Cuesta: tiempo de Aegora por cliente, y **los client secrets caducan** (Azure, máx. ~24
+   meses) con **fallo silencioso** — si se va por aquí, la caducidad va en el modelo y avisa
+   sola. Solo es limpio con Microsoft 365 / Google Workspace propios: con un Gmail suelto la
+   app es "externa", vuelve la verificación, y en modo *testing* los refresh tokens caducan
+   a los pocos días.
+2. **Después — app propia de Aegora, multi-tenant** (el cliente solo pulsa "conectar"),
+   cuando el montaje manual y la rotación de secretos sean el cuello de botella.
+
+**Lo que hace que esto no sea arriesgado**: las dos se implementan igual si el almacén
+guarda `client_id`/`client_secret` **por tenant** desde el día uno y refresh tokens por
+empleado. La opción 2 es el caso en que ese `client_id` resulta ser el mismo para todos, y
+cambiar de modelo es configuración, no reescritura.
+
+Los tokens NO caben en `secrets/` del tenant (son por empleado, dinámicos y se renuevan):
+van en una colección de Directus ligada a `calendars`, cifrados y **sin lectura para el rol
+de gestor**.
+
+**Qué pide la verificación de Google** (para cuando toque; estas políticas cambian a
+menudo, verificar antes de planificar): depende de si el scope de calendario es *sensible*
+(verificación) o *restringido* (verificación **+ auditoría de seguridad anual de un
+tercero**, cara) — creo que es lo primero, y **ese dato es el que decide semanas vs. meses**.
+Asumiendo sensible: dominio verificado, política de privacidad publicada con la cláusula de
+*Limited Use*, términos, home que explique la app, **un vídeo enseñando el flujo de
+consentimiento y el uso de cada permiso** (la que pilla por sorpresa), justificación permiso
+a permiso y usar el scope más estrecho que sirva. Históricamente de 2 a 6 semanas.
+En Microsoft no hay revisión equivalente: es *publisher verification* (alta en el programa de
+partners + verificar dominio), que solo quita el aviso de "app no verificada".
+Casi todo eso —dominio, home, términos, política de privacidad real— **hace falta igualmente**
+como empresa: hoy el aviso de privacidad de WhatsApp apunta a un enlace ficticio.
 
 ## Deuda de esquema conocida (no urgente)
 - `calendars`, `locations`, `resources` y `services` llevan **dos pares de timestamps**:
