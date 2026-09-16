@@ -413,6 +413,43 @@ bueno:
     plantillas desde `tenant.env`. Para `tenant.env` en sí ya existe
     `set-tenant-config.sh`.
 
+## Sincronización con el calendario del cliente (Google / Outlook) — decidido, sin construir
+El layout Calendario de Directus **no admite color por evento** (sus únicas opciones son
+plantilla, campo inicio, campo fin y primer día) y además **renderiza la plantilla como
+texto plano**: un `display` de etiquetas se ve con chips en Tarjetas, pero pelado en el
+calendario. Conclusión tomada el 16/sep/2026: **no se construye un layout de calendario
+propio**. Es de los componentes de UI más caros de mantener, cada versión de Directus lo
+pone en riesgo, y compite con una superficie que el cliente ya prefiere: su móvil.
+
+La inversión va a la sincronización, que además **ya está prevista en el modelo**:
+`appointments.external_provider`, `appointments.external_event_id`, `appointments.calendar_id`
+y la colección `calendars`. El handover dice que la plataforma ya hizo sync bidireccional
+Directus↔Google y Directus↔Outlook antes del incidente, con una regla de diseño que sigue
+vigente: *los IDs de proveedor no entran en el núcleo del dominio, Google/Outlook son
+adaptadores*.
+
+Decisiones cerradas:
+- **Un calendario por empleado**, no uno del negocio (el modelo ya apunta ahí con
+  `calendars.resources`).
+- **Directus manda** cuando los dos lados cambian la misma cita.
+
+Fases, por orden de valor:
+1. **Salida** (Aegora → su calendario): las citas le llegan al móvil. `external_event_id`
+   ya existe para no duplicar al reenviar.
+2. **Entrada como bloqueos** (sus eventos → disponibilidad): si el dueño se pone el dentista
+   el jueves a las 11, Lucía deja de ofrecer esa hora. **Es lo que de verdad diferencia el
+   producto**, y toca el Booking API, no solo n8n (handover §505).
+3. **Bidireccional real**: mover en Outlook actualiza Aegora. Conflictos, webhooks,
+   renovación de tokens. No antes de que un cliente la pida.
+
+Pendiente de decidir: la forma del OAuth (ver más abajo), que condiciona todo lo demás.
+
+## Deuda de esquema conocida (no urgente)
+- `calendars`, `locations`, `resources` y `services` llevan **dos pares de timestamps**:
+  `created_at`/`updated_at` (convención del negocio) y `date_created`/`date_updated`
+  (los de Directus). Limpiarlo implica borrar columnas, así que no se toca sin decidirlo
+  a propósito. El resto de colecciones usa uno u otro par, no los dos.
+
 ## Estilo de trabajo esperado
 - PLAN antes de APPLY siempre. No inventar flags de script sin confirmar
   con `--help`.
