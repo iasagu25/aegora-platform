@@ -490,6 +490,47 @@ partners + verificar dominio), que solo quita el aviso de "app no verificada".
 Casi todo eso —dominio, home, términos, política de privacidad real— **hace falta igualmente**
 como empresa: hoy el aviso de privacidad de WhatsApp apunta a un enlace ficticio.
 
+## Cómo mueve el gestor una cita — decidido, sin construir (16/sep/2026)
+**No se le da un selector de huecos. Se le da un botón que arranca la conversación.**
+
+El problema real del gestor no es "quiero elegir otra hora", es "no puedo atender esta cita
+y hay que renegociarla con el cliente". Cualquier interfaz que le deje elegir el hueco nuevo
+le está pidiendo que **adivine cuándo le viene bien a otra persona**, y sale una cita puesta
+a ojo que probablemente haya que volver a mover. Así que el botón manda al cliente una
+plantilla de WhatsApp ("necesitamos cambiar tu cita del {{fecha}} a las {{hora}}, ¿cuándo te
+viene bien?") y **la conversación la lleva Lucía**, que ya sabe y está probada.
+
+Encaja con la regla que ha ido saliendo toda la sesión: la acción del gestor es un botón
+determinista, y el LLM se usa donde aporta — negociar con un humano — no como interfaz de
+administración.
+
+Descartado, y por qué:
+- **UI de reservas para el gestor** (formulario en un Flow, extensión de Directus, o app
+  aparte): resuelve el problema equivocado, y las dos últimas son superficie que mantener.
+- **Hacerlo hablando con Lucía**: es no determinista y conversacional para una tarea que es
+  un formulario. El coste en tokens es el menor de los dos argumentos.
+
+**Restricción real de WhatsApp**: fuera de la ventana de 24h desde el último mensaje del
+cliente solo se pueden enviar **plantillas aprobadas por Meta**, no texto libre. Hay que
+registrar la plantilla (categoría "utilidad", que suele aprobarse rápido — confirmar). En
+cuanto el cliente responde se abre la ventana y Lucía conversa con normalidad: la plantilla
+es solo el pistoletazo de salida.
+
+Preguntas abiertas para cuando se construya:
+- En qué estado queda la cita mientras espera respuesta (si no se marca, el hueco sigue
+  ocupado y en el calendario parece normal).
+- Qué pasa si el cliente no contesta: alguien tiene que llamarle, y eso es una tarea — ya
+  existe `anotar_tarea`.
+
+**No hace falta equivalente en webchat**: el ~99% de la conversación por texto va a ser
+WhatsApp. Webchat es secundario y esa proporción vale también para priorizar cualquier otra
+cosa entre los dos canales.
+
+Relacionado: `appointments.start_at/end_at/service_id/contact_id` se dejan **readonly para
+todos, incluido el admin**, a propósito — la hora de una cita la decide el Booking API, y
+editarla a mano en Directus siempre está mal. No es un apaño por no tener permisos por
+campo (ver el quirk de Directus arriba), es dónde está la verdad.
+
 ## Deuda de esquema conocida (no urgente)
 - `calendars`, `locations`, `resources` y `services` llevan **dos pares de timestamps**:
   `created_at`/`updated_at` (convención del negocio) y `date_created`/`date_updated`
