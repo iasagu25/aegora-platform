@@ -20,6 +20,12 @@
   {
     "sort": 4,
     "active": true,
+    "title": "Horario de atención",
+    "body": "Lunes a viernes: de 8:00 a 22:00.\nSábados: de 9:00 a 14:00.\nDomingos: cerrado.\n\nLas sesiones son con cita previa."
+  },
+  {
+    "sort": 5,
+    "active": true,
     "title": "Contacto",
     "body": "Teléfono: +34 622 65 86 53\nCorreo: cutoque@gmail.com\n\nTambién estamos en Instagram."
   }
