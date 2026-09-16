@@ -70,6 +70,27 @@ documentado sigue siendo cierto.
   que hay que listar todas las que necesite. Tras aplicar, reiniciar el contenedor Directus
   (caché de permisos).
 
+### Layout `Aegora Tasks` (extensión) — orden fijo, decidido
+`directus/extensions/directus-extension-aegora-tasks-layout` no expone panel de opciones
+(los tres slots devuelven `null`), así que **no hay selector de orden y es a propósito**:
+el orden está fijo en `src/index.js` → `['due_at', '-created_at']`.
+
+Limitación conocida y **aceptada**: la prioridad no entra en el orden, y `due_at` ascendente
+manda al final las tareas sin fecha (nulos al final en Postgres), así que una tarea
+`urgent` sin plazo queda por debajo de una `low` que vence dentro de semanas. La tarjeta sí
+muestra prioridad (chip de color) y marca las vencidas, así que la información está.
+
+**No "arreglarlo" ordenando en el cliente**: solo ordenaría la página cargada (limit 50) y
+la lista cambiaría de orden según cuánto hayas bajado — peor que no ordenar. Tampoco sirve
+meter `priority` en el sort del servidor: es un enum de texto y alfabéticamente sale
+`high, low, normal, urgent`. Si algún día molesta de verdad, la solución correcta es un
+campo numérico `priority_order` en `tasks` que el servidor pueda ordenar.
+
+Ojo también: el layout tiene que exponer `refresh` desde `setup()` o el auto-refresco de
+Directus (`directus_presets.refresh_interval`) no hace nada — el temporizador corre sin
+nadie a quien llamar. Y `dist/` es lo que carga Directus: tras tocar `src/` hay que
+`npm run build` y copiar el `dist` al contenedor.
+
 ## Modelo de booking en Directus — decisiones ya tomadas
 - Semántica V1 simple: `service_resources` = pool OR de recursos alternativos
   por servicio. `appointment_resources` = recursos asociados a una cita
