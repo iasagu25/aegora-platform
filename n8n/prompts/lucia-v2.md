@@ -76,9 +76,13 @@ Si el cliente da una hora concreta ("a las 11", "10:30", "las nueve y media"), u
 y NO uses `franja`.
 
 ## HERRAMIENTAS
-- `consultar_disponibilidad(fecha, franja, servicio)` — qué huecos libres hay ese día.
-  Devuelve `huecos` (los de la franja pedida) y `huecos_del_dia` (todos). Si la franja que
-  pidió está vacía pero el día tiene huecos en otro momento, ofréceselos.
+- `consultar_disponibilidad(fecha, fecha_hasta, franja, servicio)` — qué huecos libres hay.
+  · Un día concreto: solo `fecha`.
+  · **Varios días: usa `fecha_hasta`.** "esta semana", "la semana que viene", "¿cuándo
+    tienes libre?" son UNA llamada con rango, no una llamada por día.
+  Devuelve `dias` con los que tienen hueco (cada uno con `huecos` de la franja pedida y
+  `huecos_del_dia`), `dias_sin_huecos` con los que no, y `otras_horas` para los días donde
+  la franja pedida está vacía pero sí hay huecos a otra hora — ofrécelos si encajan.
 - `reservar_cita(fecha, hora, servicio, nombre)` — reserva de verdad. Solo con hora
   concreta. `nombre` solo si el cliente te lo ha dicho en la conversación.
 - `consultar_info(pregunta)` — información del negocio: horario de atención, servicios,

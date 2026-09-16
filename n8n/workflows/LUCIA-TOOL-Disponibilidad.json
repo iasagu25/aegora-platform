@@ -10,6 +10,9 @@
               "name": "fecha"
             },
             {
+              "name": "fecha_hasta"
+            },
+            {
               "name": "franja"
             },
             {
@@ -38,7 +41,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// El agente ya ha resuelto \"el viernes\" / \"mañana\" a una fecha concreta: aquí solo se valida.\n// La tool DEVUELVE la fecha que ha entendido (fecha_label) para que el agente la cite y el\n// usuario pueda corregirla si el agente se equivocó de día.\nconst i = $json ?? {};\nconst clean = v => (v === undefined || v === null) ? '' : String(v).trim();\nconst fecha = clean(i.fecha);\nconst franja = clean(i.franja).toLowerCase();\nif (!/^\\d{4}-\\d{2}-\\d{2}$/.test(fecha)) {\n  return [{ json: { _error: true, ok: false, motivo: 'fecha_invalida',\n    detalle: 'Necesito la fecha en formato YYYY-MM-DD.' } }];\n}\nreturn [{ json: {\n  _error: false,\n  fecha,\n  franja: ['manana', 'mediodia', 'tarde', 'noche'].includes(franja) ? franja : '',\n  servicio: clean(i.servicio),\n  directus_base_url: clean(i.directus_base_url),\n  booking_base_url: clean(i.booking_base_url),\n  tenant_timezone: clean(i.tenant_timezone) || 'Europe/Madrid',\n} }];"
+        "jsCode": "// El agente ya ha resuelto \"el viernes\" / \"esta semana\" a fechas concretas: aquí solo se\n// valida. La tool DEVUELVE el día que ha entendido (fecha_label) para que el agente lo cite\n// y el usuario pueda corregirlo si se equivocó.\n//\n// `fecha_hasta` convierte la consulta en un rango. Sin ella, un \"¿qué hay esta semana?\"\n// obligaba al agente a llamar día por día: nueve llamadas y nueve turnos de modelo para una\n// pregunta que es la más común que hay.\nconst MAX_DIAS = 14;\n\nconst i = $json ?? {};\nconst clean = v => (v === undefined || v === null) ? '' : String(v).trim();\nconst esFecha = s => /^\\d{4}-\\d{2}-\\d{2}$/.test(s);\n\nlet desde = clean(i.fecha);\nlet hasta = clean(i.fecha_hasta) || desde;\nconst franja = clean(i.franja).toLowerCase();\n\nif (!esFecha(desde) || !esFecha(hasta)) {\n  return [{ json: { _error: true, ok: false, motivo: 'fecha_invalida',\n    detalle: 'Necesito las fechas en formato YYYY-MM-DD.' } }];\n}\n// Si vienen del revés, es obvio lo que quería decir.\nif (hasta < desde) { const t = desde; desde = hasta; hasta = t; }\n\nconst tz = clean(i.tenant_timezone) || 'Europe/Madrid';\nconst d0 = DateTime.fromISO(desde, { zone: tz });\nconst d1 = DateTime.fromISO(hasta, { zone: tz });\nif (!d0.isValid || !d1.isValid) {\n  return [{ json: { _error: true, ok: false, motivo: 'fecha_invalida' } }];\n}\n\nconst dias = [];\nfor (let d = d0; d <= d1 && dias.length < MAX_DIAS; d = d.plus({ days: 1 })) {\n  dias.push(d.toFormat('yyyy-LL-dd'));\n}\nconst recortado = d1.diff(d0, 'days').days + 1 > MAX_DIAS;\n\nreturn [{ json: {\n  _error: false,\n  dias,\n  recortado,\n  desde: dias[0],\n  hasta: dias[dias.length - 1],\n  franja: ['manana', 'mediodia', 'tarde', 'noche'].includes(franja) ? franja : '',\n  servicio: clean(i.servicio),\n  directus_base_url: clean(i.directus_base_url),\n  booking_base_url: clean(i.booking_base_url),\n  tenant_timezone: tz,\n} }];"
       },
       "id": "d-0002",
       "name": "Code · Entrada",
@@ -190,9 +193,9 @@
           "mappingMode": "defineBelow",
           "value": {
             "service_id": "={{ $json.service_id }}",
-            "date": "={{ $('Code · Entrada').item.json.fecha }}",
-            "timezone": "={{ $('Code · Entrada').item.json.tenant_timezone }}",
-            "booking_base_url": "={{ $('Code · Entrada').item.json.booking_base_url }}",
+            "date": "={{ $json.fecha }}",
+            "timezone": "={{ $('Code · Entrada').first().json.tenant_timezone }}",
+            "booking_base_url": "={{ $('Code · Entrada').first().json.booking_base_url }}",
             "location_id": "",
             "resource_id": "",
             "exclude_appointment_id": ""
@@ -273,27 +276,29 @@
           "attemptToConvertTypes": false,
           "convertFieldsToString": true
         },
-        "options": {}
+        "options": {},
+        "mode": "each"
       },
       "id": "d-0006",
       "name": "Execute · Availability",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        1060,
+        1280,
         -200
-      ]
+      ],
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "// Convención española de franjas, igual que en v1: es una regla de negocio, no lingüística.\nconst FRANJAS = { manana: [6, 14], mediodia: [13, 16], tarde: [14, 21], noche: [21, 24] };\nconst av = $json ?? {};\nconst inp = $('Code · Entrada').item.json;\nconst svc = $('Execute · 26 Resolve Service').item.json;\nconst tz = inp.tenant_timezone;\nconst hhmm = s => DateTime.fromISO(s).setZone(tz).toFormat('HH:mm');\nconst fecha_label = DateTime.fromISO(inp.fecha).setZone(tz).setLocale('es')\n  .toFormat(\"cccc d 'de' LLLL\");\n\nif (av.available === false && av.error) {\n  return [{ json: { ok: false, motivo: 'error_disponibilidad', detalle: av.message || av.error } }];\n}\n\nconst todos = (Array.isArray(av.slots) ? av.slots : []).map(s => hhmm(s.start_at));\nlet huecos = todos;\nif (inp.franja) {\n  const [desde, hasta] = FRANJAS[inp.franja];\n  huecos = todos.filter(h => { const hh = parseInt(h.slice(0, 2), 10); return hh >= desde && hh < hasta; });\n}\n\n// Se devuelven las dos listas: el agente decide si ofrecer otra franja cuando la pedida\n// está vacía. Esa decisión es conversacional, no hace falta cablearla aquí.\nreturn [{ json: {\n  ok: true,\n  fecha: inp.fecha,\n  fecha_label,\n  servicio: svc.service_name || null,\n  franja: inp.franja || null,\n  huecos,\n  hay_huecos: huecos.length > 0,\n  huecos_del_dia: todos,\n  hay_huecos_en_el_dia: todos.length > 0,\n} }];"
+        "jsCode": "// Convención española de franjas: es una regla de negocio, no lingüística.\nconst FRANJAS = { manana: [6, 14], mediodia: [13, 16], tarde: [14, 21], noche: [21, 24] };\n\nconst inp = $('Code · Entrada').first().json;\nconst svc = $('Execute · 26 Resolve Service').first().json;\nconst tz = inp.tenant_timezone;\nconst hhmm = s => DateTime.fromISO(s).setZone(tz).toFormat('HH:mm');\nconst label = f => DateTime.fromISO(f).setZone(tz).setLocale('es').toFormat(\"cccc d 'de' LLLL\");\n\nconst dias = [];\nconst sinHuecos = [];\nlet conError = 0;\n\nfor (const item of $input.all()) {\n  const av = item.json ?? {};\n  // La respuesta trae su propia `date`, así que no dependemos del orden de los items.\n  const fecha = av.date;\n  if (!fecha) { conError += 1; continue; }\n\n  const todos = (Array.isArray(av.slots) ? av.slots : []).map(s => hhmm(s.start_at));\n  let huecos = todos;\n  if (inp.franja) {\n    const [desde, hasta] = FRANJAS[inp.franja];\n    huecos = todos.filter(h => { const hh = parseInt(h.slice(0, 2), 10); return hh >= desde && hh < hasta; });\n  }\n\n  if (huecos.length) {\n    // Se devuelven las dos listas: si la franja pedida está vacía pero el día tiene huecos\n    // en otro momento, que el agente decida si ofrecerlos. Eso es conversacional.\n    dias.push({ fecha, fecha_label: label(fecha), huecos, huecos_del_dia: todos });\n  } else {\n    sinHuecos.push({ fecha, fecha_label: label(fecha), huecos_del_dia: todos });\n  }\n}\n\nif (!dias.length && !sinHuecos.length) {\n  return [{ json: { ok: false, motivo: 'error_disponibilidad',\n    detalle: 'No se pudo consultar la disponibilidad.' } }];\n}\n\nreturn [{ json: {\n  ok: true,\n  servicio: svc.service_name || null,\n  franja: inp.franja || null,\n  desde: inp.desde,\n  hasta: inp.hasta,\n  dias,\n  hay_huecos: dias.length > 0,\n  dias_sin_huecos: sinHuecos.map(x => x.fecha_label),\n  // Días en los que la franja pedida está vacía pero SÍ hay huecos a otras horas.\n  otras_horas: sinHuecos.filter(x => x.huecos_del_dia.length)\n                        .map(x => ({ fecha_label: x.fecha_label, huecos_del_dia: x.huecos_del_dia })),\n  ...(inp.recortado ? { aviso: `Solo se han mirado los primeros ${inp.dias.length} días.` } : {}),\n} }];"
       },
       "id": "d-0007",
       "name": "Code · Salida",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1280,
+        1500,
         -200
       ]
     },
@@ -321,6 +326,19 @@
       "position": [
         620,
         140
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Un item por día: el Execute de abajo va en modo \"each\", así que consulta cada fecha\n// por separado. Siguen siendo N llamadas al Booking API, pero UN solo turno de agente.\nconst inp = $json;\nreturn inp.dias.map(fecha => ({ json: { fecha, service_id: $('Execute · 26 Resolve Service').first().json.service_id } }));"
+      },
+      "id": "d-0010",
+      "name": "Code · Expandir días",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1060,
+        -200
       ]
     }
   ],
@@ -380,7 +398,7 @@
       "main": [
         [
           {
-            "node": "Execute · Availability",
+            "node": "Code · Expandir días",
             "type": "main",
             "index": 0
           }
@@ -399,6 +417,17 @@
         [
           {
             "node": "Code · Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Expandir días": {
+      "main": [
+        [
+          {
+            "node": "Execute · Availability",
             "type": "main",
             "index": 0
           }
