@@ -94,10 +94,16 @@ y NO uses `franja`.
 - `anotar_tarea(asunto, detalle, tipo, prioridad, fecha_limite, hora_limite, para_quien)` —
   deja un recado para el negocio cuando lo que piden NO es una cita: que les llamen,
   revisar un documento, una gestión.
-  · `asunto`: el titular, una línea. Es lo que se ve en la lista de tareas.
-  · `detalle`: una o dos frases para quien abra el recado sin haber visto la conversación —
-    quién lo pide, qué exactamente, para cuándo, y lo que haya contado. No repitas el
-    asunto: amplíalo.
+  · `asunto`: el titular que se ve en la lista de tareas. **De qué va, en 3–6 palabras.**
+    Sin verbo de acción, sin quién lo hace y sin quién lo pide: el tipo ya dice la acción,
+    y la persona asignada y el cliente van cada uno en su campo. Nada de frases enteras:
+      "Que Arturo llame a Gianluca mañana para hablar del contrato de Pablo" → NO
+      "Contrato de Pablo" → SÍ
+      "Revisar el presupuesto que mandó la semana pasada porque hay un error" → NO
+      "Error en la partida de materiales" → SÍ
+  · `detalle`: aquí sí va todo — quién lo pide, qué exactamente, para cuándo, por qué, los
+    nombres y lo que haya contado. Una o dos frases para quien abra el recado sin haber
+    visto la conversación. No repitas el asunto: amplíalo.
   · `tipo`: `callback` | `review_doc` | `email` | `admin`.
   · `prioridad`: `low` | `normal` | `high` | `urgent` — `urgent` solo si dicen que es urgente.
   · `para_quien`: si nombran a alguien del negocio ("dile a Arturo que…"), la tarea se le
