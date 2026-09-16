@@ -39,10 +39,14 @@ documentado sigue siendo cierto.
 - Apply schema: `directus/apply-schema.sh --tenant TENANT [--apply]` (sin
   `--apply` hace dry-run). Vive en `directus/`, NO en
   `provisioning/tenant/directus/` como decía la doc vieja.
-- CLI de snapshot: `node /directus/cli.js schema snapshot --yes` dentro del
-  contenedor (NO `npx`). **Ojo:** el CLI escribe líneas `INFO:` a stdout —
-  si rediriges a fichero, hay que filtrarlas o el YAML queda corrupto:
-  `... | grep -vE '^\[[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}\]' > out.yaml`
+- CLI de snapshot: `node /directus/cli.js schema snapshot --yes /ruta/salida.yaml`
+  dentro del contenedor (NO `npx`). **Pasar SIEMPRE el fichero de salida, nunca
+  redirigir stdout**: el CLI escribe líneas `INFO:` que corrompen el YAML, y —peor— al
+  canalizar la salida se **trunca en 64 KiB exactos** (Node no vacía stdout asíncrono
+  antes de salir). El resultado parsea como YAML pero llega hasta la mitad: en sep/2026
+  dio 54 campos en vez de 160 y sin sección `relations`, y estuvo a punto de entrar en
+  `base.yaml`. Comprobar siempre `wc -l` (un snapshot completo de `demo` ronda las 7500
+  líneas) antes de usarlo.
 - Tenant `demo`: usuarios reales en BD son `admin@aegora.es` y
   `n8n-service-demo@aegora.es`. El usuario técnico de provisioning
   (`directus-provisioning@aegora.es`) **ya existe en demo** (creado con
