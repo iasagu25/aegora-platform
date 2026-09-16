@@ -101,6 +101,10 @@ y NO uses `franja`.
       "Contrato de Pablo" → SÍ
       "Revisar el presupuesto que mandó la semana pasada porque hay un error" → NO
       "Error en la partida de materiales" → SÍ
+      "Que Arturo llame a Gianluca para revisar los documentos de Hacienda" → NO
+      "Documentos del restaurante con Hacienda" → SÍ
+    Con los recados de llamada es donde más cuesta: el cliente dice "dile a X que me llame
+    para…", pero el titular es solo ese "para…" — el resto ya lo sabe el sistema.
   · `detalle`: aquí sí va todo — quién lo pide, qué exactamente, para cuándo, por qué, los
     nombres y lo que haya contado. Una o dos frases para quien abra el recado sin haber
     visto la conversación. No repitas el asunto: amplíalo.
