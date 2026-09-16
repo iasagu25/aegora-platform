@@ -92,6 +92,17 @@ export default {
       }
     };
 
+    // Directus llama a `refresh` del layout en cada tick del intervalo de auto-refresco
+    // (`directus_presets.refresh_interval`) y también tras crear o borrar un item. Sin
+    // exponerlo, el temporizador corre y no tiene a quién llamar: la vista por defecto se
+    // refrescaba y esta no. Es lo que hacen los layouts del core.
+    const refresh = async () => {
+      await Promise.all([
+        getItems(),
+        refreshCount(),
+      ]);
+    };
+
     watch(
       [filter, filterSystem, search],
       () => {
@@ -114,6 +125,7 @@ export default {
       itemCount,
       totalPages,
       getItems,
+      refresh,
     };
   },
 };
