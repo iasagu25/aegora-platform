@@ -381,10 +381,13 @@ const collectionTranslations = {
     translation: 'Calendarios',
   },
 
+  // NO "Horarios de atención": estas reglas son POR RECURSO (y un recurso suele
+  // ser un empleado), no el horario del negocio. Ese vive en la KB. Confundirlos
+  // ya hizo que Lucía afirmara horarios que no eran; que no pase también aquí.
   availability_rules: {
-    singular: 'Horario',
-    plural: 'Horarios',
-    translation: 'Horarios de atención',
+    singular: 'Disponibilidad',
+    plural: 'Disponibilidad',
+    translation: 'Disponibilidad empleados',
   },
 
   availability_exceptions: {
