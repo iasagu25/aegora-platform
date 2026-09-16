@@ -105,6 +105,7 @@ Orden del menú:
   14  Calendarios              (calendars)
   15  Reglas de disponibilidad (availability_rules)
   16  Excepciones              (availability_exceptions)
+  17  Recursos del servicio    (service_resources)
 
 Orden de campos al abrir una cita:
   Estado · Título · Notas · Contacto · Inicio/Fin · Origen · ...
@@ -119,11 +120,13 @@ Cómo se nombra cada registro al referenciarlo (hoy salen UUIDs):
   services / resources / calendars / locations -> {{name}}
 
 Fuera del menú (para todos, admin incluido):
-  appointment_resources   tabla puente, se edita desde la cita
-  service_resources       tabla puente, se edita desde el servicio
+  appointment_resources   la crea el Booking API; nadie la edita a mano
   conversation_sessions   estado interno de la capa omnicanal
   contact_phones          ya oculta: se edita dentro del contacto
   languages               ya oculta: tabla de sistema
+
+  (service_resources SÍ se ve: es donde se asocia servicio <-> recurso,
+   y no hay campo inverso en ninguna de las dos colecciones)
 
 Modo:
   $([[ "$APPLY" == true ]] && echo apply || echo plan)
@@ -159,6 +162,7 @@ const orden = {
   calendars: 14,
   availability_rules: 15,
   availability_exceptions: 16,
+  service_resources: 17,
 };
 
 // Cómo se nombra un registro cuando se le referencia desde otro sitio. Sin esto
@@ -235,12 +239,21 @@ const displaysDeCampo = [
 // Fuera del menú. No es un permiso: siguen accesibles por URL y desde el modelo
 // de datos, simplemente no se navega a ellas.
 const ocultas = [
+  // La crea el Booking API al reservar; nadie la edita a mano.
   'appointment_resources',
-  'service_resources',
+  // Estado interno de la capa omnicanal.
   'conversation_sessions',
+  // Se editan dentro del contacto.
   'contact_phones',
+  // Tabla de sistema.
   'languages',
 ];
+
+// OJO: service_resources NO va aquí aunque sea una tabla puente. Es el único
+// sitio donde se asocia un servicio con los recursos que pueden darlo, y las
+// relaciones no tienen campo inverso (`one_field: null`), así que ni `services`
+// ni `resources` muestran al otro lado. Ocultarla deja al gestor sin ninguna
+// forma de configurar qué recurso presta qué servicio.
 
 async function api(method, path, body) {
   const res = await fetch(`${BASE}${path}`, {
