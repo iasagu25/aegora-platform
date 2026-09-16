@@ -14,7 +14,7 @@ collections:
       color: null
       display_template: null
       group: null
-      hidden: false
+      hidden: true
       icon: null
       item_duplication_fields: null
       note: null
@@ -46,7 +46,7 @@ collections:
       note: Appointments and scheduled events.
       preview_url: null
       singleton: false
-      sort: null
+      sort: 1
       sort_field: null
       status: active
       translations:
@@ -76,7 +76,7 @@ collections:
       note: null
       preview_url: null
       singleton: false
-      sort: null
+      sort: 16
       sort_field: null
       status: active
       translations: null
@@ -102,7 +102,7 @@ collections:
       note: null
       preview_url: null
       singleton: false
-      sort: null
+      sort: 15
       sort_field: null
       status: active
       translations: null
@@ -120,7 +120,7 @@ collections:
       collapse: open
       collection: calendars
       color: null
-      display_template: null
+      display_template: '{{name}}'
       group: null
       hidden: false
       icon: calendar_month
@@ -128,7 +128,7 @@ collections:
       note: null
       preview_url: null
       singleton: false
-      sort: null
+      sort: 14
       sort_field: null
       status: active
       translations: null
@@ -184,7 +184,7 @@ collections:
       note: People and client contacts.
       preview_url: null
       singleton: false
-      sort: null
+      sort: 3
       sort_field: null
       status: active
       translations:
@@ -208,7 +208,7 @@ collections:
       color: null
       display_template: '{{session_key}}'
       group: null
-      hidden: false
+      hidden: true
       icon: forum
       item_duplication_fields: null
       note: >-
@@ -234,7 +234,7 @@ collections:
       collapse: open
       collection: employees
       color: null
-      display_template: null
+      display_template: '{{first_name}} {{last_name}}'
       group: null
       hidden: false
       icon: badge
@@ -242,7 +242,7 @@ collections:
       note: null
       preview_url: null
       singleton: false
-      sort: null
+      sort: 11
       sort_field: null
       status: active
       translations:
@@ -272,7 +272,7 @@ collections:
       note: Base de conocimiento del negocio (Lucía la lee entera)
       preview_url: null
       singleton: false
-      sort: null
+      sort: 4
       sort_field: sort
       status: active
       translations: null
@@ -316,7 +316,7 @@ collections:
       collapse: open
       collection: locations
       color: null
-      display_template: null
+      display_template: '{{name}}'
       group: null
       hidden: false
       icon: place
@@ -324,7 +324,7 @@ collections:
       note: null
       preview_url: null
       singleton: false
-      sort: null
+      sort: 13
       sort_field: null
       status: active
       translations: null
@@ -342,7 +342,7 @@ collections:
       collapse: open
       collection: resources
       color: null
-      display_template: null
+      display_template: '{{name}}'
       group: null
       hidden: false
       icon: inventory_2
@@ -350,7 +350,7 @@ collections:
       note: null
       preview_url: null
       singleton: false
-      sort: null
+      sort: 12
       sort_field: null
       status: active
       translations: null
@@ -370,7 +370,7 @@ collections:
       color: null
       display_template: null
       group: null
-      hidden: false
+      hidden: true
       icon: null
       item_duplication_fields: null
       note: null
@@ -394,7 +394,7 @@ collections:
       collapse: open
       collection: services
       color: null
-      display_template: null
+      display_template: '{{name}}'
       group: null
       hidden: false
       icon: design_services
@@ -402,7 +402,7 @@ collections:
       note: null
       preview_url: null
       singleton: false
-      sort: null
+      sort: 10
       sort_field: null
       status: active
       translations: null
@@ -428,7 +428,7 @@ collections:
       note: Operational tasks.
       preview_url: null
       singleton: false
-      sort: null
+      sort: 2
       sort_field: null
       status: active
       translations:
@@ -752,7 +752,7 @@ fields:
       interface: select-dropdown-m2o
       note: Related contact.
       options: null
-      readonly: false
+      readonly: true
       required: false
       searchable: true
       sort: 2
@@ -837,7 +837,7 @@ fields:
       interface: datetime
       note: Appointment start timestamp.
       options: null
-      readonly: false
+      readonly: true
       required: true
       searchable: true
       sort: 5
@@ -879,7 +879,7 @@ fields:
       interface: datetime
       note: Appointment end timestamp.
       options: null
-      readonly: false
+      readonly: true
       required: true
       searchable: true
       sort: 6
@@ -1236,7 +1236,7 @@ fields:
       note: null
       options:
         template: '{{name}}'
-      readonly: false
+      readonly: true
       required: false
       searchable: true
       sort: 9
@@ -2546,14 +2546,14 @@ fields:
       foreign_key_table: null
       foreign_key_column: null
   - collection: calendars
-    field: udated_at
+    field: updated_at
     type: dateTime
     meta:
       collection: calendars
       conditions: null
       display: null
       display_options: null
-      field: udated_at
+      field: updated_at
       group: null
       hidden: false
       interface: datetime
@@ -2570,7 +2570,7 @@ fields:
       validation_message: null
       width: full
     schema:
-      name: udated_at
+      name: updated_at
       table: calendars
       data_type: timestamp without time zone
       default_value: null
