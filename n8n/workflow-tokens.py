@@ -55,11 +55,15 @@ from pathlib import Path
 # createdAt/updatedAt, meta, tags, triggerCount, staticData, shared...) es
 # estado de la instancia, no del workflow, y ensucia el diff en cada captura.
 #
-# `active` sí se queda: dice si el workflow está en marcha, que es información
-# de verdad y no ata al tenant. Tirarla haría que un export perdiera en silencio
-# algo que el fichero traía -- y además no sabemos si importar sin ella
-# desactiva un workflow que estaba activo (a verificar en el primer import).
-KEEP_KEYS = ("id", "name", "active", "nodes", "connections", "settings")
+# `active` tampoco se queda, y esto costó un rodeo: primero lo conservé por no
+# perder información. Pero en n8n 2.x publicar es un acto explícito por id
+# (`publish:workflow --id=…`) y **un sub-workflow tiene que estar publicado para
+# que se le pueda llamar**. Con `active` dentro del JSON, importar un fichero
+# con `active: false` -- que es lo que tenían las 7 tools de v2 en Git --
+# despublicaría las herramientas de Lucía y la dejaría sin nada que llamar.
+# Quién está publicado es estado del instance y lo decide el despliegue, no un
+# fichero versionado.
+KEEP_KEYS = ("id", "name", "nodes", "connections", "settings")
 
 # Campos que son SECRETOS del tenant y nunca salen de él. Un export trae sus
 # valores reales (n8n los guarda en claro en el nodo `Config`, no son

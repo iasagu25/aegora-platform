@@ -2,9 +2,16 @@
 
 Los workflows de dominio, **sin tenant dentro**: en Git llevan tokens
 (`__DIRECTUS_BASE_URL__`, `__TENANT_ID__`…) que se resuelven al desplegar.
-Normalizados: sin `pinData`, timestamps ni `versionId`; se conservan `id`,
-`name`, `active`, `nodes`, `connections`, `settings`, con formato canónico
-(el que produce el exportador) para que los diffs sean de contenido.
+Normalizados: sin `pinData`, timestamps, `versionId` ni `active`; se conservan
+`id`, `name`, `nodes`, `connections`, `settings`, con formato canónico (el que
+produce el exportador) para que los diffs sean de contenido.
+
+**`active` no se versiona.** En n8n 2.x publicar es un acto explícito por id
+(`publish:workflow --id=…`, porque `--all` está deprecado) y **un sub-workflow
+tiene que estar publicado para que se le pueda llamar**. Un `active: false`
+viajando en Git despublicaría herramientas que funcionan. Quién está publicado
+lo decide el despliegue: `render-workflows.sh --apply` publica todo lo que
+importa, menos `SESSION · Cleanup` (schedule que borra sesiones, sin probar).
 
 ## Desplegar y capturar
 

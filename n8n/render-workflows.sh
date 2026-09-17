@@ -17,7 +17,8 @@ IFS=$'\n\t'
 #     nombre en el n8n del tenant y mete su `id` en los workflows; si falta
 #     alguna, se para y te dice cuáles con su nombre y su tipo. Los nombres ya
 #     no llevan el tenant: cada uno tiene su propia instancia de n8n.
-#   - Activar los workflows que lleven webhook.
+#     (la publicación sí la hace este script: importar no publica, y en n8n 2.x
+#     un sub-workflow sin publicar no se puede llamar).
 #
 # La dirección inversa (del tenant a Git) es export-workflows.sh.
 #
@@ -182,6 +183,10 @@ Credenciales en su n8n:
 Secretos de WhatsApp:
   ${WHATSAPP_ESTADO}
 
+Publicación:
+  se publican todos tras importar (en n8n 2.x un sub-workflow sin publicar
+  no se puede llamar), menos: SESSION · Cleanup
+
 Salida:
   ${OUT}   (modo 700: puede contener secretos)
 
@@ -232,6 +237,61 @@ log "Importando…"
 docker exec "$N8N_CONTAINER" n8n import:workflow --separate --input=/tmp/aegora-import
 docker exec "$N8N_CONTAINER" rm -rf /tmp/aegora-import
 
+# -----------------------------------------------------------------------------
+# Publicar. En n8n 2.x importar NO publica, y un sub-workflow tiene que estar
+# publicado para que se le pueda llamar -- así que esto no es cosmética: sin
+# ello Lucía se queda sin herramientas. `publish:workflow --all` está deprecado
+# ("no longer supported"), así que va uno a uno por id.
+#
+# Menos los de NO_PUBLICAR: SESSION · Cleanup tiene un trigger de schedule que
+# borra sesiones y nunca se ha probado. Publicarlo "porque estaban todos" lo
+# pondría a correr solo.
+# -----------------------------------------------------------------------------
+NO_PUBLICAR=(aegoraSessionCleanup)
+
+mapfile -t IDS < <(python3 - "$OUT" <<'PYIDS'
+import json, sys
+from pathlib import Path
+for f in sorted(Path(sys.argv[1]).glob("*.json")):
+    d = json.loads(f.read_text(encoding="utf-8"))
+    print(f"{d['id']}\t{f.name}")
+PYIDS
+)
+
+log "Publicando ${#IDS[@]} workflows (uno a uno: --all está deprecado)…"
+PUBLICADOS=0
+SALTADOS=()
+FALLIDOS=()
+for fila in "${IDS[@]}"; do
+  wid="${fila%%$'\t'*}"
+  wname="${fila#*$'\t'}"
+  saltar=false
+  for excluido in "${NO_PUBLICAR[@]}"; do
+    if [[ "$wid" == "$excluido" ]]; then
+      saltar=true
+    fi
+  done
+  if [[ "$saltar" == true ]]; then
+    SALTADOS+=("$wname")
+    continue
+  fi
+  if docker exec "$N8N_CONTAINER" n8n publish:workflow --id="$wid" >/dev/null 2>&1; then
+    PUBLICADOS=$((PUBLICADOS + 1))
+  else
+    FALLIDOS+=("$wname ($wid)")
+  fi
+done
+
+log "Publicados: ${PUBLICADOS}"
+if [[ ${#SALTADOS[@]} -gt 0 ]]; then
+  log "Sin publicar a propósito: ${SALTADOS[*]}"
+fi
+if [[ ${#FALLIDOS[@]} -gt 0 ]]; then
+  log "ERROR: no se pudieron publicar:"
+  for x in "${FALLIDOS[@]}"; do log "    ${x}"; done
+  fail "Quedan workflows sin publicar. Un sub-workflow sin publicar no se puede llamar."
+fi
+
 cat <<DONE
 
 ============================================================
@@ -240,8 +300,7 @@ IMPORTADO
 
 Queda por hacer a mano en la UI de ${N8N_CONTAINER}:
 
-  1. Activar los workflows con webhook:
-     WEBCHAT · Adapter · WHATSAPP · Adapter
+  1. Comprobar que los dos adapters responden (webhook de producción).
 
   2. Borrar ${OUT} cuando termines: lleva los secretos de WhatsApp en claro.
 

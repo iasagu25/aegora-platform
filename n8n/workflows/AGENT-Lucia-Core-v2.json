@@ -1,7 +1,6 @@
 {
   "id": "aegoraAgentLuciaCoreV2",
   "name": "AGENT · Lucía · Core v2",
-  "active": false,
   "nodes": [
     {
       "parameters": {

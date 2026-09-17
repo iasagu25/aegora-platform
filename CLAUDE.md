@@ -447,8 +447,8 @@ bueno:
   - `SESSION · Cleanup`: el permiso `delete` ya lo declara
     `configure-n8n-service.sh`; queda probarlo y activarlo.
   - Probar el widget en navegador contra el host público del n8n de `demo`.
-  - Verificar en el primer `render-workflows.sh --apply` si `import:workflow`
-    respeta `active` y si hay que reactivar los adapters con webhook a mano.
+  - Verificar tras el primer `render-workflows.sh --apply` que los dos adapters
+    siguen respondiendo en su webhook de producción.
   - Aplicar `base.yaml` + `booking-indexes.sql` en `aegora-internal`, y montar
     allí credenciales n8n + workflows.
   - Migrar build A → imagen en GHCR (CI en `aegora-booking`).
@@ -488,8 +488,8 @@ nombre de su contenedor, así que se renderiza al desplegar, igual que
   `__DIRECTUS_BASE_URL__`, `__BOOKING_BASE_URL__`, `__PRIVACY_POLICY_URL__`.
   Sintaxis `__X__` a propósito: no choca con los ~65 `${...}` de los template
   literals de los Code nodes ni con las expresiones `{{ }}` de n8n.
-- `n8n/render-workflows.sh --tenant X [--apply]` — Git → tenant, e importa por
-  CLI (sustituye a importar 41 JSON a mano por la UI).
+- `n8n/render-workflows.sh --tenant X [--apply]` — Git → tenant, importa por
+  CLI y **publica** (sustituye a importar 41 JSON a mano por la UI).
 - `n8n/export-workflows.sh --tenant X` — tenant → forma de Git. **No escribe en
   el checkout del VPS** (que se resetea duro): deja el resultado aparte para
   traérselo por `scp`, como `snapshot-schema.sh`.
@@ -504,6 +504,17 @@ delante. Los otros 29 nodos funcionaban solo porque llevaban dentro el id de
 `__CRED_<NOMBRE>__` y `render-workflows.sh` lo resuelve leyendo
 `n8n export:credentials` del tenant (de ahí solo salen id y nombre; el blob
 cifrado no sale del contenedor).
+
+**Publicar es un paso aparte, y obligatorio.** En n8n 2.x `import:workflow` no
+publica, y **un sub-workflow tiene que estar publicado para que se le pueda
+llamar** — así que sin publicar, Lucía se queda sin herramientas. `publish:workflow
+--all` está deprecado ("no longer supported"): va uno a uno por `--id`, que es
+lo que hace `render-workflows.sh --apply`. Excluye `SESSION · Cleanup`, cuyo
+schedule borra sesiones y nunca se ha probado.
+
+Por eso **`active` no se versiona** (lo metí primero por no perder información;
+fue un error): un `active: false` viajando en Git despublicaría herramientas que
+funcionan. Quién está publicado es estado del instance, no de la definición.
 
 **Un export trae los secretos del tenant en claro.** Los campos de un nodo
 `Config` los guarda n8n tal cual (no son credenciales cifradas), así que
