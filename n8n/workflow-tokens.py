@@ -68,10 +68,11 @@ KEEP_KEYS = ("id", "name", "active", "nodes", "connections", "settings")
 # Esto no es cosmética: sin ello, la primera captura de WHATSAPP · Adapter mete
 # en Git el phone_number_id, el verify_token y el token de Meta. Estuvo a punto
 # de pasar. La casa de estos valores es secrets/whatsapp.env.
+# campo del nodo Config -> (placeholder en Git, variable de secrets/whatsapp.env)
 SECRET_FIELDS = {
-    "phone_number_id": "REPLACE_PHONE_NUMBER_ID",
-    "verify_token": "REPLACE_VERIFY_TOKEN",
-    "app_secret": "REPLACE_APP_SECRET",
+    "phone_number_id": ("REPLACE_PHONE_NUMBER_ID", "WHATSAPP_PHONE_NUMBER_ID"),
+    "verify_token": ("REPLACE_VERIFY_TOKEN", "WHATSAPP_VERIFY_TOKEN"),
+    "app_secret": ("REPLACE_APP_SECRET", "WHATSAPP_APP_SECRET"),
 }
 
 # Formas que delatan un secreto aunque el campo no esté en la lista de arriba.
@@ -126,6 +127,15 @@ class Tenant:
 def render(text: str, tenant: Tenant) -> str:
     for token, value in tenant.pairs:
         text = text.replace(token, value)
+
+    # Los secretos de WhatsApp, si el que llama los ha puesto en el entorno
+    # (render-workflows.sh los lee de secrets/whatsapp.env). Sin ellos se quedan
+    # los placeholders: importar así deja el adapter sin configurar, que es
+    # mejor que romperlo en silencio, pero hay que saberlo.
+    for placeholder, var in SECRET_FIELDS.values():
+        valor = os.environ.get(var, "").strip()
+        if valor:
+            text = text.replace(placeholder, valor)
     # El token del tenant aparece como valor entero ("__TENANT_ID__") y entre
     # comillas simples dentro de jsCode ('__TENANT_ID__'); un replace plano
     # cubre los dos.
@@ -156,7 +166,7 @@ def normalize_text(text: str, tenant: Tenant) -> str:
 
 def restore_secrets(text: str) -> str:
     """Devuelve a su placeholder los secretos que trae un export."""
-    for field, placeholder in SECRET_FIELDS.items():
+    for field, (placeholder, _var) in SECRET_FIELDS.items():
         # Los campos de un nodo Set van como {"name": "<campo>", ..., "value": "<valor>"}.
         text = re.sub(
             rf'("name": "{re.escape(field)}",(?:\s*"[a-zA-Z]+": "[^"]*",)*\s*"value": )"[^"]*"',

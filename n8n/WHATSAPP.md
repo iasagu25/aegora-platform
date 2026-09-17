@@ -21,13 +21,22 @@
 
 ## En n8n (por tenant)
 
-- Credencial **Header Auth** `WhatsApp · demo`:
+- Credencial **Header Auth** `WhatsApp` (el nombre ya no lleva el tenant):
   `Authorization: Bearer <WHATSAPP_TOKEN>`.
 - Nodo `Config (editar por tenant)`: `phone_number_id`, `verify_token`,
   `app_secret`, `graph_version`, `tenant`, `require_signature`.
   Los `REPLACE_*` del JSON son placeholders a propósito — esos valores **no van
-  a Git**.
+  a Git**. Ya **no hay que reescribirlos a mano tras cada import**:
+  `render-workflows.sh` los rellena desde `secrets/whatsapp.env` (y te dice en
+  el plan si no los encuentra, en vez de importar un adapter roto en silencio).
+  En sentido contrario, `export-workflows.sh` los devuelve a `REPLACE_*`.
 - Activar el workflow (el webhook de producción solo responde activo).
+
+> El campo se llama `app_secret` y tiene que ser el **App Secret** (32 hex de
+> App → Configuración → Básica), no el token de acceso. Si ahí hay un valor que
+> empieza por `EAA…` es un token, y entonces la firma `X-Hub-Signature-256`
+> nunca cuadra: se registra como `invalida` y, con `require_signature: false`,
+> el mensaje se procesa igual y nadie se entera.
 
 ## Cómo funciona
 

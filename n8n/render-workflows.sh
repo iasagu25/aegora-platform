@@ -104,6 +104,29 @@ export BOOKING_BASE_URL="http://${BOOKING_CONTAINER}:3000"
 # suya: entonces basta con poner PRIVACY_POLICY_URL en su tenant.env.
 export PRIVACY_POLICY_URL="${PRIVACY_POLICY_URL:-https://aegora.es/politica-privacidad}"
 
+# Los secretos de WhatsApp. En Git el adapter lleva REPLACE_*, así que
+# importarlo sin esto dejaría el WhatsApp del tenant sin configurar -- antes se
+# reescribían a mano en la UI después de cada import.
+WHATSAPP_SECRETS="${TENANT_ROOT}/secrets/whatsapp.env"
+WHATSAPP_ESTADO="no encontrado -> se importan los REPLACE_* (WhatsApp quedará sin configurar)"
+if [[ -r "$WHATSAPP_SECRETS" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$WHATSAPP_SECRETS"
+  set +a
+  faltan=()
+  for v in WHATSAPP_PHONE_NUMBER_ID WHATSAPP_VERIFY_TOKEN WHATSAPP_APP_SECRET; do
+    [[ -n "${!v:-}" ]] || faltan+=("$v")
+  done
+  if [[ ${#faltan[@]} -eq 0 ]]; then
+    WHATSAPP_ESTADO="se rellenan desde ${WHATSAPP_SECRETS}"
+  else
+    WHATSAPP_ESTADO="incompleto en ${WHATSAPP_SECRETS}: faltan ${faltan[*]}"
+  fi
+elif [[ -e "$WHATSAPP_SECRETS" ]]; then
+  WHATSAPP_ESTADO="sin permiso para leer ${WHATSAPP_SECRETS} (¿sudo?)"
+fi
+
 TOTAL="$(find "$SRC" -maxdepth 1 -name '*.json' | wc -l | tr -d ' ')"
 
 cat <<PLAN
@@ -124,8 +147,11 @@ Tokens que se resuelven:
   __BOOKING_BASE_URL__    ${BOOKING_BASE_URL}
   __PRIVACY_POLICY_URL__  ${PRIVACY_POLICY_URL}
 
+Secretos de WhatsApp:
+  ${WHATSAPP_ESTADO}
+
 Salida:
-  ${OUT}
+  ${OUT}   (modo 700: puede contener secretos)
 
 Modo:
   $([[ "$APPLY" == true ]] && echo apply || echo plan)
@@ -135,6 +161,9 @@ Modo:
 PLAN
 
 rm -rf "$OUT"
+mkdir -p "$OUT"
+# Lo renderizado lleva los secretos de WhatsApp en claro: no es un /tmp público.
+chmod 700 "$OUT"
 python3 "$TOKENS" render "$SRC" "$OUT"
 
 if [[ "$APPLY" != true ]]; then
@@ -179,8 +208,7 @@ Queda por hacer a mano en la UI de ${N8N_CONTAINER}:
   2. Activar los workflows con webhook:
      WEBCHAT · Adapter · WHATSAPP · Adapter
 
-  3. WHATSAPP · Adapter -> nodo Config: los valores de secrets/whatsapp.env
-     (siguen sin automatizar).
+  3. Borrar ${OUT} cuando termines: lleva los secretos de WhatsApp en claro.
 
 ============================================================
 

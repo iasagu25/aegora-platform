@@ -421,11 +421,15 @@ bueno:
     de webhook, firma `X-Hub-Signature-256`, dedup por `wamid`, aviso de
     privacidad como CTA-url, alta automática de contacto) — validado con
     conversación real de principio a fin, incluida una reserva desde un
-    número que no existía todavía en Directus. Sigue pendiente: decidir
-    Embedded Signup multi-tenant (ver arriba) y sincronizar el nodo `Config`
-    del adapter con `secrets/whatsapp.env` sin copiar a mano (el usuario
-    preguntó si hay forma de automatizarlo; de momento se edita en la UI de
-    n8n tras cada import).
+    número que no existía todavía en Directus. El nodo `Config` del
+    adapter ya **no** se reescribe a mano tras cada import: lo rellena
+    `render-workflows.sh` desde `secrets/whatsapp.env`, y el plan avisa si no
+    los encuentra en vez de importar un adapter roto en silencio. Sigue
+    pendiente decidir Embedded Signup multi-tenant (ver arriba).
+    **Revisar `app_secret` en `demo`**: lo que hay tiene forma de token de
+    acceso (`EAA…`), no de App Secret, así que la firma `X-Hub-Signature-256`
+    nunca cuadra — como `require_signature` es `false`, se procesa igual y no
+    se nota.
   - **Personalizar con el nombre del contacto** (no prioritario): "Paco, a las
     8:00 no atendemos ese día…". El nombre lo resuelven los tools pero no vuelve
     al texto de las `Salida ·` — mismo patrón: tendría que viajar en el outcome.
