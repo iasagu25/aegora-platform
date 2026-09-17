@@ -615,6 +615,21 @@ como empresa. El aviso de privacidad de Lucía ya apunta a la política real
 siendo el token `__PRIVACY_POLICY_URL__` por si algún negocio acaba teniendo la
 suya, y entonces se pone `PRIVACY_POLICY_URL` en su `tenant.env`.
 
+## Los Code node de n8n corren en un sandbox con `require` capado
+`require('crypto')` devuelve **`Module 'crypto' is disallowed`** (n8n 2.31, task runner).
+Presumiblemente vale para cualquier builtin no permitido, así que antes de apoyarse en uno
+hay que probarlo ejecutando el nodo — en el editor no se ve.
+
+Lo que sí funciona son los **globals**: `globalThis.crypto.subtle` (Web Crypto) calcula el
+mismo HMAC-SHA256 que `node:crypto`, UTF-8 incluido, y es lo que usa
+`WHATSAPP · Adapter` para validar `X-Hub-Signature-256`. La alternativa habría sido
+`NODE_FUNCTION_ALLOW_BUILTIN=crypto` en el `.env` del contenedor, descartada porque no hay
+forma de hacer llegar un cambio de plantilla a un tenant ya creado (falta
+`render-tenant-config.sh`) y porque relaja el sandbox para todos los Code node.
+
+Ojo también con `Buffer`: es global y de momento funciona, pero el mismo nodo lleva ya una
+caída a `atob` + `TextDecoder` por si acaso.
+
 ## Cómo mueve el gestor una cita — decidido, sin construir (16/sep/2026)
 **No se le da un selector de huecos. Se le da un botón que arranca la conversación.**
 
