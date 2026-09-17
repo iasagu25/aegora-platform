@@ -188,8 +188,10 @@ Orden de sospechas cuando no hay huecos y "debería haberlos" (16/sep/2026: fue 
     `config/backup.manifest.json` hasta limpieza manual.
   - n8n: 26 workflows de dominio de `demo` versionados en `n8n/workflows/`
     (`NN-CATEGORIA-Nombre.json`, export normalizado). Credenciales por tenant
-    (`Directus · demo`, `Booking API`) NO en Git. n8n 2.31 bloquea `$env` en
-    nodos → la URL base va en un nodo `Config`.
+    (`Directus`, `Booking API`) NO en Git — con nombres SIN el tenant, porque
+    cada tenant tiene su propia instancia de n8n y n8n re-mapea por nombre al
+    importar. Lo que ata un workflow a un tenant va en **tokens** que se
+    resuelven al desplegar (ver más abajo).
   - P4: `APPOINTMENT_Availability.json` — sub-workflow que llama
     `GET /api/availability` y devuelve slots compactos. Probado en `demo`.
   - P5: las 3 mutaciones pasan por el Booking API — `03 · Create` →
@@ -430,8 +432,8 @@ bueno:
   - `SESSION · Cleanup`: el permiso `delete` ya lo declara
     `configure-n8n-service.sh`; queda probarlo y activarlo.
   - Probar el widget en navegador contra el host público del n8n de `demo`.
-  - Parametrizar `http://demo-directus:8055` hardcodeado en los workflows `00-25`
-    (bloqueante real para un segundo tenant).
+  - Verificar en el primer `render-workflows.sh --apply` si `import:workflow`
+    respeta `active` y si hay que reactivar los adapters con webhook a mano.
   - Aplicar `base.yaml` + `booking-indexes.sql` en `aegora-internal`, y montar
     allí credenciales n8n + workflows.
   - Migrar build A → imagen en GHCR (CI en `aegora-booking`).
@@ -442,6 +444,52 @@ bueno:
     `render-tenant-config.sh` (PLAN con diff + APPLY) que re-renderice las
     plantillas desde `tenant.env`. Para `tenant.env` en sí ya existe
     `set-tenant-config.sh`.
+
+## Los workflows de n8n no llevan el tenant dentro — resuelto (17/sep/2026)
+
+`$env` **no sirve**: n8n 2.31 lo bloquea en nodos **por defecto** (`access to
+env vars denied`). Ojo con cómo se comprueba: `N8N_BLOCK_ENV_ACCESS_IN_NODE`
+sale vacía —lo que invita a concluir que no hay bloqueo— y en el editor un
+`{{ $env.PATH }}` muestra `[not accessible via UI, please run node]`, que es el
+mensaje genérico de "ejecuta el nodo", no un error de permisos. Solo ejecutando
+se ve la verdad.
+
+Lo que ataba los 41 workflows a `demo` eran **72 valores**, y la URL de Directus
+era solo un tercio: 30 eran **nombres de credencial**, que ninguna expresión de
+n8n puede tocar. Por eso se descartó el patrón "un nodo `Config` por workflow"
+que proponía el README: un `Config` vive DENTRO de un workflow, así que para que
+el valor llegue a una hoja como `06 · CONTACT · Get` hay que añadirle el nodo Y
+que cada `Execute Workflow` que la invoca se lo pase Y que ese llamante lo tenga
+a su vez — el cambio de contrato en cascada del que huimos al reescribir el Core
+(commit 3a525f2) — y aun así deja fuera las credenciales.
+
+**El JSON de un workflow es un artefacto de despliegue, no algo configurable en
+caliente.** La URL base es tan constante durante la vida de un tenant como el
+nombre de su contenedor, así que se renderiza al desplegar, igual que
+`compose.yml.tpl` y `.env.tpl`:
+
+- `n8n/workflow-tokens.py` — las reglas, **una sola vez**, en las dos
+  direcciones (`render` / `normalize`). Cuatro tokens: `__TENANT_ID__`,
+  `__DIRECTUS_BASE_URL__`, `__BOOKING_BASE_URL__`, `__PRIVACY_POLICY_URL__`.
+  Sintaxis `__X__` a propósito: no choca con los ~65 `${...}` de los template
+  literals de los Code nodes ni con las expresiones `{{ }}` de n8n.
+- `n8n/render-workflows.sh --tenant X [--apply]` — Git → tenant, e importa por
+  CLI (sustituye a importar 41 JSON a mano por la UI).
+- `n8n/export-workflows.sh --tenant X` — tenant → forma de Git. **No escribe en
+  el checkout del VPS** (que se resetea duro): deja el resultado aparte para
+  traérselo por `scp`, como `snapshot-schema.sh`.
+
+Dos valores NO llevan token, simplemente dejan de nombrar al tenant: los nombres
+de credencial (`Directus`, `WhatsApp`) y los `webhookId`.
+
+**Lo que hace que esto no se pudra es la dirección de vuelta**, y en concreto
+que `export-workflows.sh` FALLE si tras normalizar sigue apareciendo el id del
+tenant. Sin esa comprobación, la próxima captura devuelve el hardcode a Git y no
+se nota hasta que falla un tenant nuevo. Si se añade un valor propio del tenant,
+su regla va en `workflow-tokens.py` — nunca se arregla a mano en el JSON.
+
+Los flags del CLI de n8n se comprueban contra `--help` del binario antes de
+usarlos, no contra la documentación.
 
 ## Sincronización con el calendario del cliente (Google / Outlook) — decidido, sin construir
 El layout Calendario de Directus **no admite color por evento** (sus únicas opciones son

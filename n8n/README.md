@@ -1,11 +1,33 @@
 # n8n — workflows versionados
 
-Snapshot de los workflows de dominio del tenant `demo` (exportados con
-`n8n export:workflow --all --separate`, normalizados: sin `pinData`,
-timestamps ni `versionId`). Se conservan `id`, `name`, `nodes`,
-`connections`, `settings`.
+Los workflows de dominio, **sin tenant dentro**: en Git llevan tokens
+(`__DIRECTUS_BASE_URL__`, `__TENANT_ID__`…) que se resuelven al desplegar.
+Normalizados: sin `pinData`, timestamps ni `versionId`; se conservan `id`,
+`name`, `active`, `nodes`, `connections`, `settings`, con formato canónico
+(el que produce el exportador) para que los diffs sean de contenido.
 
-> Importación **manual** por ahora. No hay automatización en el provisioning.
+## Desplegar y capturar
+
+```bash
+# VPS · Git -> tenant (sin --apply solo renderiza y enseña el plan)
+/opt/aegora/platform/n8n/render-workflows.sh --tenant demo --apply
+
+# VPS · tenant -> forma de Git (nunca escribe en el checkout del VPS)
+/opt/aegora/platform/n8n/export-workflows.sh --tenant demo
+# Local · traerse el resultado y revisar el diff ANTES de commitear
+scp -r aegora@<vps>:/tmp/aegora-workflows-export-demo/. n8n/workflows/
+git diff n8n/workflows
+```
+
+Las reglas de sustitución viven **una sola vez**, en `workflow-tokens.py`, que
+es quien hace las dos direcciones. Ahí está también el razonamiento de por qué
+tokens y no un nodo `Config` por workflow.
+
+`export-workflows.sh` **falla** si después de normalizar sigue apareciendo el id
+del tenant: es lo que impide que la próxima captura devuelva el hardcode a Git
+sin que nadie se entere. Mapea los ficheros por `id`, así que un workflow que
+solo existe en el tenant (los de usar y tirar) se lista y no se captura hasta
+que alguien le da un nombre de la convención.
 
 ## Convención
 
@@ -39,15 +61,21 @@ Descartados en el export: `My workflow` (scratch), un `05` con 0 nodos y un
 
 | tipo | nombre | id (demo) | uso |
 |---|---|---|---|
-| Header Auth | `Directus · demo` | `CFY5g7INvQxRg8EB` | `Authorization: Bearer <token Directus>` |
+| Header Auth | `Directus` | `CFY5g7INvQxRg8EB` | `Authorization: Bearer <token Directus>` |
 | Header Auth | `Booking API` | `au21q2D0g1ZQLV6E` | `Authorization: Bearer <BOOKING_API_TOKEN>` (`secrets/booking.env`) |
 | OpenAI | `OpenAI account` | `EFrzfrCY52epDU2a` | modelos del Core |
-| Postgres | `Postgres account` | `IAtHlC09QTN4mgc2` | `Postgres Chat Memory` del Core (BD `n8n_demo`) |
+| Postgres | `Postgres account` | `IAtHlC09QTN4mgc2` | `Postgres Chat Memory` del Core (BD `n8n_<tenant>`) |
+| Header Auth | `WhatsApp` | — | Cloud API de Meta (`secrets/whatsapp.env`) |
 
-Los `id` de arriba son los de **demo** y van fijados en los JSON, así que en
-demo el import no pide reseleccionar nada. En **otro tenant** los `id` serán
-distintos: crea las credenciales con el **mismo nombre** y n8n re-mapea por
-nombre; si algún nodo queda en blanco, reselecciónalo una vez.
+**Los nombres no llevan el tenant a propósito.** Cada tenant tiene su propia
+instancia de n8n, así que `Directus · demo` era ruido: se llaman `Directus` y
+`WhatsApp` en todos. n8n resuelve por `id` y, al importar donde ese `id` no
+existe, por **nombre** — así que en un tenant nuevo basta con crearlas con
+exactamente estos nombres y no hay que reseleccionar nada a mano. No hay
+expresión que valga para el nombre de una credencial, y por eso un nodo
+`Config` nunca pudo resolver este hardcode.
+
+Los `id` de arriba son los de **demo** y van fijados en los JSON.
 
 ## Migración a Booking API (handover §12.3)
 
@@ -118,7 +146,7 @@ respuesta; Entry gestiona el estado de sesión y llama al Core.
 - Rate-limit por `session_key` (`state.rl`, `rl_max`/`rl_window_ms` en Config):
   **dentro de Entry**, tras cargar la sesión, antes de gastar OpenAI.
 - Allowlist de `Origin`: en el adapter (es puramente HTTP).
-- Credencial: `Directus · demo` (Header Auth) en los nodos HTTP de Entry.
+- Credencial: `Directus` (Header Auth) en los nodos HTTP de Entry.
 
 ### `WEBCHAT-Adapter.json` (id `aegoraWebchatAdapter`)
 
@@ -140,20 +168,20 @@ Necesita permiso `delete` para la policy n8n sobre `conversation_sessions`.
 
 ### Requisitos en el tenant
 
-1. Credenciales n8n: `Booking API` (Header Auth), `Directus · demo` (Header
+1. Credenciales n8n: `Booking API` (Header Auth), `Directus` (Header
    Auth), `OpenAi account`, `Postgres account` (BD `n8n_<tenant>` — la usa
    `Postgres Chat Memory` del Core para el historial conversacional; la KB
    `knowledge` NO usa pgvector, va por HTTP a Directus).
-2. Nodo `Config` del Core: ajustar `booking_base_url` / `directus_base_url` /
-   `tenant_timezone`. Reenvía `booking_base_url` a los tools.
+2. Nodo `Config` del Core: `booking_base_url` / `directus_base_url` ya los
+   rellena `render-workflows.sh`; queda ajustar `tenant_timezone` y
+   `tenant_display_name`.
 3. Colección Directus `knowledge` (`title`, `body` markdown, `active`, `sort`)
    con contenido del negocio. La rama `knowledge` la lee entera
    (context-stuffing, **sin RAG/embeddings**) y la inyecta al agente de
    conocimiento. Si está vacía, responde "todavía no tiene información".
    RAG (pgvector) solo si una KB crece de verdad — ver fases más abajo.
-4. Tras importar: en cada nodo HTTP/`Execute Workflow`/agente, re-seleccionar la
-   credencial correspondiente (los `id` del JSON son placeholders o del export
-   de demo).
+4. Tras importar: si alguna credencial quedó en blanco, reseleccionarla una
+   vez. Con los nombres de la tabla de arriba, n8n las re-mapea solo.
 
 ### A validar en el VPS (hand-authored, no probado en local)
 
@@ -164,22 +192,22 @@ Necesita permiso `delete` para la policy n8n sobre `conversation_sessions`.
 
 ## Deuda conocida
 
-- **Host de Directus hardcodeado** (`http://demo-directus:8055/...`) en los
-  workflows `00-25`. Para multi-tenant hay que parametrizarlo (patrón nodo
-  `Config` como en `APPOINTMENT_Availability`, `11`, `05`, `03`, `26` y el
-  cerebro). Pendiente.
+- **A verificar en el primer import por CLI**: si `n8n import:workflow`
+  respeta `active` (un workflow activo no debería desactivarse al reimportar)
+  y si hace falta reactivar los adapters con webhook a mano.
 
-## Importar / exportar
+## Importar / exportar un workflow suelto
+
+Para el día a día usa los scripts de arriba. Para tocar uno solo a mano:
 
 ```bash
-# exportar el estado actual de un tenant
-docker exec <tenant>-n8n sh -c 'rm -rf /tmp/x && mkdir /tmp/x && n8n export:workflow --all --separate --pretty --output=/tmp/x'
-docker cp <tenant>-n8n:/tmp/x ./export
-
-# importar uno
 docker cp n8n/workflows/03-APPOINTMENT-Create.json <tenant>-n8n:/tmp/wf.json
 docker exec <tenant>-n8n n8n import:workflow --input=/tmp/wf.json
 ```
+
+Ojo: ese fichero lleva **tokens sin resolver**. Para un import a mano hay que
+renderizarlo antes (`render-workflows.sh` sin `--apply` los deja en
+`/tmp/aegora-workflows-<tenant>/`).
 
 ---
 
@@ -201,8 +229,10 @@ Salida:
 o `{ "available": false, "error": "…", "message": "…" }`.
 
 Requisitos en el tenant:
-1. Nodo **Config (editar por tenant)**: fallback `http://demo-booking:3000`
-   → `http://<tenant>-booking:3000`. (n8n 2.31 bloquea `$env` en nodos.)
+1. Nodo **Config (editar por tenant)**: el fallback del Booking API lo
+   rellena `render-workflows.sh` desde `__BOOKING_BASE_URL__`. (`$env` no
+   sirve: n8n 2.31 lo bloquea en nodos por defecto — comprobado ejecutando,
+   `access to env vars denied`.)
 2. Credencial `Booking API` (arriba).
 3. `<tenant>-n8n` alcanza `<tenant>-booking:3000` por `tenant_<tenant>_backend`.
 
