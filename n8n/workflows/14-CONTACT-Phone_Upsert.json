@@ -50,7 +50,7 @@
     },
     {
       "parameters": {
-        "url": "http://demo-directus:8055/items/contact_phones",
+        "url": "__DIRECTUS_BASE_URL__/items/contact_phones",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendQuery": true,
@@ -83,7 +83,7 @@
       "credentials": {
         "httpHeaderAuth": {
           "id": "CFY5g7INvQxRg8EB",
-          "name": "Directus · demo"
+          "name": "Directus"
         }
       }
     },
@@ -103,7 +103,7 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ 'http://demo-directus:8055/items/contact_phones/' + $('Code · Classify Existing').item.json.existing_phone_id }}",
+        "url": "={{ '__DIRECTUS_BASE_URL__/items/contact_phones/' + $('Code · Classify Existing').item.json.existing_phone_id }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -122,14 +122,14 @@
       "credentials": {
         "httpHeaderAuth": {
           "id": "CFY5g7INvQxRg8EB",
-          "name": "Directus · demo"
+          "name": "Directus"
         }
       }
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://demo-directus:8055/items/contact_phones",
+        "url": "=__DIRECTUS_BASE_URL__/items/contact_phones",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -148,13 +148,13 @@
       "credentials": {
         "httpHeaderAuth": {
           "id": "CFY5g7INvQxRg8EB",
-          "name": "Directus · demo"
+          "name": "Directus"
         }
       }
     },
     {
       "parameters": {
-        "url": "http://demo-directus:8055/items/contact_phones",
+        "url": "__DIRECTUS_BASE_URL__/items/contact_phones",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendQuery": true,
@@ -187,7 +187,7 @@
       "credentials": {
         "httpHeaderAuth": {
           "id": "CFY5g7INvQxRg8EB",
-          "name": "Directus · demo"
+          "name": "Directus"
         }
       }
     },
@@ -309,7 +309,7 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "=http://demo-directus:8055/items/contact_phones",
+        "url": "=__DIRECTUS_BASE_URL__/items/contact_phones",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -328,7 +328,7 @@
       "credentials": {
         "httpHeaderAuth": {
           "id": "CFY5g7INvQxRg8EB",
-          "name": "Directus · demo"
+          "name": "Directus"
         }
       }
     },

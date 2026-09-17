@@ -37,7 +37,7 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "=http://demo-directus:8055/items/tasks/{{ $json.task_id }}",
+        "url": "=__DIRECTUS_BASE_URL__/items/tasks/{{ $json.task_id }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -56,7 +56,7 @@
       "credentials": {
         "httpHeaderAuth": {
           "id": "CFY5g7INvQxRg8EB",
-          "name": "Directus · demo"
+          "name": "Directus"
         }
       }
     },

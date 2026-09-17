@@ -28,7 +28,7 @@
               "id": "cfg-directus-url",
               "name": "directus_base_url",
               "type": "string",
-              "value": "={{ ($json.directus_base_url && $json.directus_base_url.toString().trim()) || 'http://demo-directus:8055' }}"
+              "value": "={{ ($json.directus_base_url && $json.directus_base_url.toString().trim()) || '__DIRECTUS_BASE_URL__' }}"
             }
           ]
         },
@@ -60,7 +60,7 @@
       "id": "26a00000-0000-4000-8000-000000000003",
       "name": "HTTP · Directus services",
       "credentials": {
-        "httpHeaderAuth": { "id": "CFY5g7INvQxRg8EB", "name": "Directus · demo" }
+        "httpHeaderAuth": { "id": "CFY5g7INvQxRg8EB", "name": "Directus" }
       }
     },
     {

@@ -122,13 +122,13 @@
               "id": "c1",
               "name": "booking_base_url",
               "type": "string",
-              "value": "={{ ($json.booking_base_url && $json.booking_base_url.toString().trim()) || 'http://demo-booking:3000' }}"
+              "value": "={{ ($json.booking_base_url && $json.booking_base_url.toString().trim()) || '__BOOKING_BASE_URL__' }}"
             },
             {
               "id": "c2",
               "name": "directus_base_url",
               "type": "string",
-              "value": "={{ ($json.directus_base_url && $json.directus_base_url.toString().trim()) || 'http://demo-directus:8055' }}"
+              "value": "={{ ($json.directus_base_url && $json.directus_base_url.toString().trim()) || '__DIRECTUS_BASE_URL__' }}"
             },
             {
               "id": "c3",
@@ -1745,7 +1745,7 @@
       "credentials": {
         "httpHeaderAuth": {
           "id": "CFY5g7INvQxRg8EB",
-          "name": "Directus · demo"
+          "name": "Directus"
         }
       }
     },

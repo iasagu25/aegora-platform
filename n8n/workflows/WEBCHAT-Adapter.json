@@ -19,7 +19,7 @@
       ],
       "id": "wca-0001",
       "name": "Webhook · POST /webchat",
-      "webhookId": "aegora-webchat-demo"
+      "webhookId": "aegora-webchat"
     },
     {
       "parameters": {
@@ -37,7 +37,7 @@
               "id": "w2",
               "name": "tenant",
               "type": "string",
-              "value": "demo"
+              "value": "__TENANT_ID__"
             }
           ]
         },
@@ -55,7 +55,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const hook = $('Webhook · POST /webchat').item.json;\nconst cfg = $json;\nconst body = hook.body || {};\nconst headers = hook.headers || {};\nconst clean = v => (v === undefined || v === null) ? null : (String(v).trim() || null);\n// allowlist de Origin\nconst origin = clean(headers.origin);\nconst allow = clean(cfg.allowed_origins) || '*';\nlet _forbidden = false;\nif (allow !== '*') {\n  const list = allow.split(',').map(s => s.trim()).filter(Boolean);\n  _forbidden = !origin || !list.includes(origin);\n}\n// id de hilo: lo genera y guarda el widget; si falta, minteamos uno (se devuelve para que lo persista)\nlet sid = clean(body.session_key) || clean(body.client_session_id) || clean(body.sid);\nlet _minted = false;\nif (!sid) { sid = 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); _minted = true; }\nconst session_key = sid.startsWith('webchat:') ? sid : ('webchat:' + sid);\nconst message = clean(body.message);\nreturn [{ json: {\n  _forbidden, _minted,\n  entry: {\n    canal: 'webchat', session_key, message: message || '',\n    from: {}, tenant: clean(cfg.tenant) || 'demo', reply_to: {},\n  },\n  client_session_id: session_key.replace(/^webchat:/, ''),\n} }];"
+        "jsCode": "const hook = $('Webhook · POST /webchat').item.json;\nconst cfg = $json;\nconst body = hook.body || {};\nconst headers = hook.headers || {};\nconst clean = v => (v === undefined || v === null) ? null : (String(v).trim() || null);\n// allowlist de Origin\nconst origin = clean(headers.origin);\nconst allow = clean(cfg.allowed_origins) || '*';\nlet _forbidden = false;\nif (allow !== '*') {\n  const list = allow.split(',').map(s => s.trim()).filter(Boolean);\n  _forbidden = !origin || !list.includes(origin);\n}\n// id de hilo: lo genera y guarda el widget; si falta, minteamos uno (se devuelve para que lo persista)\nlet sid = clean(body.session_key) || clean(body.client_session_id) || clean(body.sid);\nlet _minted = false;\nif (!sid) { sid = 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); _minted = true; }\nconst session_key = sid.startsWith('webchat:') ? sid : ('webchat:' + sid);\nconst message = clean(body.message);\nreturn [{ json: {\n  _forbidden, _minted,\n  entry: {\n    canal: 'webchat', session_key, message: message || '',\n    from: {}, tenant: clean(cfg.tenant) || '__TENANT_ID__', reply_to: {},\n  },\n  client_session_id: session_key.replace(/^webchat:/, ''),\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

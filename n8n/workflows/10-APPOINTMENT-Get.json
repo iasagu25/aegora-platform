@@ -49,7 +49,7 @@
     },
     {
       "parameters": {
-        "url": "=http://demo-directus:8055/items/appointments/{{ $json.appointment_id }}",
+        "url": "=__DIRECTUS_BASE_URL__/items/appointments/{{ $json.appointment_id }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendQuery": true,
@@ -74,7 +74,7 @@
       "credentials": {
         "httpHeaderAuth": {
           "id": "CFY5g7INvQxRg8EB",
-          "name": "Directus · demo"
+          "name": "Directus"
         }
       }
     }

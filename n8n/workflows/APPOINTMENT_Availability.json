@@ -36,7 +36,7 @@
               "id": "cfg-base-url",
               "name": "booking_base_url",
               "type": "string",
-              "value": "={{ ($json.booking_base_url && $json.booking_base_url.toString().trim()) || 'http://demo-booking:3000' }}"
+              "value": "={{ ($json.booking_base_url && $json.booking_base_url.toString().trim()) || '__BOOKING_BASE_URL__' }}"
             }
           ]
         },
@@ -47,7 +47,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [220, 0],
-      "notes": "Cambia el fallback 'http://demo-booking:3000' por http://<tenant>-booking:3000. El agente puede sobreescribirlo pasando booking_base_url."
+      "notes": "Cambia el fallback '__BOOKING_BASE_URL__' por http://<tenant>-booking:3000. El agente puede sobreescribirlo pasando booking_base_url."
     },
     {
       "parameters": {

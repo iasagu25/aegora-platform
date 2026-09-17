@@ -27,7 +27,7 @@
     },
     {
       "parameters": {
-        "url": "=http://demo-directus:8055/items/contacts",
+        "url": "=__DIRECTUS_BASE_URL__/items/contacts",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendQuery": true,
@@ -60,7 +60,7 @@
       "credentials": {
         "httpHeaderAuth": {
           "id": "CFY5g7INvQxRg8EB",
-          "name": "Directus · demo"
+          "name": "Directus"
         }
       }
     },

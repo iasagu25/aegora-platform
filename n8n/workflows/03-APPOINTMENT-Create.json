@@ -36,7 +36,7 @@
               "id": "cfg-base-url",
               "name": "booking_base_url",
               "type": "string",
-              "value": "={{ ($json.booking_base_url && $json.booking_base_url.toString().trim()) || 'http://demo-booking:3000' }}"
+              "value": "={{ ($json.booking_base_url && $json.booking_base_url.toString().trim()) || '__BOOKING_BASE_URL__' }}"
             }
           ]
         },

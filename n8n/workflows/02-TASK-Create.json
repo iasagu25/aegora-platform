@@ -55,7 +55,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://demo-directus:8055/items/tasks",
+        "url": "__DIRECTUS_BASE_URL__/items/tasks",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -74,7 +74,7 @@
       "credentials": {
         "httpHeaderAuth": {
           "id": "CFY5g7INvQxRg8EB",
-          "name": "Directus · demo"
+          "name": "Directus"
         }
       }
     },

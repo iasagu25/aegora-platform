@@ -32,7 +32,7 @@
               "id": "s1",
               "name": "directus_base_url",
               "type": "string",
-              "value": "={{ ($json.directus_base_url && $json.directus_base_url.toString().trim()) || 'http://demo-directus:8055' }}"
+              "value": "={{ ($json.directus_base_url && $json.directus_base_url.toString().trim()) || '__DIRECTUS_BASE_URL__' }}"
             },
             {
               "id": "s2",
@@ -96,7 +96,7 @@
       "credentials": {
         "httpHeaderAuth": {
           "id": "CFY5g7INvQxRg8EB",
-          "name": "Directus · demo"
+          "name": "Directus"
         }
       }
     },
@@ -174,7 +174,7 @@
       "credentials": {
         "httpHeaderAuth": {
           "id": "CFY5g7INvQxRg8EB",
-          "name": "Directus · demo"
+          "name": "Directus"
         }
       }
     },
