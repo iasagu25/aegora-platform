@@ -426,10 +426,21 @@ bueno:
     `render-workflows.sh` desde `secrets/whatsapp.env`, y el plan avisa si no
     los encuentra en vez de importar un adapter roto en silencio. Sigue
     pendiente decidir Embedded Signup multi-tenant (ver arriba).
-    **Revisar `app_secret` en `demo`**: lo que hay tiene forma de token de
-    acceso (`EAA…`), no de App Secret, así que la firma `X-Hub-Signature-256`
-    nunca cuadra — como `require_signature` es `false`, se procesa igual y no
-    se nota.
+    **El webhook de WhatsApp no verifica firma** (confirmado 17/sep/2026):
+    `WHATSAPP_APP_SECRET` nunca se guardó en `secrets/whatsapp.env`, y en el
+    `Config` de `demo` ese campo tiene un token de acceso (`EAA…`) en vez del
+    App Secret. Así que `X-Hub-Signature-256` sale `invalida` siempre y, como
+    `require_signature` es `false`, el mensaje se procesa igual y nadie se
+    entera. `https://lucia.<dominio>/webhook/whatsapp` es público: sin firma,
+    cualquiera puede falsificar un evento de Meta y hacer que Lucía actúe como
+    si fuera cualquier número — reservar o cancelar citas de terceros.
+    Cierre, en este orden (importa: exigir firma antes de comprobarla tumba
+    WhatsApp entero):
+      1. App Secret real (32 hex, App -> Configuración -> Básica) a
+         `secrets/whatsapp.env` como `WHATSAPP_APP_SECRET`.
+      2. `render-workflows.sh --apply` y mirar el log del adapter: la línea
+         `[whatsapp] firma=` tiene que decir `valida`.
+      3. Solo entonces `require_signature: true` en el `Config` del adapter.
   - **Personalizar con el nombre del contacto** (no prioritario): "Paco, a las
     8:00 no atendemos ese día…". El nombre lo resuelven los tools pero no vuelve
     al texto de las `Salida ·` — mismo patrón: tendría que viajar en el outcome.
