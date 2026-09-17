@@ -615,20 +615,30 @@ como empresa. El aviso de privacidad de Lucía ya apunta a la política real
 siendo el token `__PRIVACY_POLICY_URL__` por si algún negocio acaba teniendo la
 suya, y entonces se pone `PRIVACY_POLICY_URL` en su `tenant.env`.
 
-## Los Code node de n8n corren en un sandbox con `require` capado
-`require('crypto')` devuelve **`Module 'crypto' is disallowed`** (n8n 2.31, task runner).
-Presumiblemente vale para cualquier builtin no permitido, así que antes de apoyarse en uno
-hay que probarlo ejecutando el nodo — en el editor no se ve.
+## En los Code node de n8n NO hay criptografía (n8n 2.31, task runner)
+Dos puertas cerradas, comprobadas ejecutando (en el editor no se ve ninguna de las dos):
+- `require('crypto')` -> **`Module 'crypto' is disallowed`**.
+- **`globalThis.crypto` es `undefined`**, así que tampoco hay Web Crypto.
 
-Lo que sí funciona son los **globals**: `globalThis.crypto.subtle` (Web Crypto) calcula el
-mismo HMAC-SHA256 que `node:crypto`, UTF-8 incluido, y es lo que usa
-`WHATSAPP · Adapter` para validar `X-Hub-Signature-256`. La alternativa habría sido
-`NODE_FUNCTION_ALLOW_BUILTIN=crypto` en el `.env` del contenedor, descartada porque no hay
-forma de hacer llegar un cambio de plantilla a un tenant ya creado (falta
-`render-tenant-config.sh`) y porque relaja el sandbox para todos los Code node.
+Lo que sí hay: `TextEncoder`, `Buffer`, `atob` (`typeof` = `function`).
 
-Ojo también con `Buffer`: es global y de momento funciona, pero el mismo nodo lleva ya una
-caída a `atob` + `TextDecoder` por si acaso.
+Consecuencia: `WHATSAPP · Adapter` valida `X-Hub-Signature-256` con un **HMAC-SHA256 en JS
+puro** incrustado en el nodo. No es una elección estética. Es asumible porque un fallo de
+implementación da `invalida`, nunca un `valida` falso -- para colar una firma habría que
+coincidir por casualidad con el HMAC de Meta: falla cerrado. Está verificado contra los 6
+vectores del RFC 4231, las 301 longitudes de 0 a 300 bytes y 500 pares aleatorios, todo
+contra `node:crypto`. **Si se toca, se vuelve a pasar esa batería**: el bug que tuvo mientras
+se escribía estaba en la única frontera que el relleno hace especial (`len+9` múltiplo de
+64, o sea 55 y 119 bytes), y una muestra al azar no lo habría encontrado.
+
+Descartado `NODE_FUNCTION_ALLOW_BUILTIN=crypto`: no hay forma de hacer llegar un cambio de
+plantilla a un tenant ya creado (falta `render-tenant-config.sh`) y relaja el sandbox de
+todos los Code node para arreglar uno. Si algún día hay que hacer más criptografía, la
+salida buena es el **nodo Crypto** de n8n, que no pasa por el sandbox.
+
+**Antes de apoyarse en cualquier builtin o global dentro de un Code node, probarlo
+ejecutando.** Hoy han fallado, por este orden: `$env`, `require('crypto')` y
+`globalThis.crypto`.
 
 ## Cómo mueve el gestor una cita — decidido, sin construir (16/sep/2026)
 **No se le da un selector de huecos. Se le da un botón que arranca la conversación.**
