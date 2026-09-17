@@ -57,3 +57,39 @@ Si el widget no manda id, el Adapter mintea uno y lo devuelve.
 
 Streaming, adjuntos, audio, indicador de "escribiendo…", auth de usuario,
 histórico persistente en el cliente, i18n. WhatsApp = otro adapter (WABA).
+
+## `embed-lucia.html` — lanzador con chat y voz
+
+Snippet para pegar en la web del cliente (demos actuales). Mismo diseño del
+lanzador que ya usábamos, con el chat conectado al webchat de verdad.
+
+Antes de publicarlo hay que poner el host:
+
+```bash
+grep WEBHOOK_HOST /opt/aegora/tenants/<tenant>/config/tenant.env
+```
+
+y sustituir `REVISAR-WEBHOOK-HOST` en `N8N_CHAT_URL`. Es el `WEBHOOK_HOST`
+(`lucia.<dominio>`), que solo expone `/webhook/*` — el editor de n8n no se
+publica ahí.
+
+Diferencias con la versión anterior del snippet, que no son cosméticas:
+
+| | antes | ahora |
+|---|---|---|
+| endpoint | `/webhook/webchat-router`, `{message, sessionId, client_id}` → `data.response` | `/webhook/webchat`, `{message, session_key}` → `{reply, client_session_id}` |
+| hilo | `sess_` nuevo en cada carga: recargar perdía la conversación | `client_session_id` en `localStorage` |
+| tenant | lo mandaba el navegador | lo decide el `Config` del adapter |
+| texto del bot | `innerHTML` directo | escapado y con lista blanca |
+| listas | guiones crudos | `<ul>` de verdad |
+| privacidad | no había | al abrir el panel |
+
+Lo del tenant importa: si el navegador dice a qué negocio va el mensaje,
+cualquiera puede dirigirse al n8n de otro cambiando una línea en el inspector.
+
+Y lo del `innerHTML`: la respuesta del modelo puede contener texto que le ha
+escrito un visitante, así que inyectarla sin escapar es ejecutar HTML de un
+desconocido en la web del cliente.
+
+**`allowed_origins` está en `*`** en el `Config` del adapter. Vale para demo;
+antes de un cliente real, poner ahí los dominios suyos.
