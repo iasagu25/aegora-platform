@@ -61,6 +61,28 @@ from pathlib import Path
 # desactiva un workflow que estaba activo (a verificar en el primer import).
 KEEP_KEYS = ("id", "name", "active", "nodes", "connections", "settings")
 
+# Campos que son SECRETOS del tenant y nunca salen de él. Un export trae sus
+# valores reales (n8n los guarda en claro en el nodo `Config`, no son
+# credenciales cifradas), así que al normalizar se devuelven a su placeholder.
+#
+# Esto no es cosmética: sin ello, la primera captura de WHATSAPP · Adapter mete
+# en Git el phone_number_id, el verify_token y el token de Meta. Estuvo a punto
+# de pasar. La casa de estos valores es secrets/whatsapp.env.
+SECRET_FIELDS = {
+    "phone_number_id": "REPLACE_PHONE_NUMBER_ID",
+    "verify_token": "REPLACE_VERIFY_TOKEN",
+    "app_secret": "REPLACE_APP_SECRET",
+}
+
+# Formas que delatan un secreto aunque el campo no esté en la lista de arriba.
+# La lista nombrada tapa lo que sabemos; esto es la red por debajo.
+SECRET_SHAPES = (
+    (re.compile(r"\bEA[A-Za-z0-9]{40,}"), "token de Meta (EAA…)"),
+    (re.compile(r"\bsk-[A-Za-z0-9_-]{20,}"), "clave de OpenAI (sk-…)"),
+    (re.compile(r"\bghp_[A-Za-z0-9]{20,}"), "token de GitHub (ghp_…)"),
+    (re.compile(r"\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\."), "JWT"),
+)
+
 TOKEN_DIRECTUS = "__DIRECTUS_BASE_URL__"
 TOKEN_BOOKING = "__BOOKING_BASE_URL__"
 TOKEN_TENANT = "__TENANT_ID__"
@@ -132,6 +154,27 @@ def normalize_text(text: str, tenant: Tenant) -> str:
     return text
 
 
+def restore_secrets(text: str) -> str:
+    """Devuelve a su placeholder los secretos que trae un export."""
+    for field, placeholder in SECRET_FIELDS.items():
+        # Los campos de un nodo Set van como {"name": "<campo>", ..., "value": "<valor>"}.
+        text = re.sub(
+            rf'("name": "{re.escape(field)}",(?:\s*"[a-zA-Z]+": "[^"]*",)*\s*"value": )"[^"]*"',
+            rf'\1"{placeholder}"',
+            text,
+        )
+    return text
+
+
+def find_secrets(text: str):
+    """Lo que parece un secreto aunque no lo hayamos nombrado."""
+    hits = []
+    for pattern, que_es in SECRET_SHAPES:
+        for match in pattern.finditer(text):
+            hits.append(f"{que_es}: {match.group(0)[:12]}…")
+    return hits
+
+
 def strip_export(text: str) -> str:
     """Deja un export crudo en la forma de la convención."""
     data = json.loads(text)
@@ -176,9 +219,10 @@ def main() -> None:
     if not sources:
         fail(f"No hay ningún .json en {src_dir}")
 
-    dst_dir.mkdir(parents=True, exist_ok=True)
-
-    residue = {}
+    # Nada se escribe hasta que TODO ha pasado las comprobaciones: un secreto
+    # escrito a medias ya está en el disco de quien luego hace `git add .`.
+    salida = {}
+    residue, secrets = {}, {}
     for source in sources:
         text = source.read_text(encoding="utf-8")
 
@@ -190,12 +234,29 @@ def main() -> None:
         else:
             if "--from-export" in flags:
                 text = strip_export(text)
-            out = normalize_text(text, tenant)
+            out = restore_secrets(normalize_text(text, tenant))
             hits = find_residue(out, tenant)
             if hits:
                 residue[source.name] = hits
+            leaked = find_secrets(out)
+            if leaked:
+                secrets[source.name] = leaked
 
-        (dst_dir / source.name).write_text(out, encoding="utf-8")
+        salida[source.name] = out
+
+    if secrets:
+        print(
+            "\nERROR: en los workflows normalizados hay valores con forma de "
+            "secreto.\nNo se escribe nada: un secreto en Git no se borra "
+            "revirtiendo el commit.\nSu sitio es secrets/ del tenant; si el "
+            "campo es legítimo, añádelo a SECRET_FIELDS.\n",
+            file=sys.stderr,
+        )
+        for name, hits in secrets.items():
+            print(f"  {name}", file=sys.stderr)
+            for hit in hits:
+                print(f"      {hit}", file=sys.stderr)
+        raise SystemExit(1)
 
     if residue and "--allow-residue" not in flags:
         print(
@@ -210,6 +271,10 @@ def main() -> None:
             for hit in hits:
                 print(f"      …{hit}…", file=sys.stderr)
         raise SystemExit(1)
+
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    for nombre, contenido in salida.items():
+        (dst_dir / nombre).write_text(contenido, encoding="utf-8")
 
     print(f"{mode}: {len(sources)} workflows -> {dst_dir}")
 

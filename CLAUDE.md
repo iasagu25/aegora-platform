@@ -482,6 +482,16 @@ nombre de su contenedor, así que se renderiza al desplegar, igual que
 Dos valores NO llevan token, simplemente dejan de nombrar al tenant: los nombres
 de credencial (`Directus`, `WhatsApp`) y los `webhookId`.
 
+**Un export trae los secretos del tenant en claro.** Los campos de un nodo
+`Config` los guarda n8n tal cual (no son credenciales cifradas), así que
+`WHATSAPP · Adapter` viene con el `phone_number_id`, el `verify_token` y el
+token de Meta reales, donde el repo tiene `REPLACE_*` a propósito. Se detectó
+mirando el primer export de verdad, a un `git commit` de publicarlos.
+`normalize` los devuelve a su placeholder (`SECRET_FIELDS`) y, por debajo,
+detiene el proceso sin escribir nada si ve algo con forma de secreto que no
+conoce (`EAA…`, `sk-…`, `ghp_…`, JWT). Ese segundo control no tiene escape:
+un secreto en Git no se arregla revirtiendo el commit.
+
 **Lo que hace que esto no se pudra es la dirección de vuelta**, y en concreto
 que `export-workflows.sh` FALLE si tras normalizar sigue apareciendo el id del
 tenant. Sin esa comprobación, la próxima captura devuelve el hardcode a Git y no

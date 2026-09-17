@@ -15,6 +15,14 @@ IFS=$'\n\t'
 # hasta que falla un tenant nuevo. Por eso, si después de normalizar sigue
 # apareciendo el id del tenant, el script FALLA y enseña dónde.
 #
+# Y sobre todo: un export trae los SECRETOS del tenant en claro. n8n guarda los
+# campos de un nodo `Config` tal cual (no son credenciales cifradas), así que
+# WHATSAPP · Adapter viene con el phone_number_id, el verify_token y el token de
+# Meta de verdad, donde el repo tiene placeholders a propósito. Se devuelven a
+# su placeholder, y si aparece algo con forma de secreto que no conocemos, el
+# script se para sin escribir nada: un secreto en Git no se arregla revirtiendo
+# el commit. Las reglas están en workflow-tokens.py (SECRET_FIELDS).
+#
 # NO escribe en el checkout del VPS: el VPS nunca hace push y su repo se resetea
 # duro. Escribe a un directorio aparte para traérselo con scp, igual que
 # snapshot-schema.sh con el esquema. El diff se revisa en local antes de
