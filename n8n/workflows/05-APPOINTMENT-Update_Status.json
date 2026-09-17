@@ -6,15 +6,24 @@
       "parameters": {
         "workflowInputs": {
           "values": [
-            { "name": "appointment_id" },
-            { "name": "status" },
-            { "name": "booking_base_url" }
+            {
+              "name": "appointment_id"
+            },
+            {
+              "name": "status"
+            },
+            {
+              "name": "booking_base_url"
+            }
           ]
         }
       },
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.2,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "id": "cc6ecd99-4174-4297-b857-2431a83103e0",
       "name": "When Executed by Another Workflow"
     },
@@ -36,7 +45,10 @@
       },
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [200, 0],
+      "position": [
+        200,
+        0
+      ],
       "id": "b2c1d0e0-0000-4000-8000-000000000005",
       "name": "Config (editar por tenant)",
       "notes": "Solo se usa para status=cancelled (llama al Booking API). Cambia el fallback por http://<tenant>-booking:3000."
@@ -47,21 +59,32 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [416, 0],
+      "position": [
+        416,
+        0
+      ],
       "id": "4016f561-734c-48b3-8005-93d1dc62c0c6",
       "name": "Code · Validate Input"
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "combinator": "and",
           "conditions": [
             {
               "id": "cond-is-cancel",
               "leftValue": "={{ $json._is_cancel }}",
               "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ]
         },
@@ -69,7 +92,10 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [632, 0],
+      "position": [
+        632,
+        0
+      ],
       "id": "a7c0f0e0-0000-4000-8000-000000000051",
       "name": "¿Cancelación?"
     },
@@ -83,16 +109,27 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ appointment_id: $json.appointment_id }) }}",
         "options": {
-          "response": { "response": { "neverError": true, "fullResponse": true } }
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
         }
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
-      "position": [864, -104],
+      "position": [
+        864,
+        -104
+      ],
       "id": "d1e2f3a4-0000-4000-8000-000000000052",
       "name": "HTTP · Booking API cancel",
       "credentials": {
-        "httpHeaderAuth": { "id": "au21q2D0g1ZQLV6E", "name": "Booking API" }
+        "httpHeaderAuth": {
+          "id": "au21q2D0g1ZQLV6E",
+          "name": "Booking API"
+        }
       }
     },
     {
@@ -101,7 +138,10 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1080, -104],
+      "position": [
+        1080,
+        -104
+      ],
       "id": "e5f6a7b8-0000-4000-8000-000000000053",
       "name": "Code · Return (cancel)"
     },
@@ -118,11 +158,17 @@
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
-      "position": [864, 104],
+      "position": [
+        864,
+        104
+      ],
       "id": "fc978731-0983-4fa5-aea6-6f675c99bc99",
       "name": "HTTP · Update Appointment Status",
       "credentials": {
-        "httpHeaderAuth": { "id": "CFY5g7INvQxRg8EB", "name": "Directus" }
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus"
+        }
       }
     },
     {
@@ -131,32 +177,87 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1080, 104],
+      "position": [
+        1080,
+        104
+      ],
       "id": "21cdb419-45d6-418c-9a00-72511c398036",
       "name": "Code · Return Result"
     }
   ],
   "connections": {
     "When Executed by Another Workflow": {
-      "main": [[{ "node": "Config (editar por tenant)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Config (editar por tenant)": {
-      "main": [[{ "node": "Code · Validate Input", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Code · Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Code · Validate Input": {
-      "main": [[{ "node": "¿Cancelación?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "¿Cancelación?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "¿Cancelación?": {
       "main": [
-        [{ "node": "HTTP · Booking API cancel", "type": "main", "index": 0 }],
-        [{ "node": "HTTP · Update Appointment Status", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "HTTP · Booking API cancel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP · Update Appointment Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "HTTP · Booking API cancel": {
-      "main": [[{ "node": "Code · Return (cancel)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Code · Return (cancel)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "HTTP · Update Appointment Status": {
-      "main": [[{ "node": "Code · Return Result", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Code · Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {

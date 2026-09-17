@@ -6,15 +6,24 @@
       "parameters": {
         "workflowInputs": {
           "values": [
-            { "name": "service_query" },
-            { "name": "service_id" },
-            { "name": "directus_base_url" }
+            {
+              "name": "service_query"
+            },
+            {
+              "name": "service_id"
+            },
+            {
+              "name": "directus_base_url"
+            }
           ]
         }
       },
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.2,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "id": "26a00000-0000-4000-8000-000000000001",
       "name": "When Executed by Another Workflow"
     },
@@ -36,7 +45,10 @@
       },
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [200, 0],
+      "position": [
+        200,
+        0
+      ],
       "id": "26a00000-0000-4000-8000-000000000002",
       "name": "Config (editar por tenant)",
       "notes": "Cambia el fallback por http://<tenant>-directus:8055."
@@ -51,16 +63,27 @@
         "specifyQuery": "json",
         "jsonQuery": "={{ JSON.stringify({ 'filter[active][_eq]': 'true', fields: 'id,name,description', limit: -1 }) }}",
         "options": {
-          "response": { "response": { "neverError": true, "fullResponse": true } }
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
         }
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
-      "position": [416, 0],
+      "position": [
+        416,
+        0
+      ],
       "id": "26a00000-0000-4000-8000-000000000003",
       "name": "HTTP · Directus services",
       "credentials": {
-        "httpHeaderAuth": { "id": "CFY5g7INvQxRg8EB", "name": "Directus" }
+        "httpHeaderAuth": {
+          "id": "CFY5g7INvQxRg8EB",
+          "name": "Directus"
+        }
       }
     },
     {
@@ -69,20 +92,47 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [632, 0],
+      "position": [
+        632,
+        0
+      ],
       "id": "26a00000-0000-4000-8000-000000000004",
       "name": "Code · Match service"
     }
   ],
   "connections": {
     "When Executed by Another Workflow": {
-      "main": [[{ "node": "Config (editar por tenant)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Config (editar por tenant)": {
-      "main": [[{ "node": "HTTP · Directus services", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "HTTP · Directus services",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "HTTP · Directus services": {
-      "main": [[{ "node": "Code · Match service", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Code · Match service",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {

@@ -1,6 +1,7 @@
 {
-  "name": "LUCÍA · TOOL · Cancelar",
   "id": "aegoraLuciaToolCancelar",
+  "name": "LUCÍA · TOOL · Cancelar",
+  "active": false,
   "nodes": [
     {
       "parameters": {
@@ -430,6 +431,5 @@
   },
   "settings": {
     "executionOrder": "v1"
-  },
-  "active": false
+  }
 }

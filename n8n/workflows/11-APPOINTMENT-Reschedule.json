@@ -6,16 +6,27 @@
       "parameters": {
         "workflowInputs": {
           "values": [
-            { "name": "appointment_id" },
-            { "name": "start_at" },
-            { "name": "end_at" },
-            { "name": "booking_base_url" }
+            {
+              "name": "appointment_id"
+            },
+            {
+              "name": "start_at"
+            },
+            {
+              "name": "end_at"
+            },
+            {
+              "name": "booking_base_url"
+            }
           ]
         }
       },
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.2,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "id": "a3fdd7e9-9bde-49ad-b423-40561333d910",
       "name": "When Executed by Another Workflow"
     },
@@ -37,7 +48,10 @@
       },
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [200, 0],
+      "position": [
+        200,
+        0
+      ],
       "id": "b2c1d0e0-0000-4000-8000-000000000011",
       "name": "Config (editar por tenant)",
       "notes": "Cambia el fallback por http://<tenant>-booking:3000. El caller puede pasar booking_base_url."
@@ -48,7 +62,10 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [416, 0],
+      "position": [
+        416,
+        0
+      ],
       "id": "e6ddf030-c19f-4f6f-b430-67cb452acd86",
       "name": "Code · Validate Input"
     },
@@ -62,16 +79,27 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json._body) }}",
         "options": {
-          "response": { "response": { "neverError": true, "fullResponse": true } }
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
         }
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
-      "position": [632, 0],
+      "position": [
+        632,
+        0
+      ],
       "id": "b7d7b40f-9c36-423e-8894-dadecd9cc9fa",
       "name": "HTTP · Booking API reschedule",
       "credentials": {
-        "httpHeaderAuth": { "id": "au21q2D0g1ZQLV6E", "name": "Booking API" }
+        "httpHeaderAuth": {
+          "id": "au21q2D0g1ZQLV6E",
+          "name": "Booking API"
+        }
       }
     },
     {
@@ -80,23 +108,58 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [848, 0],
+      "position": [
+        848,
+        0
+      ],
       "id": "2506eea7-783f-45e9-a1f8-18318bcff0c8",
       "name": "Code · Normalize Result"
     }
   ],
   "connections": {
     "When Executed by Another Workflow": {
-      "main": [[{ "node": "Config (editar por tenant)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Config (editar por tenant)": {
-      "main": [[{ "node": "Code · Validate Input", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Code · Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Code · Validate Input": {
-      "main": [[{ "node": "HTTP · Booking API reschedule", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "HTTP · Booking API reschedule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "HTTP · Booking API reschedule": {
-      "main": [[{ "node": "Code · Normalize Result", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Code · Normalize Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {

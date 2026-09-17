@@ -1,6 +1,7 @@
 {
-  "name": "AGENT · Lucía · Core v2",
   "id": "aegoraAgentLuciaCoreV2",
+  "name": "AGENT · Lucía · Core v2",
+  "active": false,
   "nodes": [
     {
       "parameters": {
@@ -1033,6 +1034,5 @@
   },
   "settings": {
     "executionOrder": "v1"
-  },
-  "active": false
+  }
 }

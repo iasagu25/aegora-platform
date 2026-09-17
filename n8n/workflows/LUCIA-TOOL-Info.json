@@ -1,6 +1,7 @@
 {
-  "name": "LUCÍA · TOOL · Info",
   "id": "aegoraLuciaToolInfo",
+  "name": "LUCÍA · TOOL · Info",
+  "active": false,
   "nodes": [
     {
       "parameters": {
@@ -97,6 +98,5 @@
   },
   "settings": {
     "executionOrder": "v1"
-  },
-  "active": false
+  }
 }

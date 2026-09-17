@@ -6,23 +6,48 @@
       "parameters": {
         "workflowInputs": {
           "values": [
-            { "name": "contact_id" },
-            { "name": "service_id" },
-            { "name": "start_at" },
-            { "name": "primary_resource_id" },
-            { "name": "location_id" },
-            { "name": "calendar_id" },
-            { "name": "title" },
-            { "name": "notes" },
-            { "name": "source" },
-            { "name": "idempotency_key" },
-            { "name": "booking_base_url" }
+            {
+              "name": "contact_id"
+            },
+            {
+              "name": "service_id"
+            },
+            {
+              "name": "start_at"
+            },
+            {
+              "name": "primary_resource_id"
+            },
+            {
+              "name": "location_id"
+            },
+            {
+              "name": "calendar_id"
+            },
+            {
+              "name": "title"
+            },
+            {
+              "name": "notes"
+            },
+            {
+              "name": "source"
+            },
+            {
+              "name": "idempotency_key"
+            },
+            {
+              "name": "booking_base_url"
+            }
           ]
         }
       },
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.2,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "id": "6f2b1a00-0000-4000-8000-000000000031",
       "name": "When Executed by Another Workflow"
     },
@@ -44,7 +69,10 @@
       },
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [200, 0],
+      "position": [
+        200,
+        0
+      ],
       "id": "6f2b1a00-0000-4000-8000-000000000032",
       "name": "Config (editar por tenant)",
       "notes": "Cambia el fallback por http://<tenant>-booking:3000. El caller puede pasar booking_base_url."
@@ -55,7 +83,10 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [416, 0],
+      "position": [
+        416,
+        0
+      ],
       "id": "6f2b1a00-0000-4000-8000-000000000033",
       "name": "Code · Validate Input"
     },
@@ -69,16 +100,27 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json._body) }}",
         "options": {
-          "response": { "response": { "neverError": true, "fullResponse": true } }
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
         }
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
-      "position": [632, 0],
+      "position": [
+        632,
+        0
+      ],
       "id": "6f2b1a00-0000-4000-8000-000000000034",
       "name": "HTTP · Booking API book",
       "credentials": {
-        "httpHeaderAuth": { "id": "au21q2D0g1ZQLV6E", "name": "Booking API" }
+        "httpHeaderAuth": {
+          "id": "au21q2D0g1ZQLV6E",
+          "name": "Booking API"
+        }
       }
     },
     {
@@ -87,23 +129,58 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [848, 0],
+      "position": [
+        848,
+        0
+      ],
       "id": "6f2b1a00-0000-4000-8000-000000000035",
       "name": "Code · Return Result"
     }
   ],
   "connections": {
     "When Executed by Another Workflow": {
-      "main": [[{ "node": "Config (editar por tenant)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Config (editar por tenant)": {
-      "main": [[{ "node": "Code · Validate Input", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Code · Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Code · Validate Input": {
-      "main": [[{ "node": "HTTP · Booking API book", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "HTTP · Booking API book",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "HTTP · Booking API book": {
-      "main": [[{ "node": "Code · Return Result", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Code · Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {

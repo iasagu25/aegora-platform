@@ -1,6 +1,7 @@
 {
-  "name": "LUCÍA · TOOL · Disponibilidad",
   "id": "aegoraLuciaToolDispo",
+  "name": "LUCÍA · TOOL · Disponibilidad",
+  "active": false,
   "nodes": [
     {
       "parameters": {
@@ -437,6 +438,5 @@
   },
   "settings": {
     "executionOrder": "v1"
-  },
-  "active": false
+  }
 }

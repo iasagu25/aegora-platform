@@ -1,22 +1,40 @@
 {
   "id": "aegoraApptAvailabilityV1",
   "name": "APPOINTMENT Availability",
-  "settings": {
-    "executionOrder": "v1"
-  },
   "nodes": [
     {
       "parameters": {
         "inputSource": "workflowInputs",
         "workflowInputs": {
           "values": [
-            { "name": "service_id", "type": "string" },
-            { "name": "date", "type": "string" },
-            { "name": "location_id", "type": "string" },
-            { "name": "resource_id", "type": "string" },
-            { "name": "timezone", "type": "string" },
-            { "name": "exclude_appointment_id", "type": "string" },
-            { "name": "booking_base_url", "type": "string" }
+            {
+              "name": "service_id",
+              "type": "string"
+            },
+            {
+              "name": "date",
+              "type": "string"
+            },
+            {
+              "name": "location_id",
+              "type": "string"
+            },
+            {
+              "name": "resource_id",
+              "type": "string"
+            },
+            {
+              "name": "timezone",
+              "type": "string"
+            },
+            {
+              "name": "exclude_appointment_id",
+              "type": "string"
+            },
+            {
+              "name": "booking_base_url",
+              "type": "string"
+            }
           ]
         }
       },
@@ -24,7 +42,10 @@
       "name": "When Executed by Agent",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
-      "position": [0, 0]
+      "position": [
+        0,
+        0
+      ]
     },
     {
       "parameters": {
@@ -46,7 +67,10 @@
       "name": "Config (editar por tenant)",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [220, 0],
+      "position": [
+        220,
+        0
+      ],
       "notes": "Cambia el fallback '__BOOKING_BASE_URL__' por http://<tenant>-booking:3000. El agente puede sobreescribirlo pasando booking_base_url."
     },
     {
@@ -57,19 +81,30 @@
       "name": "Validate & build query",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [440, 0]
+      "position": [
+        440,
+        0
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "combinator": "and",
           "conditions": [
             {
               "id": "cond-valid",
               "leftValue": "={{ $json._valid }}",
               "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ]
         },
@@ -79,7 +114,10 @@
       "name": "Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [660, 0]
+      "position": [
+        660,
+        0
+      ]
     },
     {
       "parameters": {
@@ -91,16 +129,27 @@
         "specifyQuery": "json",
         "jsonQuery": "={{ JSON.stringify($json._query) }}",
         "options": {
-          "response": { "response": { "neverError": true, "fullResponse": true } }
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
         }
       },
       "id": "8f0e0a10-0000-4000-8000-000000000004",
       "name": "GET /api/availability",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [900, -100],
+      "position": [
+        900,
+        -100
+      ],
       "credentials": {
-        "httpHeaderAuth": { "id": "au21q2D0g1ZQLV6E", "name": "Booking API" }
+        "httpHeaderAuth": {
+          "id": "au21q2D0g1ZQLV6E",
+          "name": "Booking API"
+        }
       }
     },
     {
@@ -111,7 +160,10 @@
       "name": "Shape result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, -100]
+      "position": [
+        1120,
+        -100
+      ]
     },
     {
       "parameters": {
@@ -121,27 +173,77 @@
       "name": "Error out",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 120]
+      "position": [
+        900,
+        120
+      ]
     }
   ],
   "connections": {
     "When Executed by Agent": {
-      "main": [[{ "node": "Config (editar por tenant)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Config (editar por tenant)": {
-      "main": [[{ "node": "Validate & build query", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Validate & build query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Validate & build query": {
-      "main": [[{ "node": "Valid?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Valid?": {
       "main": [
-        [{ "node": "GET /api/availability", "type": "main", "index": 0 }],
-        [{ "node": "Error out", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "GET /api/availability",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error out",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "GET /api/availability": {
-      "main": [[{ "node": "Shape result", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Shape result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
+  },
+  "settings": {
+    "executionOrder": "v1"
   }
 }
