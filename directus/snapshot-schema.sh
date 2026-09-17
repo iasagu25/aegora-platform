@@ -59,7 +59,17 @@ done
 command -v docker >/dev/null 2>&1 || fail "Falta docker."
 
 TENANT_CONFIG="${TENANTS_ROOT}/${TENANT}/config/tenant.env"
-[[ -f "$TENANT_CONFIG" ]] || fail "No existe ${TENANT_CONFIG}"
+# Sin permiso para atravesar el directorio, "no existe" y "no puedo leerlo" son
+# indistinguibles desde aquí -- y los secretos del tenant son de root. Así que se
+# dicen las dos posibilidades en vez de mandar a buscar un fichero que sí está.
+if [[ ! -r "$TENANT_CONFIG" ]]; then
+  if [[ $EUID -eq 0 ]]; then
+    fail "No existe ${TENANT_CONFIG}"
+  fi
+  fail "No se puede leer ${TENANT_CONFIG}
+O no existe, o es cuestión de permisos (los secretos del tenant son de root).
+Prueba con sudo."
+fi
 
 set -a
 # shellcheck disable=SC1090

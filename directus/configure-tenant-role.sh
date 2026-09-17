@@ -64,7 +64,17 @@ TENANT_ROOT="${TENANTS_ROOT}/${TENANT}"
 TENANT_CONFIG="${TENANT_ROOT}/config/tenant.env"
 PROVISIONING_SECRET="${TENANT_ROOT}/secrets/directus-provisioning.env"
 
-[[ -f "$TENANT_CONFIG" ]] || fail "No existe ${TENANT_CONFIG}"
+# Sin permiso para atravesar el directorio, "no existe" y "no puedo leerlo" son
+# indistinguibles desde aquí -- y los secretos del tenant son de root. Así que se
+# dicen las dos posibilidades en vez de mandar a buscar un fichero que sí está.
+if [[ ! -r "$TENANT_CONFIG" ]]; then
+  if [[ $EUID -eq 0 ]]; then
+    fail "No existe ${TENANT_CONFIG}"
+  fi
+  fail "No se puede leer ${TENANT_CONFIG}
+O no existe, o es cuestión de permisos (los secretos del tenant son de root).
+Prueba con sudo."
+fi
 [[ -f "$PROVISIONING_SECRET" ]] ||
   fail "Falta la credencial técnica: ${PROVISIONING_SECRET}
 Créala con: directus/provision-directus-access.sh --tenant ${TENANT} --apply"
