@@ -76,3 +76,7 @@ tmp/
 __pycache__/
 *.pyc
 *.pyo
+
+# El handover .docx es la copia de referencia y NO se versiona: lo que va a
+# git es su conversión a docs/AEGORA_handover_tecnico_post_Lumadock.md
+*.docx
