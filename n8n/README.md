@@ -7,11 +7,20 @@ Normalizados: sin `pinData`, timestamps, `versionId` ni `active`; se conservan
 produce el exportador) para que los diffs sean de contenido.
 
 **`active` no se versiona.** En n8n 2.x publicar es un acto explícito por id
-(`publish:workflow --id=…`, porque `--all` está deprecado) y **un sub-workflow
-tiene que estar publicado para que se le pueda llamar**. Un `active: false`
-viajando en Git despublicaría herramientas que funcionan. Quién está publicado
-lo decide el despliegue: `render-workflows.sh --apply` publica todo lo que
-importa, menos `SESSION · Cleanup` (schedule que borra sesiones, sin probar).
+(`publish:workflow --id=…`, porque `--all` está deprecado) y **un workflow sin
+publicar no se ejecuta ni registra su webhook**. Un `active: false` viajando en
+Git despublicaría herramientas que funcionan. Quién está publicado lo decide el
+despliegue: `render-workflows.sh --apply` publica todo lo que importa, menos
+`SESSION · Cleanup` (schedule que borra sesiones, sin probar).
+
+Dos cosas que hay que hacer bien o el import queda a medias sin decirlo:
+- **Orden.** n8n no publica un workflow cuyos sub-workflows no lo estén. Por
+  nombre de fichero sale mal — `AGENT-Lucia-Core-v2` va antes que
+  `LUCIA-TOOL-*` y depende de las siete — así que el orden lo calcula
+  `workflow-order.py` del grafo real de nodos `executeWorkflow`/`toolWorkflow`.
+- **Reinicio.** El CLI escribe en la BD y el proceso en marcha no se entera
+  (lo avisa él: *"Changes will not take effect if n8n is running"*). Sin
+  reiniciar, el import parece correcto y el webhook sigue en 404.
 
 ## Desplegar y capturar
 

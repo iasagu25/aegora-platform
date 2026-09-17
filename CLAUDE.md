@@ -506,11 +506,20 @@ delante. Los otros 29 nodos funcionaban solo porque llevaban dentro el id de
 cifrado no sale del contenedor).
 
 **Publicar es un paso aparte, y obligatorio.** En n8n 2.x `import:workflow` no
-publica, y **un sub-workflow tiene que estar publicado para que se le pueda
-llamar** — así que sin publicar, Lucía se queda sin herramientas. `publish:workflow
---all` está deprecado ("no longer supported"): va uno a uno por `--id`, que es
-lo que hace `render-workflows.sh --apply`. Excluye `SESSION · Cleanup`, cuyo
-schedule borra sesiones y nunca se ha probado.
+publica, y un workflow sin publicar ni se ejecuta ni registra su webhook
+(`Workflow is not active and cannot be executed`) — así que sin publicar, Lucía
+se queda sin herramientas y WhatsApp deja de entrar. Tres cosas, y las tres
+hacen falta (`render-workflows.sh --apply` las hace):
+1. `publish:workflow --all` está deprecado ("no longer supported"): uno a uno
+   por `--id`. `update:workflow --active=true` es ya solo un alias de publish.
+2. **En orden de dependencias**: n8n no publica un workflow cuyos sub-workflows
+   no lo estén. Alfabético sale mal (`AGENT-Lucia-Core-v2` antes que las siete
+   `LUCIA-TOOL-*` de las que depende), así que lo calcula `workflow-order.py`
+   del grafo de nodos `executeWorkflow`/`toolWorkflow`.
+3. **Reiniciar el contenedor**: el CLI escribe en la BD y el proceso en marcha
+   no se entera — lo avisa él mismo. Sin reinicio el import parece correcto y
+   el webhook devuelve 404.
+Excluye `SESSION · Cleanup`, cuyo schedule borra sesiones y nunca se ha probado.
 
 Por eso **`active` no se versiona** (lo metí primero por no perder información;
 fue un error): un `active: false` viajando en Git despublicaría herramientas que

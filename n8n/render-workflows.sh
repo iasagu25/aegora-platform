@@ -68,6 +68,7 @@ OUT="${OUT:-/tmp/aegora-workflows-${TENANT}}"
 TENANT_CONFIG="${TENANTS_ROOT}/${TENANT}/config/tenant.env"
 SRC="${PLATFORM_ROOT}/n8n/workflows"
 TOKENS="${PLATFORM_ROOT}/n8n/workflow-tokens.py"
+ORDER="${PLATFORM_ROOT}/n8n/workflow-order.py"
 
 # Sin permiso para atravesar el directorio, "no existe" y "no puedo leerlo" son
 # indistinguibles desde aquí -- y los secretos del tenant son de root. Así que se
@@ -82,6 +83,7 @@ Prueba con sudo."
 fi
 [[ -d "$SRC" ]] || fail "No existe ${SRC}"
 [[ -f "$TOKENS" ]] || fail "No existe ${TOKENS}"
+[[ -f "$ORDER" ]] || fail "No existe ${ORDER}"
 
 set -a
 # shellcheck disable=SC1090
@@ -184,8 +186,9 @@ Secretos de WhatsApp:
   ${WHATSAPP_ESTADO}
 
 Publicación:
-  se publican todos tras importar (en n8n 2.x un sub-workflow sin publicar
-  no se puede llamar), menos: SESSION · Cleanup
+  se publican todos tras importar, en orden de dependencias (n8n no publica
+  un workflow cuyos sub-workflows no lo estén), menos: SESSION · Cleanup
+  Después se REINICIA ${N8N_CONTAINER}: el CLI no afecta al proceso en marcha.
 
 Salida:
   ${OUT}   (modo 700: puede contener secretos)
@@ -238,27 +241,29 @@ docker exec "$N8N_CONTAINER" n8n import:workflow --separate --input=/tmp/aegora-
 docker exec "$N8N_CONTAINER" rm -rf /tmp/aegora-import
 
 # -----------------------------------------------------------------------------
-# Publicar. En n8n 2.x importar NO publica, y un sub-workflow tiene que estar
-# publicado para que se le pueda llamar -- así que esto no es cosmética: sin
-# ello Lucía se queda sin herramientas. `publish:workflow --all` está deprecado
-# ("no longer supported"), así que va uno a uno por id.
+# Publicar. En n8n 2.x importar NO publica, y un workflow sin publicar no se
+# ejecuta ni registra su webhook ("Workflow is not active and cannot be
+# executed") -- así que esto no es cosmética: sin ello Lucía se queda sin
+# herramientas y WhatsApp deja de entrar.
+#
+# Dos detalles que costaron un rato:
+#   - `publish:workflow --all` está deprecado ("no longer supported"), así que
+#     va uno a uno por --id. (`update:workflow --active=true` es ya solo un
+#     alias de publish; también deprecado.)
+#   - **El orden importa**: n8n no publica un workflow cuyos sub-workflows no lo
+#     estén. Por nombre de fichero sale mal (`AGENT-Lucia-Core-v2` va antes que
+#     `LUCIA-TOOL-*` y depende de las siete), así que el orden lo calcula
+#     workflow-order.py con el grafo real de llamadas.
 #
 # Menos los de NO_PUBLICAR: SESSION · Cleanup tiene un trigger de schedule que
-# borra sesiones y nunca se ha probado. Publicarlo "porque estaban todos" lo
-# pondría a correr solo.
+# borra sesiones y nunca se ha probado.
 # -----------------------------------------------------------------------------
 NO_PUBLICAR=(aegoraSessionCleanup)
 
-mapfile -t IDS < <(python3 - "$OUT" <<'PYIDS'
-import json, sys
-from pathlib import Path
-for f in sorted(Path(sys.argv[1]).glob("*.json")):
-    d = json.loads(f.read_text(encoding="utf-8"))
-    print(f"{d['id']}\t{f.name}")
-PYIDS
-)
+mapfile -t IDS < <(python3 "$ORDER" "$OUT")
+[[ ${#IDS[@]} -gt 0 ]] || fail "No se pudo calcular el orden de publicación."
 
-log "Publicando ${#IDS[@]} workflows (uno a uno: --all está deprecado)…"
+log "Publicando ${#IDS[@]} workflows en orden de dependencias…"
 PUBLICADOS=0
 SALTADOS=()
 FALLIDOS=()
@@ -275,10 +280,12 @@ for fila in "${IDS[@]}"; do
     SALTADOS+=("$wname")
     continue
   fi
-  if docker exec "$N8N_CONTAINER" n8n publish:workflow --id="$wid" >/dev/null 2>&1; then
+  # La salida se guarda, no se tira: la primera versión de esto la mandaba a
+  # /dev/null y escondió justo el aviso que hacía falta leer.
+  if salida="$(docker exec "$N8N_CONTAINER" n8n publish:workflow --id="$wid" 2>&1)"; then
     PUBLICADOS=$((PUBLICADOS + 1))
   else
-    FALLIDOS+=("$wname ($wid)")
+    FALLIDOS+=("${wname} (${wid}): ${salida}")
   fi
 done
 
@@ -289,7 +296,33 @@ fi
 if [[ ${#FALLIDOS[@]} -gt 0 ]]; then
   log "ERROR: no se pudieron publicar:"
   for x in "${FALLIDOS[@]}"; do log "    ${x}"; done
-  fail "Quedan workflows sin publicar. Un sub-workflow sin publicar no se puede llamar."
+  fail "Quedan workflows sin publicar. Uno sin publicar no se ejecuta ni registra su webhook."
+fi
+
+# -----------------------------------------------------------------------------
+# Reiniciar. El CLI escribe en la base de datos, pero el proceso en marcha no se
+# entera: lo dice él mismo ("Changes will not take effect if n8n is running").
+# Sin esto el import parece correcto y el webhook sigue devolviendo 404.
+# -----------------------------------------------------------------------------
+log "Reiniciando ${N8N_CONTAINER} (el CLI no afecta al proceso en marcha)…"
+docker restart "$N8N_CONTAINER" >/dev/null
+
+log "Esperando a que n8n responda…"
+LISTO=false
+for _ in $(seq 1 45); do
+  if docker exec "$N8N_CONTAINER" node -e \
+      "fetch('http://127.0.0.1:5678/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" \
+      >/dev/null 2>&1; then
+    LISTO=true
+    break
+  fi
+  sleep 2
+done
+
+if [[ "$LISTO" == true ]]; then
+  log "n8n responde."
+else
+  log "AVISO: n8n no respondía a /healthz tras 90s. Revisa: docker logs --tail 50 ${N8N_CONTAINER}"
 fi
 
 cat <<DONE
@@ -298,11 +331,13 @@ cat <<DONE
 IMPORTADO
 ============================================================
 
-Queda por hacer a mano en la UI de ${N8N_CONTAINER}:
+Comprueba que el webhook quedó registrado (404 = no):
 
-  1. Comprobar que los dos adapters responden (webhook de producción).
+  docker exec ${N8N_CONTAINER} node -e "fetch('http://127.0.0.1:5678/webhook/whatsapp',\\
+    {method:'POST',headers:{'content-type':'application/json'},body:'{}'})\\
+    .then(r=>console.log('status',r.status))"
 
-  2. Borrar ${OUT} cuando termines: lleva los secretos de WhatsApp en claro.
+Y borra ${OUT} cuando termines: lleva los secretos de WhatsApp en claro.
 
 ============================================================
 
