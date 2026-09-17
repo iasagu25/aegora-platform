@@ -193,7 +193,7 @@ Frente al checkout de este VPS:
   (el checkout del VPS puede ir por detrás de tu rama; el diff bueno es el de local)
 
 Siguiente paso, desde tu máquina:
-  scp -r ${USER}@<vps>:${OUT}/. n8n/workflows/
+  scp -r ${SUDO_USER:-$USER}@<vps>:${OUT}/. n8n/workflows/
   git diff n8n/workflows
 
 Revisa el diff ANTES de commitear: esto arrastra TODO lo que se haya tocado en
