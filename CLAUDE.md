@@ -557,7 +557,10 @@ a permiso y usar el scope más estrecho que sirva. Históricamente de 2 a 6 sema
 En Microsoft no hay revisión equivalente: es *publisher verification* (alta en el programa de
 partners + verificar dominio), que solo quita el aviso de "app no verificada".
 Casi todo eso —dominio, home, términos, política de privacidad real— **hace falta igualmente**
-como empresa: hoy el aviso de privacidad de WhatsApp apunta a un enlace ficticio.
+como empresa. El aviso de privacidad de Lucía ya apunta a la política real
+(`https://aegora.es/politica-privacidad`), la misma para todos los tenants; sigue
+siendo el token `__PRIVACY_POLICY_URL__` por si algún negocio acaba teniendo la
+suya, y entonces se pone `PRIVACY_POLICY_URL` en su `tenant.env`.
 
 ## Cómo mueve el gestor una cita — decidido, sin construir (16/sep/2026)
 **No se le da un selector de huecos. Se le da un botón que arranca la conversación.**

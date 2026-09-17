@@ -99,9 +99,10 @@ set +a
 # si un tenant tiene un contenedor con otro nombre, esto lo sigue.
 export DIRECTUS_BASE_URL="http://${DIRECTUS_CONTAINER}:8055"
 export BOOKING_BASE_URL="http://${BOOKING_CONTAINER}:3000"
-# Editable en tenant.env cuando cada negocio tenga la suya de verdad; hoy el
-# enlace es ficticio (ver CLAUDE.md, apartado de verificación de Google).
-export PRIVACY_POLICY_URL="${PRIVACY_POLICY_URL:-https://aegora.es/legal/${TENANT_ID}-privacidad}"
+# La política de Aegora, que hoy vale para todos los tenants. Sigue siendo un
+# token y no un literal porque es plausible que un negocio acabe teniendo la
+# suya: entonces basta con poner PRIVACY_POLICY_URL en su tenant.env.
+export PRIVACY_POLICY_URL="${PRIVACY_POLICY_URL:-https://aegora.es/politica-privacidad}"
 
 TOTAL="$(find "$SRC" -maxdepth 1 -name '*.json' | wc -l | tr -d ' ')"
 

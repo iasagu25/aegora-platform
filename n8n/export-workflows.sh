@@ -95,7 +95,7 @@ set +a
 
 export DIRECTUS_BASE_URL="http://${DIRECTUS_CONTAINER}:8055"
 export BOOKING_BASE_URL="http://${BOOKING_CONTAINER}:3000"
-export PRIVACY_POLICY_URL="${PRIVACY_POLICY_URL:-https://aegora.es/legal/${TENANT_ID}-privacidad}"
+export PRIVACY_POLICY_URL="${PRIVACY_POLICY_URL:-https://aegora.es/politica-privacidad}"
 
 [[ "$(docker inspect --format '{{.State.Status}}' "$N8N_CONTAINER" 2>/dev/null)" == "running" ]] ||
   fail "n8n no está running: ${N8N_CONTAINER}"
