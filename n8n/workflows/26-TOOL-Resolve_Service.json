@@ -81,7 +81,7 @@
       "name": "HTTP · Directus services",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "CFY5g7INvQxRg8EB",
+          "id": "__CRED_DIRECTUS__",
           "name": "Directus"
         }
       }

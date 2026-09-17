@@ -95,7 +95,7 @@
       "name": "HTTP · Sesiones caducadas",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "CFY5g7INvQxRg8EB",
+          "id": "__CRED_DIRECTUS__",
           "name": "Directus"
         }
       }
@@ -173,7 +173,7 @@
       "name": "HTTP · Borrar sesiones",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "CFY5g7INvQxRg8EB",
+          "id": "__CRED_DIRECTUS__",
           "name": "Directus"
         }
       }

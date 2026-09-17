@@ -84,10 +84,25 @@ SECRET_SHAPES = (
     (re.compile(r"\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\."), "JWT"),
 )
 
+# Los `id` de credencial TAMBIÉN atan al tenant. El README heredado decía que
+# n8n las re-mapea por nombre al importar: es FALSO, lo resuelve por `id` y
+# falla con "Credential with ID ... does not exist" aunque exista una con ese
+# nombre (comprobado 17/sep/2026 en demo). Los 29 nodos que apuntan a `Directus`
+# funcionan solo porque llevan dentro el id de demo; en otro tenant fallarían
+# igual. Así que el id va en un token derivado del NOMBRE de la credencial, y
+# `render` pregunta a n8n qué id tiene cada una.
+TOKEN_CRED_PREFIX = "__CRED_"
+
 TOKEN_DIRECTUS = "__DIRECTUS_BASE_URL__"
 TOKEN_BOOKING = "__BOOKING_BASE_URL__"
 TOKEN_TENANT = "__TENANT_ID__"
 TOKEN_PRIVACY = "__PRIVACY_POLICY_URL__"
+
+
+def credential_slug(name: str) -> str:
+    """`Booking API` -> `__CRED_BOOKING_API__`. Determinista en los dos sentidos."""
+    limpio = re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_").upper()
+    return f"{TOKEN_CRED_PREFIX}{limpio}__"
 
 
 def fail(message: str) -> None:
@@ -136,10 +151,60 @@ def render(text: str, tenant: Tenant) -> str:
         valor = os.environ.get(var, "").strip()
         if valor:
             text = text.replace(placeholder, valor)
+
+    # Ids de credencial, por nombre. El que llama pasa AEGORA_CREDENTIALS con lo
+    # que tenga el n8n del tenant: {"Directus": "CFY5…", …}.
+    for nombre, cred_id in credenciales_del_entorno().items():
+        text = text.replace(credential_slug(nombre), cred_id)
     # El token del tenant aparece como valor entero ("__TENANT_ID__") y entre
     # comillas simples dentro de jsCode ('__TENANT_ID__'); un replace plano
     # cubre los dos.
     return text.replace(TOKEN_TENANT, tenant.tenant_id)
+
+
+def credenciales_que_usan(sources) -> dict:
+    """{nombre de credencial: [tipo, …]} mirando todos los workflows a la vez.
+
+    Se recogen de una pasada para poder decirle a quien monta un tenant nuevo
+    TODAS las credenciales que le faltan, con su nombre y su tipo, en vez de
+    pararse en la primera.
+    """
+    usadas = {}
+    for source in sources:
+        data = json.loads(source.read_text(encoding="utf-8"))
+        for node in data.get("nodes", []):
+            for tipo, cred in (node.get("credentials") or {}).items():
+                nombre = cred.get("name")
+                if nombre:
+                    usadas.setdefault(nombre, set()).add(tipo)
+    return {k: sorted(v) for k, v in usadas.items()}
+
+
+def credenciales_del_entorno() -> dict:
+    crudo = os.environ.get("AEGORA_CREDENTIALS", "").strip()
+    if not crudo:
+        return {}
+    try:
+        datos = json.loads(crudo)
+    except json.JSONDecodeError as exc:
+        fail(f"AEGORA_CREDENTIALS no es JSON válido: {exc}")
+    return {str(k): str(v) for k, v in datos.items()}
+
+
+def tokenize_credentials(text: str) -> str:
+    """El `id` de cada credencial, al token que toca por su nombre.
+
+    Estructural sobre el JSON: el `id` y el `name` viven en el mismo objeto, así
+    que el nombre de al lado es quien decide el token. Un replace textual no
+    podría saberlo.
+    """
+    data = json.loads(text)
+    for node in data.get("nodes", []):
+        for cred in (node.get("credentials") or {}).values():
+            nombre = cred.get("name")
+            if nombre:
+                cred["id"] = credential_slug(nombre)
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 
 
 def normalize_text(text: str, tenant: Tenant) -> str:
@@ -229,6 +294,21 @@ def main() -> None:
     if not sources:
         fail(f"No hay ningún .json en {src_dir}")
 
+    if mode == "render":
+        tiene = credenciales_del_entorno()
+        faltan = {n: t for n, t in credenciales_que_usan(sources).items() if n not in tiene}
+        if faltan:
+            print(
+                "\nERROR: en el n8n de este tenant faltan credenciales que usan "
+                "los workflows.\nCréalas con ESTE nombre exacto (n8n las "
+                "resuelve por id, no por nombre: el id lo recoge este script "
+                "una vez existen) y repite:\n",
+                file=sys.stderr,
+            )
+            for nombre, tipos in sorted(faltan.items()):
+                print(f"  {nombre!r}   (tipo: {', '.join(tipos)})", file=sys.stderr)
+            raise SystemExit(1)
+
     # Nada se escribe hasta que TODO ha pasado las comprobaciones: un secreto
     # escrito a medias ya está en el disco de quien luego hace `git add .`.
     salida = {}
@@ -238,13 +318,13 @@ def main() -> None:
 
         if mode == "render":
             out = render(text, tenant)
-            leftover = re.findall(r"__[A-Z][A-Z_]*__", out)
+            leftover = sorted(set(re.findall(r"__[A-Z][A-Z_]*__", out)))
             if leftover:
-                fail(f"{source.name}: tokens sin resolver: {sorted(set(leftover))}")
+                fail(f"{source.name}: tokens sin resolver: {leftover}")
         else:
             if "--from-export" in flags:
                 text = strip_export(text)
-            out = restore_secrets(normalize_text(text, tenant))
+            out = tokenize_credentials(restore_secrets(normalize_text(text, tenant)))
             hits = find_residue(out, tenant)
             if hits:
                 residue[source.name] = hits

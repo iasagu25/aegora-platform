@@ -97,7 +97,7 @@
       "name": "HTTP · Booking API reschedule",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "au21q2D0g1ZQLV6E",
+          "id": "__CRED_BOOKING_API__",
           "name": "Booking API"
         }
       }

@@ -69,13 +69,18 @@ Descartados en el export: `My workflow` (scratch), un `05` con 0 nodos y un
 
 **Los nombres no llevan el tenant a propósito.** Cada tenant tiene su propia
 instancia de n8n, así que `Directus · demo` era ruido: se llaman `Directus` y
-`WhatsApp` en todos. n8n resuelve por `id` y, al importar donde ese `id` no
-existe, por **nombre** — así que en un tenant nuevo basta con crearlas con
-exactamente estos nombres y no hay que reseleccionar nada a mano. No hay
-expresión que valga para el nombre de una credencial, y por eso un nodo
-`Config` nunca pudo resolver este hardcode.
+`WhatsApp` en todos.
 
-Los `id` de arriba son los de **demo** y van fijados en los JSON.
+**n8n resuelve las credenciales por `id`, NO por nombre.** Una versión anterior
+de este README decía lo contrario; es falso, y se vio al importar el adapter de
+WhatsApp: `Credential with ID "REPLACE_WHATSAPP_CRED" does not exist`, con la
+credencial `WhatsApp` creada y a la vista. Por eso en Git el `id` es un token
+derivado del nombre (`__CRED_DIRECTUS__`, `__CRED_BOOKING_API__`…) y
+`render-workflows.sh` lo rellena preguntándole a ese n8n qué id tiene cada una.
+Si falta alguna, se para y las lista con su nombre y su tipo.
+
+Los `id` de la tabla son los de **demo**, como referencia; en los JSON van
+tokens.
 
 ## Migración a Booking API (handover §12.3)
 

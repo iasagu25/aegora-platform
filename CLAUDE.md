@@ -494,8 +494,16 @@ nombre de su contenedor, así que se renderiza al desplegar, igual que
   el checkout del VPS** (que se resetea duro): deja el resultado aparte para
   traérselo por `scp`, como `snapshot-schema.sh`.
 
-Dos valores NO llevan token, simplemente dejan de nombrar al tenant: los nombres
-de credencial (`Directus`, `WhatsApp`) y los `webhookId`.
+Los `webhookId` no llevan token, simplemente dejan de nombrar al tenant. Los
+**nombres** de credencial tampoco (`Directus`, `WhatsApp`), pero sus **`id`** sí:
+n8n resuelve una credencial por `id` y **NO por nombre**, al contrario de lo que
+afirmaba el README heredado — se vio con `Credential with ID
+"REPLACE_WHATSAPP_CRED" does not exist` teniendo la credencial `WhatsApp`
+delante. Los otros 29 nodos funcionaban solo porque llevaban dentro el id de
+`demo`; en otro tenant habrían fallado igual. Así que el id va en
+`__CRED_<NOMBRE>__` y `render-workflows.sh` lo resuelve leyendo
+`n8n export:credentials` del tenant (de ahí solo salen id y nombre; el blob
+cifrado no sale del contenedor).
 
 **Un export trae los secretos del tenant en claro.** Los campos de un nodo
 `Config` los guarda n8n tal cual (no son credenciales cifradas), así que

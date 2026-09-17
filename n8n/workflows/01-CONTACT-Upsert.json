@@ -208,7 +208,7 @@
       "name": "HTTP · Update Contact",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "CFY5g7INvQxRg8EB",
+          "id": "__CRED_DIRECTUS__",
           "name": "Directus"
         }
       }
@@ -260,7 +260,7 @@
       "name": "HTTP · Create Phone",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "CFY5g7INvQxRg8EB",
+          "id": "__CRED_DIRECTUS__",
           "name": "Directus"
         }
       }
@@ -286,7 +286,7 @@
       "name": "HTTP · Create Contact",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "CFY5g7INvQxRg8EB",
+          "id": "__CRED_DIRECTUS__",
           "name": "Directus"
         }
       }

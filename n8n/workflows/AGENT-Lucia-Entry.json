@@ -156,7 +156,7 @@
       "name": "HTTP · Cargar sesión",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "CFY5g7INvQxRg8EB",
+          "id": "__CRED_DIRECTUS__",
           "name": "Directus"
         }
       }
@@ -657,7 +657,7 @@
       "name": "HTTP · Actualizar sesión",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "CFY5g7INvQxRg8EB",
+          "id": "__CRED_DIRECTUS__",
           "name": "Directus"
         }
       }
@@ -690,7 +690,7 @@
       "name": "HTTP · Crear sesión",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "CFY5g7INvQxRg8EB",
+          "id": "__CRED_DIRECTUS__",
           "name": "Directus"
         }
       }

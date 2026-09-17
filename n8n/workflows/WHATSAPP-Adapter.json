@@ -378,7 +378,7 @@
       "name": "HTTP · WhatsApp sendText",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "REPLACE_WHATSAPP_CRED",
+          "id": "__CRED_WHATSAPP__",
           "name": "WhatsApp"
         }
       }

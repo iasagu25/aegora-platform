@@ -193,7 +193,7 @@
       "name": "OpenAI Chat Model",
       "credentials": {
         "openAiApi": {
-          "id": "EFrzfrCY52epDU2a",
+          "id": "__CRED_OPENAI_ACCOUNT__",
           "name": "OpenAI account"
         }
       }
@@ -215,7 +215,7 @@
       "name": "Postgres Chat Memory",
       "credentials": {
         "postgres": {
-          "id": "IAtHlC09QTN4mgc2",
+          "id": "__CRED_POSTGRES_ACCOUNT__",
           "name": "Postgres account"
         }
       },
@@ -433,7 +433,7 @@
       "name": "OpenAI Chat Model · Conocimiento",
       "credentials": {
         "openAiApi": {
-          "id": "EFrzfrCY52epDU2a",
+          "id": "__CRED_OPENAI_ACCOUNT__",
           "name": "OpenAI account"
         }
       }
@@ -730,7 +730,7 @@
       "name": "OpenAI Chat Model · Redacta",
       "credentials": {
         "openAiApi": {
-          "id": "EFrzfrCY52epDU2a",
+          "id": "__CRED_OPENAI_ACCOUNT__",
           "name": "OpenAI account"
         }
       }
@@ -1744,7 +1744,7 @@
       "name": "HTTP · Directus knowledge",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "CFY5g7INvQxRg8EB",
+          "id": "__CRED_DIRECTUS__",
           "name": "Directus"
         }
       }
@@ -1921,7 +1921,7 @@
       "name": "OpenAI · Redactor",
       "credentials": {
         "openAiApi": {
-          "id": "EFrzfrCY52epDU2a",
+          "id": "__CRED_OPENAI_ACCOUNT__",
           "name": "OpenAI account"
         }
       }

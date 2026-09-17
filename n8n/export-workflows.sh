@@ -23,6 +23,10 @@ IFS=$'\n\t'
 # script se para sin escribir nada: un secreto en Git no se arregla revirtiendo
 # el commit. Las reglas están en workflow-tokens.py (SECRET_FIELDS).
 #
+# Los `id` de credencial también se tokenizan por su nombre: son distintos en
+# cada n8n, y n8n los resuelve por id (NO por nombre, pese a lo que decía el
+# README heredado).
+#
 # NO escribe en el checkout del VPS: el VPS nunca hace push y su repo se resetea
 # duro. Escribe a un directorio aparte para traérselo con scp, igual que
 # snapshot-schema.sh con el esquema. El diff se revisa en local antes de

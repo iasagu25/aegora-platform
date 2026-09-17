@@ -13,10 +13,10 @@ IFS=$'\n\t'
 # De paso sustituye la importación a mano de 41 JSON por la UI de n8n.
 #
 # Lo que NO hace, y hay que seguir haciendo una vez por tenant:
-#   - Crear las credenciales (nunca están en Git): `Directus`, `Booking API`,
-#     `WhatsApp`, `OpenAi account`, `Postgres account`. Los nombres ya no llevan
-#     el tenant: cada tenant tiene su propia instancia de n8n. n8n las re-mapea
-#     por nombre al importar, así que tienen que llamarse exactamente así.
+#   - Crear las credenciales (nunca están en Git). Este script las busca por
+#     nombre en el n8n del tenant y mete su `id` en los workflows; si falta
+#     alguna, se para y te dice cuáles con su nombre y su tipo. Los nombres ya
+#     no llevan el tenant: cada uno tiene su propia instancia de n8n.
 #   - Activar los workflows que lleven webhook.
 #
 # La dirección inversa (del tenant a Git) es export-workflows.sh.
@@ -127,6 +127,35 @@ elif [[ -e "$WHATSAPP_SECRETS" ]]; then
   WHATSAPP_ESTADO="sin permiso para leer ${WHATSAPP_SECRETS} (¿sudo?)"
 fi
 
+# Los `id` de credencial del tenant. n8n resuelve las credenciales por id y NO
+# por nombre (el README heredado decía lo contrario y es falso: falla con
+# "Credential with ID ... does not exist" aunque exista una con ese nombre), así
+# que el id tiene que ser el bueno de ESTE n8n. Se lee de su propio export, del
+# que solo se sacan id y nombre -- el blob cifrado no sale del contenedor.
+AEGORA_CREDENTIALS='{}'
+CREDS_ESTADO="n8n no consultado (solo en --apply se necesita)"
+if [[ "$(docker inspect --format '{{.State.Status}}' "$N8N_CONTAINER" 2>/dev/null)" == "running" ]]; then
+  if AEGORA_CREDENTIALS="$(
+      docker exec "$N8N_CONTAINER" sh -c '
+        rm -f /tmp/aegora-creds.json
+        n8n export:credentials --all --output=/tmp/aegora-creds.json >/dev/null 2>&1 || exit 1
+        node -e "
+          const c = require(\"/tmp/aegora-creds.json\");
+          const m = {};
+          for (const x of c) m[x.name] = x.id;
+          console.log(JSON.stringify(m));
+        "
+        rm -f /tmp/aegora-creds.json
+      ' 2>/dev/null)"; then
+    CREDS_ESTADO="$(printf '%s' "$AEGORA_CREDENTIALS" | python3 -c \
+      'import json,sys; d=json.load(sys.stdin); print(", ".join(sorted(d)) or "(ninguna)")')"
+  else
+    AEGORA_CREDENTIALS='{}'
+    CREDS_ESTADO="ERROR: no se pudieron leer de ${N8N_CONTAINER}"
+  fi
+fi
+export AEGORA_CREDENTIALS
+
 TOTAL="$(find "$SRC" -maxdepth 1 -name '*.json' | wc -l | tr -d ' ')"
 
 cat <<PLAN
@@ -146,6 +175,9 @@ Tokens que se resuelven:
   __DIRECTUS_BASE_URL__   ${DIRECTUS_BASE_URL}
   __BOOKING_BASE_URL__    ${BOOKING_BASE_URL}
   __PRIVACY_POLICY_URL__  ${PRIVACY_POLICY_URL}
+
+Credenciales en su n8n:
+  ${CREDS_ESTADO}
 
 Secretos de WhatsApp:
   ${WHATSAPP_ESTADO}
@@ -175,6 +207,13 @@ fi
 [[ "$(docker inspect --format '{{.State.Status}}' "$N8N_CONTAINER" 2>/dev/null)" == "running" ]] ||
   fail "n8n no está running: ${N8N_CONTAINER}"
 
+# Si no se pudieron leer, el render fallaría diciendo que faltan las cinco
+# credenciales -- que es falso y manda a crear duplicados. Mejor parar aquí.
+[[ "$CREDS_ESTADO" != ERROR:* ]] ||
+  fail "No se pudieron leer las credenciales de ${N8N_CONTAINER}.
+Sin sus 'id' los workflows quedarían apuntando a credenciales inexistentes.
+Comprueba: docker exec ${N8N_CONTAINER} n8n export:credentials --all --output=/tmp/c.json"
+
 # Los flags del CLI de n8n cambian entre versiones y la doc heredada ya nos ha
 # mentido otras veces: se comprueban contra el binario real antes de usarlos.
 log "Comprobando los flags de 'n8n import:workflow' en ${N8N_CONTAINER}…"
@@ -201,14 +240,10 @@ IMPORTADO
 
 Queda por hacer a mano en la UI de ${N8N_CONTAINER}:
 
-  1. Credenciales, si es un tenant nuevo. Con estos nombres exactos:
-     Directus · Booking API · WhatsApp · OpenAi account · Postgres account
-     (importar NO las crea; n8n las re-mapea por nombre)
-
-  2. Activar los workflows con webhook:
+  1. Activar los workflows con webhook:
      WEBCHAT · Adapter · WHATSAPP · Adapter
 
-  3. Borrar ${OUT} cuando termines: lleva los secretos de WhatsApp en claro.
+  2. Borrar ${OUT} cuando termines: lleva los secretos de WhatsApp en claro.
 
 ============================================================
 
