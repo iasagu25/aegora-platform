@@ -61,7 +61,7 @@
               "id": "w6",
               "name": "require_signature",
               "type": "boolean",
-              "value": false
+              "value": true
             }
           ]
         },

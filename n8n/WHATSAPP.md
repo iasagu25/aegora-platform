@@ -32,11 +32,16 @@
   En sentido contrario, `export-workflows.sh` los devuelve a `REPLACE_*`.
 - Activar el workflow (el webhook de producción solo responde activo).
 
-> El campo se llama `app_secret` y tiene que ser el **App Secret** (32 hex de
-> App → Configuración → Básica), no el token de acceso. Si ahí hay un valor que
-> empieza por `EAA…` es un token, y entonces la firma `X-Hub-Signature-256`
-> nunca cuadra: se registra como `invalida` y, con `require_signature: false`,
-> el mensaje se procesa igual y nadie se entera.
+> El campo `app_secret` tiene que ser el **App Secret** (32 hex de App →
+> Configuración → Básica), NO el token de acceso. Si empieza por `EAA…` es un
+> token y la firma nunca cuadrará. Fue exactamente lo que pasó durante meses.
+>
+> `require_signature` está en **`true`**: una petición sin firma válida se
+> descarta. Es lo que impide que cualquiera que conozca la URL del webhook
+> falsifique un evento de Meta y haga actuar a Lucía como si fuera otro número.
+> Si se toca el App Secret, comprobar `firma` en la salida de
+> `Code · Verificar firma` ANTES de dar por bueno el cambio: con la exigencia
+> activada, un secreto equivocado deja WhatsApp mudo sin error visible.
 
 ## Cómo funciona
 
