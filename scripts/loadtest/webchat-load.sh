@@ -200,17 +200,25 @@ printf '\n  PICO DE MEMORIA DURANTE LA CARGA\n'
 awk '{ if ($2 > pico[$1]) pico[$1] = $2 } END { for (c in pico) printf "    %-28s %s\n", c, pico[c] }' \
   "$MUESTRAS" | sort
 
-# El número que importa: pasada la carga, ¿vuelve? Node no siempre devuelve al
-# SO lo que libera su GC, así que esto es indicativo, no una prueba de fuga.
-log "Esperando 60 s a que se asiente…"
-sleep 60
-resumen_memoria "MEMORIA EN REPOSO (60 s después)"
+# El número que importa: pasada la carga, ¿vuelve? Y sobre todo: CUÁNDO.
+#
+# La primera versión miraba una sola vez a los 60 s y eso engaña. En la tanda del
+# 18/sep la tercera pasada arrancó en 428 MiB cuando la segunda había "acabado"
+# en 645: n8n había devuelto 217 MiB en los minutos intermedios. Con una única
+# muestra a los 60 s se habría concluido que hay fuga donde solo hay un GC que no
+# tiene prisa en devolver al SO. Por eso ahora se mira varias veces.
+for ESPERA in 30 60 120 180; do
+  sleep 30
+  resumen_memoria "MEMORIA A LOS ${ESPERA} s"
+done
 
 printf '\n  QUÉ MIRAR\n'
-printf '    El delta entre el "antes" y el "60 s después" es lo que no se ha\n'
-printf '    devuelto. Si es pequeño, el suelo de ~800 MiB por tenant sirve para\n'
-printf '    planificar. Si crece con cada pasada, manda la concurrencia y no el\n'
-printf '    número de tenants: repite con --concurrency 20 y 40 para ver la curva.\n'
+printf '    La CURVA de las cuatro muestras, no una sola: n8n tarda minutos en\n'
+printf '    devolver memoria al SO. Si a los 180 s sigue bajando, espera más antes\n'
+printf '    de concluir nada.\n'
+printf '    Lo medido el 18/sep/2026 en demo: n8n = ~430 MiB en reposo + unos\n'
+printf '    12 MiB por conversación simultánea. 40 a la vez -> 942 MiB de pico,\n'
+printf '    sin un solo error y sin tocar el límite de conexiones de Postgres.\n'
 
 cat <<LIMPIEZA
 

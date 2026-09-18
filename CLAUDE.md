@@ -651,41 +651,53 @@ lo que falta es la automatización (`render-tenant-config.sh`), no la posibilida
 **Antes de apoyarse en cualquier builtin o global dentro de un Code node, probarlo
 ejecutando.** Han fallado, por este orden: `$env`, `require('crypto')`, `globalThis.crypto`.
 
-## Cuántos tenants caben en la VPS (medido 18/sep/2026, con reservas)
-VPS: **15 GiB, 8 núcleos, SIN swap**. Medido con `docker stats` sobre tres stacks
-(`demo`, `aegora-internal`, `aegora`):
+## Cuántos tenants caben en la VPS — medido bajo carga (18/sep/2026)
+VPS: **15 GiB, 8 núcleos, SIN swap**. Medido con `scripts/loadtest/webchat-load.sh` contra
+`demo`, tres pasadas de 3 turnos por conversación:
 
-| | directus | n8n | booking | total |
-|---|---|---|---|---|
-| `demo` | 230 | 502 | 70 | **802 MiB** |
-| `aegora-internal` | 236 | 342 | — | 578 MiB |
-| compartido | postgres 227 · caddy 23 | | | 251 MiB |
+| simultáneas | reposo antes | pico n8n | p50 | p95 | errores |
+|---|---|---|---|---|---|
+| 5  | 502 MiB | 598 MiB | 7,0 s | 12,0 s | 0 |
+| 20 | 602 MiB | 786 MiB | 8,0 s | 14,3 s | 0 |
+| 40 | 428 MiB | 942 MiB | 12,5 s | 19,0 s | 0 |
 
-**Ese 802 MiB es un SUELO, no una media**: los tres tenants están prácticamente vacíos e
-inactivos. Los 160 MiB que separan `demo-n8n` (502) de `aegora-internal-n8n` (342) son el
-precio de usarse un poco. Con un tenant real el número está sin medir, y de ahí sale
-`scripts/loadtest/webchat-load.sh` — manda conversaciones simultáneas por webchat (no por
-WhatsApp: ni cuesta mensajes ni molesta a nadie) y mide el pico y, sobre todo, **cuánta
-memoria se devuelve 60 s después**. Esa última cifra es la que decide la capacidad de un
-proceso que va a estar meses levantado.
+**La memoria se devuelve, pero tarda minutos, no segundos.** La tercera pasada arrancó en
+428 MiB cuando la segunda "acabó" en 645: n8n soltó 217 MiB en el intervalo. La primera
+versión del script miraba una sola vez a los 60 s y habría diagnosticado una fuga
+inexistente; ahora muestrea a 30/60/120/180 s. **Al interpretarlo, mirar la curva, no un
+punto.**
 
-Planificación hasta tener ese dato: **1,5 GiB por tenant -> ~7**. El suelo daría 11. La
-horquilla entre 7 y 11 es ignorancia, no conocimiento.
+Modelo utilizable: **n8n ≈ 430 MiB en reposo + ~12 MiB por conversación simultánea**
+(marginal decreciente: 12,5 MiB entre 5 y 20, 7,8 entre 20 y 40). Directus se mueve poco
+(230->265) y booking nada.
 
-Lo que NO limita, contra lo que supuse: las **conexiones a Postgres** (5 por tenant
-medidas, no 25; a 11 tenants serían 63 de 100) y la **CPU** (todo junto por debajo del
-10 % de un núcleo). Lo que sí puede morder es el **pico simultáneo** de conexiones, porque
-los pools son elásticos y su máximo no está fijado: conviene poner `DB_POOL__MAX` explícito
-en vez de descubrirlo.
+Un tenant con varias conversaciones a la vez cabe en **~1 GiB**, de donde salen
+**~11 tenants** ((11,7 GiB de techo al 78 % − 0,75 de SO/postgres/caddy) / 1 GiB). El 78 %
+es por no haber swap: sin él no hay aviso previo, se pasa de ir bien a que el OOM killer
+mate un contenedor que elige él.
 
-Dos cosas pendientes que convierten la estimación en garantía:
-- **Ninguna plantilla pone límites de recursos** (`mem_limit`, `cpus`). Sin swap, un tenant
-  que se dispare hace que el OOM killer mate a otro -- y elige él la víctima.
-- Disco sin medir. `N8N_DEFAULT_BINARY_DATA_MODE=filesystem` escribe binarios a disco.
-  El pruning de ejecuciones SÍ está en la plantilla (`EXECUTIONS_DATA_PRUNE=true`, 336 h,
-  10.000), pero **hay que confirmar que los tenants creados antes lo tienen** -- es otra
-  víctima del `render-tenant-config.sh` que falta. Ojo: cada turno de conversación son ~10
-  ejecuciones (adapter + Entry + Core + tools), así que 10.000 son ~1.000 turnos.
+Dos miedos míos que la medición descartó:
+- **Las conexiones a Postgres no son el cuello.** 40 conversaciones simultáneas, 120 turnos,
+  cero errores, y la memoria de `aegora-postgres` apenas se movió (231->248). La teoría de
+  los pools elásticos reventando a los 4 tenants era infundada.
+- **La CPU tampoco.** Ni se acercó.
+
+Lo que sí sale mal parado es la **latencia**: 7 s de p50 con solo 5 conversaciones a la vez.
+Eso no es carga, es lo que cuesta un turno del agente v2 (LLM + tools encadenados). Falta
+medir con `--concurrency 1` para separar el coste propio del encolamiento.
+
+`EXECUTIONS_MODE=regular`: todo corre en el proceso principal de n8n, por eso la memoria
+escala con la concurrencia dentro de un contenedor. El modo cola (workers + Redis) cambiaría
+ese perfil, pero no hace falta a esta escala.
+
+**Pruning de ejecuciones: comprobado y correcto.** `demo` tiene las tres variables
+(`EXECUTIONS_DATA_PRUNE=true`, 336 h, 10.000) y la tabla está en 4.042 filas / 1,9 MB con la
+más vieja a 10 días. No es un problema. Ojo al orden de magnitud: cada turno son ~10
+ejecuciones (adapter + Entry + Core + tools), así que 10.000 son ~1.000 turnos y quien manda
+de verdad es el límite de 14 días.
+
+Pendiente, y es lo que convierte la estimación en garantía: **ninguna plantilla pone
+`mem_limit` ni `cpus`**. Sin swap, un tenant que se dispare hace que el kernel mate a otro.
 
 ## Cómo mueve el gestor una cita — decidido, sin construir (16/sep/2026)
 **No se le da un selector de huecos. Se le da un botón que arranca la conversación.**
