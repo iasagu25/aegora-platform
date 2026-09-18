@@ -581,6 +581,19 @@ llama a `configure-n8n-service.sh` (sin él Lucía no puede leer nada), `configu
 tenant creado solo con él sale sin permisos para el agente y sin workflows. Levantar `dev` y
 `ops` a mano es la oportunidad de fijar el orden real antes de encerrarlo en el orquestador.
 
+**Crear un tenant limpio destapa lo que `demo` tapaba.** Primer ejemplo, en el primer
+intento: `backup-tenant.sh` exigía `POSTGRES_BOOKING_USER`, que `create-tenant.sh` dejó de
+escribir cuando Booking V1 pasó a usar `directus_<tenant>`. `demo` y `aegora-internal` son
+anteriores al cambio y lo tienen, así que sus backups funcionaban; el backup de cualquier
+tenant creado después habría muerto en la primera ejecución. Corregido: el rol booking es
+opcional. Conviene esperar más de estos, y son justamente el motivo de hacerlo a mano.
+
+Backups por tenant: `demo` está en lista blanca para las credenciales S3 compartidas;
+cualquier otro exige `--allow-shared-s3-credentials` o `--s3-credentials-file`. `dev` va con
+compartidas (no tiene datos de valor por diseño); **`ops` debe llevar credencial dedicada**,
+porque es el único tenant cuyos datos son de Aegora y valiosos. Crear esa llave en Hetzner
+ANTES de lanzar el onboarding, o para en la etapa 7/8.
+
 ## Sincronización con el calendario del cliente (Google / Outlook) — decidido, sin construir
 El layout Calendario de Directus **no admite color por evento** (sus únicas opciones son
 plantilla, campo inicio, campo fin y primer día) y además **renderiza la plantilla como

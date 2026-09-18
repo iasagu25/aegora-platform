@@ -569,14 +569,23 @@ else
   : "${POSTGRES_DIRECTUS_PASSWORD:?Falta POSTGRES_DIRECTUS_PASSWORD}"
   : "${POSTGRES_N8N_USER:?Falta POSTGRES_N8N_USER}"
   : "${POSTGRES_N8N_PASSWORD:?Falta POSTGRES_N8N_PASSWORD}"
-  : "${POSTGRES_BOOKING_USER:?Falta POSTGRES_BOOKING_USER}"
-  : "${POSTGRES_BOOKING_PASSWORD:?Falta POSTGRES_BOOKING_PASSWORD}"
 
   tenant_roles=(
     "${POSTGRES_DIRECTUS_USER}:${POSTGRES_DIRECTUS_PASSWORD}"
     "${POSTGRES_N8N_USER}:${POSTGRES_N8N_PASSWORD}"
-    "${POSTGRES_BOOKING_USER}:${POSTGRES_BOOKING_PASSWORD}"
   )
+
+  # El rol booking_<tenant> es OPCIONAL, no obligatorio. Booking V1 usa
+  # directus_<tenant>, y create-tenant.sh dejó de crearlo -- pero aquí se seguía
+  # exigiendo, así que el backup de cualquier tenant creado después de aquel
+  # cambio moría con "Falta POSTGRES_BOOKING_USER". No se vio antes porque
+  # `demo` y `aegora-internal` son anteriores y sí lo tienen; lo destapó `dev`,
+  # el primer tenant limpio.
+  if [[ -n "${POSTGRES_BOOKING_USER:-}" && -n "${POSTGRES_BOOKING_PASSWORD:-}" ]]; then
+    tenant_roles+=("${POSTGRES_BOOKING_USER}:${POSTGRES_BOOKING_PASSWORD}")
+  else
+    log "Sin rol booking en este tenant (Booking V1 usa directus_<tenant>); se omite."
+  fi
 
   {
     printf '%s\n' \
