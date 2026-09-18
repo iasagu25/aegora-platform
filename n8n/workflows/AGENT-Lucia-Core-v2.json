@@ -76,7 +76,7 @@
               "id": "c4",
               "name": "tenant_display_name",
               "type": "string",
-              "value": "Aegora Demo"
+              "value": "__TENANT_DISPLAY_NAME__"
             }
           ]
         },

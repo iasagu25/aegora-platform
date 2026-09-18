@@ -553,6 +553,34 @@ su regla va en `workflow-tokens.py` — nunca se arregla a mano en el JSON.
 Los flags del CLI de n8n se comprueban contra `--help` del binario antes de
 usarlos, no contra la documentación.
 
+## Tres tenants con alcances separados — decidido 18/sep/2026
+`demo` era a la vez escaparate y banco de pruebas, y eso significa que una demo a un
+cliente se puede romper porque estábamos tocando. Se separan:
+
+| tenant | para qué |
+|---|---|
+| `demo` | demos a clientes. **No se toca para desarrollar.** |
+| `dev` | desarrollo. Todo se hace aquí primero. |
+| `ops` | la operación del propio negocio Aegora (lo que iba a ser `aegora-internal`). |
+
+Eliminados: `aegora-internal` (con `delete-tenant.sh`) y el stack `aegora`, que no era un
+tenant sino la instalación original anterior al incidente — definida en `compose/directus`
+y `compose/n8n`, con bases sin sufijo (`directus`, `n8n`, `booking`) y roles
+`directus_app`/`n8n_app`. `delete-tenant.sh` **se niega** a borrar el id `aegora` (está
+protegido), y hace bien: `aegora-postgres` y `aegora-caddy` comparten ese prefijo y son
+plataforma viva.
+
+**El camino de promoción es `dev -> git -> demo/ops`**, y ya existe:
+`export-workflows.sh` + `snapshot-schema.sh` para capturar, `render-workflows.sh` +
+`apply-schema.sh` para aplicar. Nada se edita a mano en `demo` ni en `ops`.
+
+**`onboard-tenant.sh` va por detrás de los scripts que existen.** Encadena create, deploy,
+esquema, acceso técnico, UI, español, booking, publicación, backup y operaciones — pero NO
+llama a `configure-n8n-service.sh` (sin él Lucía no puede leer nada), `configure-tenant-role.sh`,
+`configure-directus-views.sh`, `configure-directus-presets.sh` ni `render-workflows.sh`. Un
+tenant creado solo con él sale sin permisos para el agente y sin workflows. Levantar `dev` y
+`ops` a mano es la oportunidad de fijar el orden real antes de encerrarlo en el orquestador.
+
 ## Sincronización con el calendario del cliente (Google / Outlook) — decidido, sin construir
 El layout Calendario de Directus **no admite color por evento** (sus únicas opciones son
 plantilla, campo inicio, campo fin y primer día) y además **renderiza la plantilla como

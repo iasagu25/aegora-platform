@@ -101,6 +101,7 @@ TOKEN_DIRECTUS = "__DIRECTUS_BASE_URL__"
 TOKEN_BOOKING = "__BOOKING_BASE_URL__"
 TOKEN_TENANT = "__TENANT_ID__"
 TOKEN_PRIVACY = "__PRIVACY_POLICY_URL__"
+TOKEN_DISPLAY = "__TENANT_DISPLAY_NAME__"
 
 
 def credential_slug(name: str) -> str:
@@ -127,6 +128,11 @@ class Tenant:
         self.directus = env("DIRECTUS_BASE_URL").rstrip("/")
         self.booking = env("BOOKING_BASE_URL").rstrip("/")
         self.privacy = env("PRIVACY_POLICY_URL")
+        # El nombre con el que Lucía se presenta ("soy la asistente de ..."). Se
+        # me escapó en el inventario inicial porque iba en mayúscula ("Aegora
+        # Demo") y la búsqueda era sensible a mayúsculas. De ahí que el control
+        # de residuos de abajo ya no lo sea.
+        self.display = env("TENANT_DISPLAY_NAME")
 
     @property
     def pairs(self):
@@ -138,6 +144,7 @@ class Tenant:
         """
         return (
             (TOKEN_PRIVACY, self.privacy),
+            (TOKEN_DISPLAY, self.display),
             (TOKEN_DIRECTUS, self.directus),
             (TOKEN_BOOKING, self.booking),
         )
@@ -271,7 +278,8 @@ def find_residue(text: str, tenant: Tenant):
     meter el tenant en Git y nadie se entera hasta que falla un tenant nuevo.
     """
     hits = []
-    for match in re.finditer(rf"\b{re.escape(tenant.tenant_id)}\b", text):
+    # Sin IGNORECASE se coló "Aegora Demo" durante un día entero.
+    for match in re.finditer(rf"\b{re.escape(tenant.tenant_id)}\b", text, re.IGNORECASE):
         start = max(0, match.start() - 60)
         hits.append(text[start:match.end() + 30].replace("\n", " "))
     return hits

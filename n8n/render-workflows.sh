@@ -106,6 +106,8 @@ export BOOKING_BASE_URL="http://${BOOKING_CONTAINER}:3000"
 # token y no un literal porque es plausible que un negocio acabe teniendo la
 # suya: entonces basta con poner PRIVACY_POLICY_URL en su tenant.env.
 export PRIVACY_POLICY_URL="${PRIVACY_POLICY_URL:-https://aegora.es/politica-privacidad}"
+# Con lo que Lucía se presenta: "soy la asistente de ...". Sale de TENANT_NAME.
+export TENANT_DISPLAY_NAME="${TENANT_NAME:?Falta TENANT_NAME en tenant.env}"
 
 # Los secretos de WhatsApp. En Git el adapter lleva REPLACE_*, así que
 # importarlo sin esto dejaría el WhatsApp del tenant sin configurar -- antes se
