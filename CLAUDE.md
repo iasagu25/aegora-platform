@@ -651,6 +651,42 @@ lo que falta es la automatización (`render-tenant-config.sh`), no la posibilida
 **Antes de apoyarse en cualquier builtin o global dentro de un Code node, probarlo
 ejecutando.** Han fallado, por este orden: `$env`, `require('crypto')`, `globalThis.crypto`.
 
+## Cuántos tenants caben en la VPS (medido 18/sep/2026, con reservas)
+VPS: **15 GiB, 8 núcleos, SIN swap**. Medido con `docker stats` sobre tres stacks
+(`demo`, `aegora-internal`, `aegora`):
+
+| | directus | n8n | booking | total |
+|---|---|---|---|---|
+| `demo` | 230 | 502 | 70 | **802 MiB** |
+| `aegora-internal` | 236 | 342 | — | 578 MiB |
+| compartido | postgres 227 · caddy 23 | | | 251 MiB |
+
+**Ese 802 MiB es un SUELO, no una media**: los tres tenants están prácticamente vacíos e
+inactivos. Los 160 MiB que separan `demo-n8n` (502) de `aegora-internal-n8n` (342) son el
+precio de usarse un poco. Con un tenant real el número está sin medir, y de ahí sale
+`scripts/loadtest/webchat-load.sh` — manda conversaciones simultáneas por webchat (no por
+WhatsApp: ni cuesta mensajes ni molesta a nadie) y mide el pico y, sobre todo, **cuánta
+memoria se devuelve 60 s después**. Esa última cifra es la que decide la capacidad de un
+proceso que va a estar meses levantado.
+
+Planificación hasta tener ese dato: **1,5 GiB por tenant -> ~7**. El suelo daría 11. La
+horquilla entre 7 y 11 es ignorancia, no conocimiento.
+
+Lo que NO limita, contra lo que supuse: las **conexiones a Postgres** (5 por tenant
+medidas, no 25; a 11 tenants serían 63 de 100) y la **CPU** (todo junto por debajo del
+10 % de un núcleo). Lo que sí puede morder es el **pico simultáneo** de conexiones, porque
+los pools son elásticos y su máximo no está fijado: conviene poner `DB_POOL__MAX` explícito
+en vez de descubrirlo.
+
+Dos cosas pendientes que convierten la estimación en garantía:
+- **Ninguna plantilla pone límites de recursos** (`mem_limit`, `cpus`). Sin swap, un tenant
+  que se dispare hace que el OOM killer mate a otro -- y elige él la víctima.
+- Disco sin medir. `N8N_DEFAULT_BINARY_DATA_MODE=filesystem` escribe binarios a disco.
+  El pruning de ejecuciones SÍ está en la plantilla (`EXECUTIONS_DATA_PRUNE=true`, 336 h,
+  10.000), pero **hay que confirmar que los tenants creados antes lo tienen** -- es otra
+  víctima del `render-tenant-config.sh` que falta. Ojo: cada turno de conversación son ~10
+  ejecuciones (adapter + Entry + Core + tools), así que 10.000 son ~1.000 turnos.
+
 ## Cómo mueve el gestor una cita — decidido, sin construir (16/sep/2026)
 **No se le da un selector de huecos. Se le da un botón que arranca la conversación.**
 
