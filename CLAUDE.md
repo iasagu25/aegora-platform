@@ -616,29 +616,40 @@ siendo el token `__PRIVACY_POLICY_URL__` por si algún negocio acaba teniendo la
 suya, y entonces se pone `PRIVACY_POLICY_URL` en su `tenant.env`.
 
 ## En los Code node de n8n NO hay criptografía (n8n 2.31, task runner)
-Dos puertas cerradas, comprobadas ejecutando (en el editor no se ve ninguna de las dos):
+Dos puertas cerradas, comprobadas ejecutando (en el editor no se ve ninguna):
 - `require('crypto')` -> **`Module 'crypto' is disallowed`**.
 - **`globalThis.crypto` es `undefined`**, así que tampoco hay Web Crypto.
 
 Lo que sí hay: `TextEncoder`, `Buffer`, `atob` (`typeof` = `function`).
 
-Consecuencia: `WHATSAPP · Adapter` valida `X-Hub-Signature-256` con un **HMAC-SHA256 en JS
-puro** incrustado en el nodo. No es una elección estética. Es asumible porque un fallo de
-implementación da `invalida`, nunca un `valida` falso -- para colar una firma habría que
-coincidir por casualidad con el HMAC de Meta: falla cerrado. Está verificado contra los 6
-vectores del RFC 4231, las 301 longitudes de 0 a 300 bytes y 500 pares aleatorios, todo
-contra `node:crypto`. **Si se toca, se vuelve a pasar esa batería**: el bug que tuvo mientras
-se escribía estaba en la única frontera que el relleno hace especial (`len+9` múltiplo de
-64, o sea 55 y 119 bytes), y una muestra al azar no lo habría encontrado.
+**La salida es el nodo `Crypto` de n8n**, que corre en el proceso principal y no pasa por
+el sandbox. `WHATSAPP · Adapter` valida `X-Hub-Signature-256` en tres pasos:
+`Code · Clasificar y normalizar` (saca el cuerpo crudo y prepara `_raw`/`_sig`/
+`_app_secret`) -> `Crypto · HMAC del cuerpo` (HMAC-SHA256, hex, en `_hmac`) ->
+`Code · Verificar firma` (compara en tiempo constante, aplica `require_signature` y
+**borra los campos temporales** para que el App Secret no siga viajando).
 
-Descartado `NODE_FUNCTION_ALLOW_BUILTIN=crypto`: no hay forma de hacer llegar un cambio de
-plantilla a un tenant ya creado (falta `render-tenant-config.sh`) y relaja el sandbox de
-todos los Code node para arreglar uno. Si algún día hay que hacer más criptografía, la
-salida buena es el **nodo Crypto** de n8n, que no pasa por el sandbox.
+Detalles que importan si se toca:
+- El **GET de verificación** de Meta no viene firmado: lleva `firma: 'no_aplica'` y la
+  puerta de `require_signature` lo excluye explícitamente. Exigir firma ahí rompería el
+  alta del webhook.
+- El nodo Crypto va con `onError: continueRegularOutput`. Si falla, el item sigue sin
+  `_hmac` y `Verificar firma` lo dice ("el nodo Crypto no devolvió _hmac") en vez de
+  tumbar el webhook.
+
+Hubo una versión con **HMAC-SHA256 en JS puro** incrustado en el Code node (commit
+8808fff). Funciona y está verificada contra los vectores del RFC 4231, pero es la última
+bala, no la primera: se llegó a ella por preferir la opción demostrable en local antes que
+la ortodoxa. Si algún día el nodo Crypto no sirve, está en el historial.
+
+Tercera opción, no usada: `NODE_FUNCTION_ALLOW_BUILTIN=crypto` en el `.env` del
+contenedor. Es perfectamente viable en un tenant existente (editar el `.env` renderizado y
+reiniciar); se descartó solo porque relaja el sandbox de todos los Code node para arreglar
+uno. **No es cierto que no se pueda cambiar la configuración de un tenant ya creado** --
+lo que falta es la automatización (`render-tenant-config.sh`), no la posibilidad.
 
 **Antes de apoyarse en cualquier builtin o global dentro de un Code node, probarlo
-ejecutando.** Hoy han fallado, por este orden: `$env`, `require('crypto')` y
-`globalThis.crypto`.
+ejecutando.** Han fallado, por este orden: `$env`, `require('crypto')`, `globalThis.crypto`.
 
 ## Cómo mueve el gestor una cita — decidido, sin construir (16/sep/2026)
 **No se le da un selector de huecos. Se le da un botón que arranca la conversación.**

@@ -219,7 +219,20 @@ Necesita permiso `delete` para la policy n8n sobre `conversation_sessions`.
 
 ## Importar / exportar un workflow suelto
 
-Para el día a día usa los scripts de arriba. Para tocar uno solo a mano:
+Para uno o dos workflows el script completo es demasiado: tarda (41 invocaciones del CLI)
+y reinicia n8n. El camino corto es renderizar, importar solo ese, y **publicarlo desde la
+UI** -- que va por el proceso en marcha y por tanto NO necesita reinicio:
+
+```bash
+sudo n8n/render-workflows.sh --tenant demo          # sin --apply: solo renderiza
+sudo docker cp /tmp/aegora-workflows-demo/WHATSAPP-Adapter.json demo-n8n:/tmp/wf.json
+sudo docker exec demo-n8n n8n import:workflow --input=/tmp/wf.json
+# y darle a Publish en la UI
+```
+
+El reinicio solo hace falta cuando se publica **por CLI**, que es lo que hace `--apply`.
+
+Para tocar uno a mano sin renderizar:
 
 ```bash
 docker cp n8n/workflows/03-APPOINTMENT-Create.json <tenant>-n8n:/tmp/wf.json
