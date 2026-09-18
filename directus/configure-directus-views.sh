@@ -368,12 +368,13 @@ HECHO
 
 Esto es esquema. Para que no se pierda ni le falte al próximo tenant:
 
-  1) snapshot en el contenedor (sin tuberías, que truncan a 64 KiB):
-       docker exec ${DIRECTUS_CONTAINER} sh -c \\
-         "node /directus/cli.js schema snapshot --yes \\
-          | grep -vE '^\[[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}\]' > /tmp/base-nuevo.yaml"
-  2) docker cp ${DIRECTUS_CONTAINER}:/tmp/base-nuevo.yaml /tmp/base-nuevo.yaml
-  3) comparar wc -l dentro y fuera, y llevarlo al repo local para revisar el diff.
+  1) directus/snapshot-schema.sh --tenant ${TENANT_ID}
+  2) traérselo a local:  scp <vps>:/tmp/base-nuevo.yaml /tmp/base-nuevo.yaml
+  3) revisar el diff contra directus/schema/base.yaml ANTES de commitear.
+
+El CLI a mano NO: canalizar su salida la trunca en 64 KiB exactos y el YAML
+resultante parsea pero llega a la mitad, sin relaciones. El script escribe a
+fichero y además deja a null los displays de nuestras extensiones.
 
 ============================================================
 
