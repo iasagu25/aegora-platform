@@ -452,6 +452,17 @@ bueno:
   - Aplicar `base.yaml` + `booking-indexes.sql` en `aegora-internal`, y montar
     allí credenciales n8n + workflows.
   - Migrar build A → imagen en GHCR (CI en `aegora-booking`).
+  - **Límites de recursos en las plantillas** (`mem_limit`, `cpus` en los tres
+    `compose.yml.tpl`). Hoy no hay ninguno y no hay swap: un tenant que se
+    dispare hace que el OOM killer mate a otro, y elige él la víctima. Con el
+    modelo medido los números ya se saben: ~1,5 GiB para n8n y ~512 MiB para
+    Directus dejan margen sobre lo observado. Es lo que convierte "caben 11" en
+    una garantía en vez de un promedio.
+  - **Medir la latencia del agente con `--concurrency 1`**
+    (`scripts/loadtest/webchat-load.sh --tenant demo --concurrency 1 --rounds 5`).
+    Con 5 conversaciones simultáneas el p50 ya es de 7 s, y hace falta saber
+    cuánto de eso es la cadena LLM -> tool -> LLM y cuánto encolamiento. Si es
+    lo primero, es un asunto de producto: son 7 segundos que el cliente espera.
   - **Cambios de plataforma no llegan a tenants existentes**: `create-tenant.sh`
     renderiza `compose/*/.env` una sola vez, al crear el tenant. Si cambia una
     plantilla (p.ej. `WEBHOOK_URL` en `n8n/.env.tpl`), los tenants ya creados se
@@ -683,8 +694,7 @@ Dos miedos míos que la medición descartó:
 - **La CPU tampoco.** Ni se acercó.
 
 Lo que sí sale mal parado es la **latencia**: 7 s de p50 con solo 5 conversaciones a la vez.
-Eso no es carga, es lo que cuesta un turno del agente v2 (LLM + tools encadenados). Falta
-medir con `--concurrency 1` para separar el coste propio del encolamiento.
+Eso no es carga, es lo que cuesta un turno del agente v2 (LLM + tools encadenados).
 
 `EXECUTIONS_MODE=regular`: todo corre en el proceso principal de n8n, por eso la memoria
 escala con la concurrencia dentro de un contenedor. El modo cola (workers + Redis) cambiaría
@@ -696,8 +706,7 @@ más vieja a 10 días. No es un problema. Ojo al orden de magnitud: cada turno s
 ejecuciones (adapter + Entry + Core + tools), así que 10.000 son ~1.000 turnos y quien manda
 de verdad es el límite de 14 días.
 
-Pendiente, y es lo que convierte la estimación en garantía: **ninguna plantilla pone
-`mem_limit` ni `cpus`**. Sin swap, un tenant que se dispare hace que el kernel mate a otro.
+Los dos pendientes que salen de aquí están en la lista de pendientes de más arriba.
 
 ## Cómo mueve el gestor una cita — decidido, sin construir (16/sep/2026)
 **No se le da un selector de huecos. Se le da un botón que arranca la conversación.**
