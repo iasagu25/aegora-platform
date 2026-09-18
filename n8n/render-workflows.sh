@@ -110,8 +110,11 @@ export PRIVACY_POLICY_URL="${PRIVACY_POLICY_URL:-https://aegora.es/politica-priv
 # Los secretos de WhatsApp. En Git el adapter lleva REPLACE_*, así que
 # importarlo sin esto dejaría el WhatsApp del tenant sin configurar -- antes se
 # reescribían a mano en la UI después de cada import.
+# Desde que `require_signature` es `true`, faltar el App Secret no deja WhatsApp
+# "sin configurar": lo deja MUDO. La firma no valida, el adapter descarta el
+# evento y no hay error a la vista. Por eso el aviso es explícito.
 WHATSAPP_SECRETS="${TENANT_ROOT}/secrets/whatsapp.env"
-WHATSAPP_ESTADO="no encontrado -> se importan los REPLACE_* (WhatsApp quedará sin configurar)"
+WHATSAPP_ESTADO="NO ENCONTRADO -> WhatsApp quedará MUDO (sin App Secret la firma no valida y se descarta todo)"
 if [[ -r "$WHATSAPP_SECRETS" ]]; then
   set -a
   # shellcheck disable=SC1090
@@ -124,7 +127,14 @@ if [[ -r "$WHATSAPP_SECRETS" ]]; then
   if [[ ${#faltan[@]} -eq 0 ]]; then
     WHATSAPP_ESTADO="se rellenan desde ${WHATSAPP_SECRETS}"
   else
-    WHATSAPP_ESTADO="incompleto en ${WHATSAPP_SECRETS}: faltan ${faltan[*]}"
+    WHATSAPP_ESTADO="INCOMPLETO en ${WHATSAPP_SECRETS}: faltan ${faltan[*]}"
+    for v in "${faltan[@]}"; do
+      if [[ "$v" == "WHATSAPP_APP_SECRET" ]]; then
+        WHATSAPP_ESTADO+="
+                        ^ sin este, WhatsApp queda MUDO: la firma no valida y
+                          el adapter descarta todos los eventos, sin error."
+      fi
+    done
   fi
 elif [[ -e "$WHATSAPP_SECRETS" ]]; then
   WHATSAPP_ESTADO="sin permiso para leer ${WHATSAPP_SECRETS} (¿sudo?)"
