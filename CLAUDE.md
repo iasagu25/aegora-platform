@@ -461,13 +461,8 @@ bueno:
     Con 5 conversaciones simultáneas el p50 ya es de 7 s, y hace falta saber
     cuánto de eso es la cadena LLM -> tool -> LLM y cuánto encolamiento. Si es
     lo primero, es un asunto de producto: son 7 segundos que el cliente espera.
-  - **Cambios de plataforma no llegan a tenants existentes**: `create-tenant.sh`
-    renderiza `compose/*/.env` una sola vez, al crear el tenant. Si cambia una
-    plantilla (p.ej. `WEBHOOK_URL` en `n8n/.env.tpl`), los tenants ya creados se
-    quedan atrás y no hay forma limpia de actualizarlos. Falta un
-    `render-tenant-config.sh` (PLAN con diff + APPLY) que re-renderice las
-    plantillas desde `tenant.env`. Para `tenant.env` en sí ya existe
-    `set-tenant-config.sh`.
+  - Ejecutar `render-tenant-config.sh --apply` en `demo` y `dev`, que arrastran
+    el manifiesto sin `secrets/restic.env` y cualquier otro desfase de plantilla.
 
 ## Los workflows de n8n no llevan el tenant dentro — resuelto (17/sep/2026)
 
@@ -844,6 +839,33 @@ en silencio. La plantilla se borró. Si hay que añadir algo al backup, se añad
 
 **Los tenants creados antes de ese arreglo (`demo`, `dev`) tienen el manifiesto corto** y
 necesitan la entrada añadida a mano — otra vez lo que resolvería `render-tenant-config.sh`.
+
+## `render-tenant-config.sh` — los cambios de plantilla llegan a tenants existentes
+`create-tenant.sh` renderiza la configuración **una sola vez**. Cuando una plantilla mejora,
+los tenants ya creados se quedan atrás en silencio y la diferencia se descubre cuando algo
+falla. Entre el 18 y el 20/sep/2026 eso fue la causa de seis incidencias distintas (el
+pruning de n8n, el App Secret de WhatsApp, el manifiesto sin `secrets/restic.env`...), y
+cada una acabó con una edición a mano de un fichero del tenant.
+
+`provisioning/tenant/render-tenant-config.sh --tenant X [--only PIEZA] [--apply]` re-renderiza
+`compose/{directus,n8n,booking}/{compose.yml,.env}` y `backup.manifest.json`.
+
+Tres decisiones que lo hacen usable y seguro:
+- **De dónde salen los valores, por orden**: `tenant.env` -> `secrets/*.env` -> **el fichero
+  ya renderizado**. Ese tercer paso es el que lo hace viable: `BOOKING_IMAGE` y
+  `BOOKING_DATABASE_URL` los calcula `deploy-booking.sh` y no viven en ningún fichero
+  estático; en vez de fallar, se conservan. Vale igual para lo que se añada mañana.
+- **Salvaguarda**: si un valor que hoy NO está vacío quedaría vacío o desaparecería, aborta.
+  Un `.env` que pierde `N8N_ENCRYPTION_KEY` deja las credenciales del tenant ilegibles.
+- **No reinicia contenedores**: dice cuáles lo necesitan y para ahí. Un reinicio corta el
+  servicio del cliente; cuándo hacerlo es una decisión con horario.
+
+Los `.env` se muestran en el diff **por clave, nunca con sus valores**.
+
+**El manifiesto de backup pasó a ser una plantilla** (`templates/tenant-stack/backup.manifest.json.tpl`)
+que renderizan `create-tenant.sh` y este script. Antes era un heredoc dentro de
+`create-tenant.sh` y convivía con una plantilla muerta que decía otra cosa — el origen de
+que `secrets/restic.env` no se respaldara. Una sola fuente, y la usan los dos.
 
 ## Cómo mueve el gestor una cita — decidido, sin construir (16/sep/2026)
 **No se le da un selector de huecos. Se le da un botón que arranca la conversación.**

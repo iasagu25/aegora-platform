@@ -924,75 +924,9 @@ bash -n "$N8N_SECRET_ENV"
 # plantilla; si hay que añadir algo al backup, se añade AQUÍ.
 log "Generando backup.manifest.json."
 
-cat > "${TENANT_CONFIG_ROOT}/backup.manifest.json" <<EOF
-{
-  "version": 1,
-  "databases": [
-    "${POSTGRES_DIRECTUS_DB}",
-    "${POSTGRES_N8N_DB}"
-  ],
-  "persistent_paths": [
-    {
-      "path": "${DIRECTUS_DATA_DIR}",
-      "required": true
-    },
-    {
-      "path": "${N8N_DATA_DIR}",
-      "required": true
-    }
-  ],
-  "configuration_files": [
-    {
-      "source": "${TENANT_CONFIG_ROOT}/tenant.env",
-      "destination": "tenant/tenant.env",
-      "required": true,
-      "mode": "600"
-    },
-    {
-      "source": "${TENANT_COMPOSE_ROOT}/directus/compose.yml",
-      "destination": "compose/directus/compose.yml",
-      "required": true,
-      "mode": "644"
-    },
-    {
-      "source": "${TENANT_COMPOSE_ROOT}/directus/.env",
-      "destination": "compose/directus/.env",
-      "required": true,
-      "mode": "600"
-    },
-    {
-      "source": "${TENANT_COMPOSE_ROOT}/n8n/compose.yml",
-      "destination": "compose/n8n/compose.yml",
-      "required": true,
-      "mode": "644"
-    },
-    {
-      "source": "${TENANT_COMPOSE_ROOT}/n8n/.env",
-      "destination": "compose/n8n/.env",
-      "required": true,
-      "mode": "600"
-    },
-    {
-      "source": "${TENANT_SECRETS_DIR}/restic.env",
-      "destination": "secrets/restic.env",
-      "required": true,
-      "mode": "600"
-    },
-    {
-      "source": "${TENANT_COMPOSE_ROOT}/booking/compose.yml",
-      "destination": "compose/booking/compose.yml",
-      "required": false,
-      "mode": "644"
-    },
-    {
-      "source": "${TENANT_COMPOSE_ROOT}/booking/.env",
-      "destination": "compose/booking/.env",
-      "required": false,
-      "mode": "600"
-    }
-  ]
-}
-EOF
+python3 "$RENDERER" \
+  "${TEMPLATE_ROOT}/backup.manifest.json.tpl" \
+  "${TENANT_CONFIG_ROOT}/backup.manifest.json"
 
 chmod 644 \
   "${TENANT_CONFIG_ROOT}/backup.manifest.json"
