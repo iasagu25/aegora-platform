@@ -461,6 +461,18 @@ bueno:
     Con 5 conversaciones simultáneas el p50 ya es de 7 s, y hace falta saber
     cuánto de eso es la cadena LLM -> tool -> LLM y cuánto encolamiento. Si es
     lo primero, es un asunto de producto: son 7 segundos que el cliente espera.
+  - **`restore-tenant.sh` solo sirve para el layout antiguo, que ya no existe.**
+    Lee la configuración de `${PLATFORM_ROOT}/customers/<tenant>/tenant.env` y
+    restaura en `${PLATFORM_ROOT}/compose/<servicio>/`, rutas del montaje
+    anterior al multi-tenant. Para `demo` o `dev`, cuya configuración vive en
+    `/opt/aegora/tenants/<tenant>/config/`, no funciona. Es el script al que se
+    recurriría en una emergencia, y hoy no tiene ningún destino válido: código
+    muerto con aspecto de vivo. **Esto no significa que los backups no sirvan**:
+    `restore-test-tenant.sh` sí es consciente del layout, hace su propia
+    restauración (hashes SHA-256, `pg_restore` a una base temporal, recuento de
+    esquemas y tablas) y corre cada semana, así que la restaurabilidad del dato
+    está probada. Lo que falta es el procedimiento operativo. En una plataforma
+    reconstruida tras una pérdida de datos, esto va antes que casi todo.
   - **Cambios de plataforma no llegan a tenants existentes**: `create-tenant.sh`
     renderiza `compose/*/.env` una sola vez, al crear el tenant. Si cambia una
     plantilla (p.ej. `WEBHOOK_URL` en `n8n/.env.tpl`), los tenants ya creados se
@@ -563,12 +575,17 @@ cliente se puede romper porque estábamos tocando. Se separan:
 | `dev` | desarrollo. Todo se hace aquí primero. |
 | `ops` | la operación del propio negocio Aegora (lo que iba a ser `aegora-internal`). |
 
-Eliminados: `aegora-internal` (con `delete-tenant.sh`) y el stack `aegora`, que no era un
-tenant sino la instalación original anterior al incidente — definida en `compose/directus`
-y `compose/n8n`, con bases sin sufijo (`directus`, `n8n`, `booking`) y roles
-`directus_app`/`n8n_app`. `delete-tenant.sh` **se niega** a borrar el id `aegora` (está
-protegido), y hace bien: `aegora-postgres` y `aegora-caddy` comparten ese prefijo y son
-plataforma viva.
+Eliminados (20/sep/2026): `aegora-internal` con `delete-tenant.sh`, y el stack `aegora`,
+que no era un tenant sino la instalación original anterior al incidente — definida en
+`compose/directus` y `compose/n8n`, con bases sin sufijo y roles `directus_app`/`n8n_app`.
+`delete-tenant.sh` **se niega** a borrar el id `aegora` (protegido), y hace bien:
+`aegora-postgres` y `aegora-caddy` comparten ese prefijo y son plataforma viva. Su
+desmontaje fue manual; de `compose/` solo quedan `caddy` y `postgres`, que sí están en uso.
+
+Dos cosas del legacy que NO se tocan: la red `aegora_backend` (dentro está
+`aegora-postgres`) y **`/opt/aegora/secrets/restic.env`**, que era su configuración restic y
+es a la vez el fichero de credenciales S3 compartido (`GLOBAL_BOOTSTRAP_CONFIG`) del que
+dependen `demo` y `dev`.
 
 **El camino de promoción es `dev -> git -> demo/ops`**, y ya existe:
 `export-workflows.sh` + `snapshot-schema.sh` para capturar, `render-workflows.sh` +
