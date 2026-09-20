@@ -21,10 +21,11 @@ IFS=$'\n\t'
 #   2. `secrets/*.env`         -- contraseñas y claves
 #   3. el fichero YA RENDERIZADO -- para lo que no está en ninguno de los dos
 #
-# El paso 3 es el que hace esto utilizable: `BOOKING_IMAGE` y
-# `BOOKING_DATABASE_URL` los calcula `deploy-booking.sh` y no viven en ningún
-# fichero estático. En vez de fallar, se conservan los que ya había. Lo mismo
-# valdrá para cualquier variable que se añada mañana.
+# El paso 3 es el que hace esto utilizable: `BOOKING_DATABASE_URL` lo calcula
+# `deploy-booking.sh` y no vive en ningún fichero estático, así que se conserva
+# el que ya había. Ojo: solo funciona en ficheros CLAVE=valor. En un compose.yml
+# el valor va dentro del YAML y no se puede recuperar leyendo líneas, que es por
+# lo que `BOOKING_IMAGE` se lee del contenedor en marcha.
 #
 # LA SALVAGUARDA que hace esto seguro: si un valor que hoy NO está vacío
 # quedaría vacío tras renderizar, se aborta. Un .env que pierde
@@ -120,6 +121,18 @@ set +a
 [[ "$TENANT_ID" == "$TENANT" ]] ||
   fail "TENANT_ID (${TENANT_ID}) no coincide con --tenant (${TENANT})."
 
+# BOOKING_IMAGE no está en tenant.env ni en secrets/: la calcula
+# deploy-booking.sh al construir, y queda registrada en el contenedor. Esa es su
+# fuente autoritativa, así que se lee de ahí.
+if [[ -z "${BOOKING_IMAGE:-}" && -n "${BOOKING_CONTAINER:-}" ]] &&
+   command -v docker >/dev/null 2>&1; then
+  BOOKING_IMAGE="$(docker inspect --format '{{.Config.Image}}' "$BOOKING_CONTAINER" 2>/dev/null || true)"
+  if [[ -n "$BOOKING_IMAGE" ]]; then
+    export BOOKING_IMAGE
+    log "BOOKING_IMAGE tomada del contenedor ${BOOKING_CONTAINER}: ${BOOKING_IMAGE}"
+  fi
+fi
+
 TRABAJO="$(mktemp -d)"
 trap 'rm -rf "$TRABAJO"' EXIT
 
@@ -136,6 +149,10 @@ heredar_de() {
   local var valor
 
   [[ -f "$existente" ]] || return 0
+  # Solo tiene sentido en ficheros CLAVE=valor. En un compose.yml el valor está
+  # dentro del YAML (`image: aegora-booking:sha`) y no se puede recuperar así;
+  # para esos casos el valor se busca donde de verdad vive -- ver BOOKING_IMAGE.
+  [[ "$existente" == *.env ]] || return 0
 
   while read -r var; do
     [[ -n "${!var:-}" ]] && continue
@@ -196,6 +213,11 @@ procesar() {
   local plantilla="$2"
   local destino="$3"
   local contenedor="${4:-}"
+  # Booking es opcional en el modelo (el manifiesto lo marca así) y su
+  # despliegue lo gobierna deploy-booking.sh. Si aquí no se pueden resolver sus
+  # variables, se avisa y se sigue: no tiene sentido que un tenant sin booking
+  # no pueda actualizar su configuración de Directus y n8n.
+  local opcional="${5:-false}"
 
   [[ -f "$plantilla" ]] || { log "Sin plantilla, se omite: ${nombre}"; return 0; }
 
@@ -203,6 +225,12 @@ procesar() {
 
   local nuevo="${TRABAJO}/$(echo "$nombre" | tr '/' '_')"
   if ! python3 "$RENDERER" "$plantilla" "$nuevo" 2>"${nuevo}.err"; then
+    if [[ "$opcional" == true ]]; then
+      log "AVISO: no se puede renderizar ${nombre}; se omite."
+      sed 's/^/         /' "${nuevo}.err" >&2
+      log "         Lo gobierna deploy-booking.sh; vuelve a desplegarlo si hace falta."
+      return 0
+    fi
     log "ERROR renderizando ${nombre}:"
     cat "${nuevo}.err" >&2
     fail "Faltan variables. No se ha tocado nada."
@@ -284,9 +312,9 @@ quiere n8n && {
 
 quiere booking && {
   procesar "booking/compose.yml" "${TEMPLATE_ROOT}/booking/compose.yml.tpl" \
-    "${TENANT_COMPOSE_ROOT}/booking/compose.yml" "${BOOKING_CONTAINER:-}"
+    "${TENANT_COMPOSE_ROOT}/booking/compose.yml" "${BOOKING_CONTAINER:-}" true
   procesar "booking/.env" "${TEMPLATE_ROOT}/booking/.env.tpl" \
-    "${TENANT_COMPOSE_ROOT}/booking/.env" "${BOOKING_CONTAINER:-}"
+    "${TENANT_COMPOSE_ROOT}/booking/.env" "${BOOKING_CONTAINER:-}" true
 }
 
 # El manifiesto no lo lee ningún contenedor: lo leen los scripts de backup en
