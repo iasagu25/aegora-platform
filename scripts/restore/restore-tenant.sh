@@ -337,9 +337,83 @@ create_empty_database() {
       "$database"
 }
 
+# -----------------------------------------------------------------------------
+# Devolver la propiedad de una base restaurada a su rol de aplicación.
+#
+# `createdb` la crea a nombre del administrador y `pg_restore --no-owner
+# --no-privileges` quita propiedad y permisos de todo lo que hay dentro. El
+# resultado es una base perfectamente restaurada a la que su propia aplicación
+# no puede entrar: Directus y n8n arrancan y mueren con "permission denied for
+# schema public". Pasó en el primer ensayo real sobre `dev`.
+#
+# Se conservan esos flags a propósito: hacen que la restauración no dependa de
+# que los roles del dump existan, que es lo que uno quiere con el sistema caído.
+# El precio es que hay que reponer la propiedad aquí, a mano y explícitamente.
+# Se pierden GRANTs a terceros roles, que en esta plataforma no existen: cada
+# base tiene exactamente una aplicación.
+# -----------------------------------------------------------------------------
+apply_database_owner() {
+  local database="$1"
+  local role="$2"
+
+  [[ -n "$role" ]] || return 0
+
+  log "Devolviendo la propiedad de '${database}' a '${role}'."
+
+  docker exec "$POSTGRES_CONTAINER" \
+    psql \
+      --username="$POSTGRES_ADMIN_USER" \
+      --dbname=postgres \
+      --set=ON_ERROR_STOP=1 \
+      --quiet \
+      --command="ALTER DATABASE \"${database}\" OWNER TO \"${role}\"" \
+    >/dev/null
+
+  docker exec -i "$POSTGRES_CONTAINER" \
+    psql \
+      --username="$POSTGRES_ADMIN_USER" \
+      --dbname="$database" \
+      --set=ON_ERROR_STOP=1 \
+      --quiet \
+    >/dev/null <<SQL
+DO \$aegora_owner\$
+DECLARE
+  r record;
+BEGIN
+  EXECUTE format('ALTER SCHEMA public OWNER TO %I', '${role}');
+
+  FOR r IN
+    SELECT c.relname, c.relkind
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relkind IN ('r', 'S', 'v', 'm', 'p')
+  LOOP
+    EXECUTE format(
+      'ALTER %s public.%I OWNER TO %I',
+      CASE r.relkind
+        WHEN 'S' THEN 'SEQUENCE'
+        WHEN 'v' THEN 'VIEW'
+        WHEN 'm' THEN 'MATERIALIZED VIEW'
+        ELSE 'TABLE'
+      END,
+      r.relname,
+      '${role}'
+    );
+  END LOOP;
+END
+\$aegora_owner\$;
+SQL
+
+  log "Propiedad de '${database}' devuelta a '${role}'."
+}
+
 restore_database_dump() {
   local source_database="$1"
   local destination_database="$2"
+  # Vacío en las bases de prueba: son temporales, las lee el administrador y
+  # nadie más se conecta a ellas.
+  local role="${3:-}"
   local dump_file="${RUN_DIR}/postgres/${source_database}.dump"
 
   require_file "$dump_file"
@@ -360,6 +434,8 @@ restore_database_dump() {
 
     fail "Falló la restauración de '${source_database}' en '${destination_database}'."
   fi
+
+  apply_database_owner "$destination_database" "$role"
 
   log "Base restaurada correctamente: ${destination_database}"
 }
@@ -594,6 +670,22 @@ set +a
 # apunta al bucket de ESE tenant -- que es lo que impide restaurar el backup de
 # un cliente encima de otro.
 validate_loaded_tenant_context
+
+# Los roles de aplicación viven en secrets/postgres.env, no en tenant.env. Este
+# script no lo leía, y sin ellos no hay forma de devolver la propiedad de las
+# bases restauradas a quien las usa (ver apply_database_owner).
+if [[ "$CONFIG_LAYOUT" == "managed" && -n "${TENANT_POSTGRES_SECRETS:-}" &&
+      -f "$TENANT_POSTGRES_SECRETS" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$TENANT_POSTGRES_SECRETS"
+  set +a
+fi
+
+# Por convención de la plataforma el rol se llama igual que su base; si el
+# fichero de secretos no estuviera, se cae a esa convención en vez de fallar.
+POSTGRES_DIRECTUS_USER="${POSTGRES_DIRECTUS_USER:-$POSTGRES_DIRECTUS_DB}"
+POSTGRES_N8N_USER="${POSTGRES_N8N_USER:-$POSTGRES_N8N_DB}"
 
 # Y que el tenant.env cargado describa al tenant que el contexto localizó: si
 # no coinciden, la configuración se ha movido y nada de lo que sigue es fiable.
@@ -990,23 +1082,23 @@ fi
 
 case "$DATABASE_SELECTION" in
   all)
-    restore_database_dump "$POSTGRES_DIRECTUS_DB" "$POSTGRES_DIRECTUS_DB"
-    restore_database_dump "$POSTGRES_N8N_DB" "$POSTGRES_N8N_DB"
+    restore_database_dump "$POSTGRES_DIRECTUS_DB" "$POSTGRES_DIRECTUS_DB" "$POSTGRES_DIRECTUS_USER"
+    restore_database_dump "$POSTGRES_N8N_DB" "$POSTGRES_N8N_DB" "$POSTGRES_N8N_USER"
     if [[ "$TIENE_BOOKING_DB" == true ]]; then
-      restore_database_dump "$POSTGRES_BOOKING_DB" "$POSTGRES_BOOKING_DB"
+      restore_database_dump "$POSTGRES_BOOKING_DB" "$POSTGRES_BOOKING_DB" "${POSTGRES_BOOKING_USER:-$POSTGRES_BOOKING_DB}"
     fi
     ;;
 
   directus)
-    restore_database_dump "$POSTGRES_DIRECTUS_DB" "$POSTGRES_DIRECTUS_DB"
+    restore_database_dump "$POSTGRES_DIRECTUS_DB" "$POSTGRES_DIRECTUS_DB" "$POSTGRES_DIRECTUS_USER"
     ;;
 
   n8n)
-    restore_database_dump "$POSTGRES_N8N_DB" "$POSTGRES_N8N_DB"
+    restore_database_dump "$POSTGRES_N8N_DB" "$POSTGRES_N8N_DB" "$POSTGRES_N8N_USER"
     ;;
 
   booking)
-    restore_database_dump "$POSTGRES_BOOKING_DB" "$POSTGRES_BOOKING_DB"
+    restore_database_dump "$POSTGRES_BOOKING_DB" "$POSTGRES_BOOKING_DB" "${POSTGRES_BOOKING_USER:-$POSTGRES_BOOKING_DB}"
     ;;
 
   none)

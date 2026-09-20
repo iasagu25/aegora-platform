@@ -804,12 +804,23 @@ layout, hace su propia restauración (hashes SHA-256, `pg_restore` a una base te
 recuento de esquemas y tablas) y corre cada semana. La restaurabilidad del dato estaba
 probada; lo que faltaba era el procedimiento para devolverlo a su sitio.
 
-**`--verify-only` contra `demo` pasa** (20/sep/2026): localiza el snapshot, lo restaura en
-zona aislada, valida los diez hashes SHA-256 y los dos dumps, y no toca producción.
+**Ensayado de verdad el 20/sep/2026**, y encontró un fallo que ninguna verificación habría
+visto. El método: backup fresco, marcador insertado DESPUÉS del backup, un workflow
+renombrado, restauración completa, y comprobar las dos direcciones. Las dos salieron bien
+(el marcador desapareció, el nombre volvió), pero **Directus y n8n se quedaron en `starting`
+con `permission denied for schema public`**.
 
-Pendiente la prueba que de verdad cuenta: **una restauración completa sobre `dev`**, que
-para eso está. Verificar un snapshot demuestra que el dato está entero; no demuestra que el
-procedimiento devuelva un tenant a la vida.
+Causa: `createdb` crea la base a nombre del administrador y `pg_restore --no-owner
+--no-privileges` quita propiedad y permisos de todo lo de dentro. La base queda
+perfectamente restaurada y su propia aplicación no puede entrar. **Un `--verify-only` jamás
+lo habría detectado**: valida hashes y dumps, no que el servicio arranque después.
+
+Arreglado con `apply_database_owner`, que devuelve la propiedad de la base, del esquema
+`public` y de cada tabla, secuencia y vista al rol de la aplicación. Los roles se leen de
+`secrets/postgres.env` (vía `TENANT_POSTGRES_SECRETS`), que este script no miraba; si no
+estuviera, cae a la convención de que el rol se llama como su base. Los flags `--no-owner
+--no-privileges` se conservan a propósito: hacen que la restauración no dependa de que los
+roles del dump existan, que es lo que uno quiere con el sistema caído.
 
 Regla que salió de ese primer ensayo: en la restauración de configuración, **un fichero que
 falte en el snapshot no aborta nada**. Quien restaura ya tiene la contraseña del repositorio
