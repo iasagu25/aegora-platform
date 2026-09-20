@@ -48,6 +48,10 @@ readonly INVERSOR="${PLATFORM_ROOT}/provisioning/tenant/invert-template.py"
 TENANT=""
 APPLY=false
 SOLO=""
+# Claves que se pueden perder a propósito. La salvaguarda no se desactiva
+# entera: se nombra una por una, para que la decisión quede escrita en el
+# comando y no en la memoria de quien lo ejecutó.
+PERMITIR_PERDER=""
 
 log() { printf '[%s] %s\n' "$(date --iso-8601=seconds)" "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
@@ -60,6 +64,12 @@ Uso:
   --only directus|n8n|booking|manifest
       Re-renderiza solo esa pieza. Por defecto, todas.
 
+  --allow-drop CLAVE[,CLAVE...]
+      Permite que esas claves desaparezcan del .env. Sin esto, perder un
+      valor que hoy existe aborta -- que es lo que queremos por defecto.
+      Úsalo solo para variables muertas, y comprueba antes que de verdad
+      no las lee nadie.
+
 Sin --apply: enseña el diff de lo que cambiaría y no toca nada.
 Con --apply: escribe, guardando copia de cada fichero que sustituye.
 
@@ -71,6 +81,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --tenant) [[ $# -ge 2 ]] || fail "Falta valor para --tenant."; TENANT="$2"; shift 2 ;;
     --only)   [[ $# -ge 2 ]] || fail "Falta valor para --only.";   SOLO="$2";   shift 2 ;;
+    --allow-drop) [[ $# -ge 2 ]] || fail "Falta valor para --allow-drop."; PERMITIR_PERDER="$2"; shift 2 ;;
     --apply)  APPLY=true; shift ;;
     --help|-h) usage; exit 0 ;;
     *) fail "Opción desconocida: $1" ;;
@@ -182,8 +193,15 @@ comprobar_perdidas() {
 
   [[ -f "$actual" ]] || return 0
 
-  perdidas="$(python3 - "$actual" "$nuevo" <<'PY'
+  perdidas="$(PERMITIR_PERDER="$PERMITIR_PERDER" python3 - "$actual" "$nuevo" <<'PY'
+import os
 import sys
+
+permitidas = {
+    k.strip()
+    for k in os.environ.get("PERMITIR_PERDER", "").split(",")
+    if k.strip()
+}
 
 def leer(ruta):
     d = {}
@@ -198,6 +216,8 @@ def leer(ruta):
 
 antes, ahora = leer(sys.argv[1]), leer(sys.argv[2])
 for k, v in antes.items():
+    if k in permitidas:
+        continue
     if v and k in ahora and not ahora[k]:
         print(f"    {k}: tenía valor y quedaría vacío")
     elif v and k not in ahora:
@@ -205,9 +225,15 @@ for k, v in antes.items():
 PY
 )"
 
+  if [[ -n "$PERMITIR_PERDER" ]]; then
+    log "  Se permite perder (indicado con --allow-drop): ${PERMITIR_PERDER}"
+  fi
+
   if [[ -n "$perdidas" ]]; then
     log "ERROR: renderizar ${actual} perdería valores:"
     printf '%s\n' "$perdidas" >&2
+    log "Si esas claves están muertas y quieres perderlas, dilo explícitamente:"
+    log "    --allow-drop $(printf '%s' "$perdidas" | sed -n 's/^ *\([A-Z0-9_]*\):.*/\1/p' | paste -sd,)"
     fail "Abortado. Revisa que tenant.env y secrets/ tengan esos valores."
   fi
 }

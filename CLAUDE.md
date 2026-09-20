@@ -863,6 +863,11 @@ Tres decisiones que lo hacen usable y seguro:
   De un `compose.yml` no se hereda: el valor va dentro del YAML.
 - **Salvaguarda**: si un valor que hoy NO está vacío quedaría vacío o desaparecería, aborta.
   Un `.env` que pierde `N8N_ENCRYPTION_KEY` deja las credenciales del tenant ilegibles.
+  Para perder una clave **muerta** a propósito está `--allow-drop CLAVE[,CLAVE]`, que las
+  nombra una a una en vez de desactivar el control: así la decisión queda en el comando y no
+  en la memoria de quien lo ejecutó. El primer uso real en `demo` fue exactamente eso —
+  `N8N_WEBHOOK_URL` (que n8n ignoraba: su variable es `WEBHOOK_URL`) y `BOOKING_API_BASE_URL`
+  (que no aparece en el repo y que `$env` no podría leer de todos modos).
 - **No reinicia contenedores**: dice cuáles lo necesitan y para ahí. Un reinicio corta el
   servicio del cliente; cuándo hacerlo es una decisión con horario.
 
