@@ -804,9 +804,17 @@ layout, hace su propia restauración (hashes SHA-256, `pg_restore` a una base te
 recuento de esquemas y tablas) y corre cada semana. La restaurabilidad del dato estaba
 probada; lo que faltaba era el procedimiento para devolverlo a su sitio.
 
-**Pendiente: probarlo de verdad.** `--verify-only` contra `demo` y, mejor aún, una
-restauración completa sobre `dev`, que para eso está. Un script de recuperación sin ensayar
-es una hipótesis.
+**`--verify-only` contra `demo` pasa** (20/sep/2026): localiza el snapshot, lo restaura en
+zona aislada, valida los diez hashes SHA-256 y los dos dumps, y no toca producción.
+
+Pendiente la prueba que de verdad cuenta: **una restauración completa sobre `dev`**, que
+para eso está. Verificar un snapshot demuestra que el dato está entero; no demuestra que el
+procedimiento devuelva un tenant a la vida.
+
+Regla que salió de ese primer ensayo: en la restauración de configuración, **un fichero que
+falte en el snapshot no aborta nada**. Quien restaura ya tiene la contraseña del repositorio
+(la ha necesitado para leerlo), así que perder `secrets/restic.env` es una molestia y no un
+motivo para dejar el tenant a medias en el peor día del año. Se avisa y se sigue.
 
 ## Cómo mueve el gestor una cita — decidido, sin construir (16/sep/2026)
 **No se le da un selector de huecos. Se le da un botón que arranca la conversación.**

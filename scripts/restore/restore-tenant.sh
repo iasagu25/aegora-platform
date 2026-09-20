@@ -900,10 +900,21 @@ if [[ "$RESTORE_CONFIG" == true ]]; then
 COMPARTIDO del que dependen los tenants gestionados. Se va a sobrescribir."
   fi
 
-  restore_config_file \
-    "${RUN_DIR}/configuration/secrets/restic.env" \
-    "$RESTIC_CONFIG" \
-    600
+  # Opcional a propósito, no por descuido: si no está en el snapshot NO se
+  # aborta la restauración. Quien está restaurando ya tiene la contraseña del
+  # repositorio -- la ha necesitado para leer este snapshot -- así que perder
+  # este fichero es una molestia, no un motivo para dejar el tenant a medias en
+  # el peor día del año. Pero se avisa, porque sin él sus backups no corren.
+  if [[ -f "${RUN_DIR}/configuration/secrets/restic.env" ]]; then
+    restore_config_file \
+      "${RUN_DIR}/configuration/secrets/restic.env" \
+      "$RESTIC_CONFIG" \
+      600
+  else
+    warn "El snapshot no trae secrets/restic.env. El tenant quedará restaurado
+pero SIN configuración de backup: hay que reponer ${RESTIC_CONFIG} a mano
+(o volver a ejecutar configure-tenant-backup.sh) o dejará de respaldarse."
+  fi
 
   if [[ "$CONFIG_LAYOUT" == "managed" ]]; then
     # El manifiesto de un tenant gestionado solo lleva SU compose. Postgres y
