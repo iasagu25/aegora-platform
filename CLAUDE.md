@@ -461,18 +461,6 @@ bueno:
     Con 5 conversaciones simultáneas el p50 ya es de 7 s, y hace falta saber
     cuánto de eso es la cadena LLM -> tool -> LLM y cuánto encolamiento. Si es
     lo primero, es un asunto de producto: son 7 segundos que el cliente espera.
-  - **`restore-tenant.sh` solo sirve para el layout antiguo, que ya no existe.**
-    Lee la configuración de `${PLATFORM_ROOT}/customers/<tenant>/tenant.env` y
-    restaura en `${PLATFORM_ROOT}/compose/<servicio>/`, rutas del montaje
-    anterior al multi-tenant. Para `demo` o `dev`, cuya configuración vive en
-    `/opt/aegora/tenants/<tenant>/config/`, no funciona. Es el script al que se
-    recurriría en una emergencia, y hoy no tiene ningún destino válido: código
-    muerto con aspecto de vivo. **Esto no significa que los backups no sirvan**:
-    `restore-test-tenant.sh` sí es consciente del layout, hace su propia
-    restauración (hashes SHA-256, `pg_restore` a una base temporal, recuento de
-    esquemas y tablas) y corre cada semana, así que la restaurabilidad del dato
-    está probada. Lo que falta es el procedimiento operativo. En una plataforma
-    reconstruida tras una pérdida de datos, esto va antes que casi todo.
   - **Cambios de plataforma no llegan a tenants existentes**: `create-tenant.sh`
     renderiza `compose/*/.env` una sola vez, al crear el tenant. Si cambia una
     plantilla (p.ej. `WEBHOOK_URL` en `n8n/.env.tpl`), los tenants ya creados se
@@ -786,6 +774,39 @@ ejecuciones (adapter + Entry + Core + tools), así que 10.000 son ~1.000 turnos 
 de verdad es el límite de 14 días.
 
 Los dos pendientes que salen de aquí están en la lista de pendientes de más arriba.
+
+## Restaurar un tenant — `restore-tenant.sh` arreglado (20/sep/2026)
+Estaba escrito **solo para el layout antiguo**: leía `customers/<tenant>/tenant.env` y
+restauraba en `${PLATFORM_ROOT}/compose/<servicio>/`. No podía restaurar `demo` ni `dev`,
+cuya configuración vive en `/opt/aegora/tenants/<tenant>/`. Con el tenant legacy eliminado
+se quedó además sin ningún destino válido: código muerto con aspecto de vivo, y es el script
+al que se recurre con el sistema caído.
+
+Ahora resuelve el layout con `tenant-context.sh`, la misma librería que ya usaban
+`backup-tenant.sh` y `restore-test-tenant.sh`. Cambios que importan:
+- **`--tenant` es obligatorio.** Antes caía por defecto a `aegora`. Un script que para
+  servicios y sobrescribe bases de producción no debe suponer sobre cuál trabaja.
+- Llama a `validate_loaded_tenant_context` **antes de tocar nada**: comprueba que el
+  `TENANT_ID` del fichero es el pedido y que el repositorio Restic apunta al bucket de ese
+  tenant. Es lo que impide restaurar el backup de un cliente encima de otro.
+- La base y el directorio de **booking son opcionales** (mismo arreglo que en
+  `backup-tenant.sh`). Ojo al detalle: `"${RESTORE_DIR}${BOOKING_DATA_DIR}"` con la variable
+  vacía se queda en `${RESTORE_DIR}`, que SÍ existe, y activaba booking en tenants que no
+  lo tienen.
+- En layout gestionado **no restaura la configuración de Postgres ni de Caddy**: son de
+  plataforma y no están en el backup de ningún tenant. Restaurarlas desde aquí sería que un
+  tenant pisara la configuración de todos.
+- La rama legacy se conserva para poder recuperar un snapshot viejo, y **avisa** de que
+  `/opt/aegora/secrets/restic.env` es el fichero de credenciales S3 compartido.
+
+Lo que ya funcionaba y conviene no confundir: `restore-test-tenant.sh` sí era consciente del
+layout, hace su propia restauración (hashes SHA-256, `pg_restore` a una base temporal,
+recuento de esquemas y tablas) y corre cada semana. La restaurabilidad del dato estaba
+probada; lo que faltaba era el procedimiento para devolverlo a su sitio.
+
+**Pendiente: probarlo de verdad.** `--verify-only` contra `demo` y, mejor aún, una
+restauración completa sobre `dev`, que para eso está. Un script de recuperación sin ensayar
+es una hipótesis.
 
 ## Cómo mueve el gestor una cita — decidido, sin construir (16/sep/2026)
 **No se le da un selector de huecos. Se le da un botón que arranca la conversación.**

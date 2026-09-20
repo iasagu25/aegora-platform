@@ -9,11 +9,19 @@ IFS=$'\n\t'
 
 readonly PLATFORM_ROOT="/opt/aegora/platform"
 readonly SECRETS_ROOT="/opt/aegora/secrets"
-readonly RESTIC_CONFIG="${SECRETS_ROOT}/restic.env"
 readonly RESTORE_ROOT_DEFAULT="/opt/aegora/restore"
 readonly LOCK_FILE="/run/lock/aegora-restore.lock"
 
-TENANT="${TENANT:-aegora}"
+# Resolución de rutas del tenant, compartida con backup-tenant.sh y
+# restore-test-tenant.sh. Este script estaba escrito SOLO para el layout antiguo
+# (`customers/<tenant>/tenant.env` + `compose/<servicio>/`), que ya no existe:
+# no podía restaurar ningún tenant gestionado, que son todos.
+readonly CONTEXT_LIB="${PLATFORM_ROOT}/scripts/backup/tenant-context.sh"
+
+# Sin valor por defecto: este script para servicios y sobrescribe bases de
+# producción. Que asumiera un tenant si te olvidabas de --tenant era regalarle
+# una bala al día peor del año.
+TENANT="${TENANT:-}"
 SNAPSHOT="${SNAPSHOT:-latest}"
 RESTORE_ROOT="${RESTORE_ROOT:-$RESTORE_ROOT_DEFAULT}"
 
@@ -28,6 +36,8 @@ ASSUME_YES=false
 KEEP_RESTORE=false
 
 TENANT_CONFIG=""
+RESTIC_CONFIG=""
+CONFIG_LAYOUT=""
 RESTORE_DIR=""
 RUN_DIR=""
 RUN_ID=""
@@ -92,7 +102,9 @@ Opciones:
       Restaura los datos persistentes de Directus, n8n, Caddy y Booking.
 
   --restore-config
-      Restaura compose.yml, .env, Caddyfile y tenant.env.
+      Restaura tenant.env, restic.env y el compose del tenant.
+      En un tenant gestionado NO toca la configuración de Postgres ni de
+      Caddy: son de plataforma y no están en el backup de ningún tenant.
 
   --restore-globals
       Aplica globals.sql.
@@ -114,37 +126,32 @@ Ejemplos:
 
   Verificar el último snapshot:
 
-    sudo TENANT=aegora \
-      ./scripts/restore/restore-tenant.sh \
+    sudo ./scripts/restore/restore-tenant.sh --tenant demo \
       --verify-only
 
   Verificar un snapshot concreto:
 
-    sudo TENANT=aegora \
-      ./scripts/restore/restore-tenant.sh \
+    sudo ./scripts/restore/restore-tenant.sh --tenant demo \
       --snapshot 9dbb3ff2 \
       --verify-only \
       --keep
 
   Probar las tres bases en bases temporales:
 
-    sudo TENANT=aegora \
-      ./scripts/restore/restore-tenant.sh \
+    sudo ./scripts/restore/restore-tenant.sh --tenant demo \
       --snapshot 9dbb3ff2 \
       --test-databases
 
   Restaurar únicamente Booking en producción:
 
-    sudo TENANT=aegora \
-      ./scripts/restore/restore-tenant.sh \
+    sudo ./scripts/restore/restore-tenant.sh --tenant demo \
       --snapshot 9dbb3ff2 \
       --databases booking \
       --apply-production
 
   Restauración integral:
 
-    sudo TENANT=aegora \
-      ./scripts/restore/restore-tenant.sh \
+    sudo ./scripts/restore/restore-tenant.sh --tenant demo \
       --snapshot 9dbb3ff2 \
       --databases all \
       --restore-config \
@@ -396,6 +403,16 @@ restore_directory() {
     "${destination}/"
 }
 
+# Para lo que puede faltar sin que sea un error: el compose de booking no está
+# en el manifiesto de un tenant moderno, y no por ello la restauración falla.
+restore_config_file_optional() {
+  if [[ ! -f "$1" ]]; then
+    log "No está en el snapshot; se omite: $(basename "$(dirname "$1")")/$(basename "$1")"
+    return 0
+  fi
+  restore_config_file "$@"
+}
+
 restore_config_file() {
   local source="$1"
   local destination="$2"
@@ -511,13 +528,27 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Se calcula una sola vez, después de procesar --tenant.
-TENANT_CONFIG="${PLATFORM_ROOT}/customers/${TENANT}/tenant.env"
+[[ -n "$TENANT" ]] ||
+  fail "Falta --tenant. No hay valor por defecto: esto para servicios y
+sobrescribe bases de producción, y el tenant se dice a propósito."
+
+# Resuelve TENANT_CONFIG, RESTIC_CONFIG y CONFIG_LAYOUT según dónde viva de
+# verdad la configuración del tenant. El contexto expone además TENANT_ROOT,
+# pero NO se fija aquí: tenant.env define su propio TENANT_ROOT y hacerlo
+# readonly antes de leerlo rompería el `source`.
+require_file "$CONTEXT_LIB"
+# shellcheck disable=SC1090
+source "$CONTEXT_LIB"
+resolve_tenant_context
+CTX_TENANT_ROOT="$TENANT_ROOT"
 
 readonly TENANT
 readonly SNAPSHOT
 readonly RESTORE_ROOT
 readonly TENANT_CONFIG
+readonly RESTIC_CONFIG
+readonly CONFIG_LAYOUT
+readonly CTX_TENANT_ROOT
 
 # =============================================================================
 # Prerrequisitos
@@ -557,13 +588,26 @@ source "$RESTIC_CONFIG"
 set +a
 
 : "${TENANT_ID:?Falta TENANT_ID}"
+
+# Comprobación de identidad ANTES de tocar nada. La librería verifica que el
+# TENANT_ID del fichero coincide con el pedido y que el repositorio Restic
+# apunta al bucket de ESE tenant -- que es lo que impide restaurar el backup de
+# un cliente encima de otro.
+validate_loaded_tenant_context
+
+# Y que el tenant.env cargado describa al tenant que el contexto localizó: si
+# no coinciden, la configuración se ha movido y nada de lo que sigue es fiable.
+if [[ -n "${TENANT_ROOT:-}" && "$TENANT_ROOT" != "$CTX_TENANT_ROOT" ]]; then
+  fail "Incoherencia: tenant.env dice TENANT_ROOT='${TENANT_ROOT}' pero la
+configuración se encontró en '${CTX_TENANT_ROOT}'."
+fi
+
 : "${ENVIRONMENT:?Falta ENVIRONMENT}"
 : "${BACKUP_HOST:?Falta BACKUP_HOST}"
 : "${BACKUP_TAG_TENANT:?Falta BACKUP_TAG_TENANT}"
 
 : "${POSTGRES_DIRECTUS_DB:?Falta POSTGRES_DIRECTUS_DB}"
 : "${POSTGRES_N8N_DB:?Falta POSTGRES_N8N_DB}"
-: "${POSTGRES_BOOKING_DB:?Falta POSTGRES_BOOKING_DB}"
 
 : "${DIRECTUS_CONTAINER:?Falta DIRECTUS_CONTAINER}"
 : "${N8N_CONTAINER:?Falta N8N_CONTAINER}"
@@ -571,7 +615,15 @@ set +a
 
 : "${DIRECTUS_DATA_DIR:?Falta DIRECTUS_DATA_DIR}"
 : "${N8N_DATA_DIR:?Falta N8N_DATA_DIR}"
-: "${BOOKING_DATA_DIR:?Falta BOOKING_DATA_DIR}"
+
+# Booking V1 usa la base `directus_<tenant>`: create-tenant.sh dejó de crear
+# `booking_<tenant>` y su directorio de datos. Los tenants anteriores al cambio
+# los conservan. Exigirlos aquí hacía imposible restaurar un tenant moderno --
+# el mismo fallo que tenía backup-tenant.sh.
+POSTGRES_BOOKING_DB="${POSTGRES_BOOKING_DB:-}"
+BOOKING_DATA_DIR="${BOOKING_DATA_DIR:-}"
+TIENE_BOOKING_DB=false
+if [[ -n "$POSTGRES_BOOKING_DB" ]]; then TIENE_BOOKING_DB=true; fi
 
 : "${RESTIC_REPOSITORY:?Falta RESTIC_REPOSITORY}"
 : "${RESTIC_PASSWORD:?Falta RESTIC_PASSWORD}"
@@ -694,8 +746,11 @@ log "Validando dumps PostgreSQL."
 DATABASES=(
   "$POSTGRES_DIRECTUS_DB"
   "$POSTGRES_N8N_DB"
-  "$POSTGRES_BOOKING_DB"
 )
+
+if [[ "$TIENE_BOOKING_DB" == true ]]; then
+  DATABASES+=("$POSTGRES_BOOKING_DB")
+fi
 
 for database in "${DATABASES[@]}"; do
   dump_file="${RUN_DIR}/postgres/${database}.dump"
@@ -778,7 +833,7 @@ case "$DATABASE_SELECTION" in
   all)
     RESTORE_DIRECTUS=true
     RESTORE_N8N=true
-    RESTORE_BOOKING=true
+    RESTORE_BOOKING="$TIENE_BOOKING_DB"
     ;;
 
   directus)
@@ -790,6 +845,8 @@ case "$DATABASE_SELECTION" in
     ;;
 
   booking)
+    [[ "$TIENE_BOOKING_DB" == true ]] ||
+      fail "Este tenant no tiene base de booking (Booking V1 usa la de Directus)."
     RESTORE_BOOKING=true
     ;;
 
@@ -801,7 +858,10 @@ if [[ "$RESTORE_FILES" == true ]]; then
   RESTORE_DIRECTUS=true
   RESTORE_N8N=true
 
-  if [[ -d "${RESTORE_DIR}${BOOKING_DATA_DIR}" ]]; then
+  # Sin el chequeo de vacío, "${RESTORE_DIR}${BOOKING_DATA_DIR}" se queda en
+  # "${RESTORE_DIR}" -- un directorio que existe -- y activaría booking en un
+  # tenant que no lo tiene.
+  if [[ -n "$BOOKING_DATA_DIR" && -d "${RESTORE_DIR}${BOOKING_DATA_DIR}" ]]; then
     RESTORE_BOOKING=true
   fi
 fi
@@ -827,75 +887,74 @@ fi
 # =============================================================================
 
 if [[ "$RESTORE_CONFIG" == true ]]; then
-  log "Restaurando configuración efectiva."
+  log "Restaurando configuración efectiva (layout: ${CONFIG_LAYOUT})."
 
+  # Estos dos son iguales en los dos layouts: el contexto ya resolvió dónde van.
   restore_config_file \
     "${RUN_DIR}/configuration/tenant/tenant.env" \
-    "${PLATFORM_ROOT}/customers/${TENANT}/tenant.env" \
+    "$TENANT_CONFIG" \
     600
+
+  if [[ "$CONFIG_LAYOUT" == "legacy" ]]; then
+    warn "Layout legacy: ${RESTIC_CONFIG} es el fichero de credenciales S3
+COMPARTIDO del que dependen los tenants gestionados. Se va a sobrescribir."
+  fi
 
   restore_config_file \
     "${RUN_DIR}/configuration/secrets/restic.env" \
-    "${SECRETS_ROOT}/restic.env" \
+    "$RESTIC_CONFIG" \
     600
 
-  restore_config_file \
-    "${RUN_DIR}/configuration/compose/postgres/compose.yml" \
-    "${PLATFORM_ROOT}/compose/postgres/compose.yml" \
-    644
+  if [[ "$CONFIG_LAYOUT" == "managed" ]]; then
+    # El manifiesto de un tenant gestionado solo lleva SU compose. Postgres y
+    # Caddy son de plataforma y no salen en el backup de ningún tenant: si se
+    # restauraran desde aquí, un tenant pisaría la configuración de todos.
+    : "${TENANT_COMPOSE_ROOT:?Falta TENANT_COMPOSE_ROOT}"
 
-  restore_config_file \
-    "${RUN_DIR}/configuration/compose/postgres/.env" \
-    "${PLATFORM_ROOT}/compose/postgres/.env" \
-    600
+    for servicio in directus n8n; do
+      restore_config_file \
+        "${RUN_DIR}/configuration/compose/${servicio}/compose.yml" \
+        "${TENANT_COMPOSE_ROOT}/${servicio}/compose.yml" \
+        644
 
-  restore_config_file \
-    "${RUN_DIR}/configuration/compose/directus/compose.yml" \
-    "${PLATFORM_ROOT}/compose/directus/compose.yml" \
-    644
+      restore_config_file \
+        "${RUN_DIR}/configuration/compose/${servicio}/.env" \
+        "${TENANT_COMPOSE_ROOT}/${servicio}/.env" \
+        600
+    done
 
-  restore_config_file \
-    "${RUN_DIR}/configuration/compose/directus/.env" \
-    "${PLATFORM_ROOT}/compose/directus/.env" \
-    600
-
-  restore_config_file \
-    "${RUN_DIR}/configuration/compose/n8n/compose.yml" \
-    "${PLATFORM_ROOT}/compose/n8n/compose.yml" \
-    644
-
-  restore_config_file \
-    "${RUN_DIR}/configuration/compose/n8n/.env" \
-    "${PLATFORM_ROOT}/compose/n8n/.env" \
-    600
-
-  restore_config_file \
-    "${RUN_DIR}/configuration/compose/caddy/compose.yml" \
-    "${PLATFORM_ROOT}/compose/caddy/compose.yml" \
-    644
-
-  restore_config_file \
-    "${RUN_DIR}/configuration/compose/caddy/.env" \
-    "${PLATFORM_ROOT}/compose/caddy/.env" \
-    600
-
-  restore_config_file \
-    "${RUN_DIR}/configuration/compose/caddy/Caddyfile" \
-    "${PLATFORM_ROOT}/compose/caddy/Caddyfile" \
-    644
-
-  if [[ -f "${RUN_DIR}/configuration/compose/booking/compose.yml" ]]; then
-    restore_config_file \
+    restore_config_file_optional \
       "${RUN_DIR}/configuration/compose/booking/compose.yml" \
-      "${PLATFORM_ROOT}/compose/booking/compose.yml" \
+      "${TENANT_COMPOSE_ROOT}/booking/compose.yml" \
       644
-  fi
 
-  if [[ -f "${RUN_DIR}/configuration/compose/booking/.env" ]]; then
-    restore_config_file \
+    restore_config_file_optional \
       "${RUN_DIR}/configuration/compose/booking/.env" \
-      "${PLATFORM_ROOT}/compose/booking/.env" \
+      "${TENANT_COMPOSE_ROOT}/booking/.env" \
       600
+  else
+    # Layout antiguo: el backup incluía toda la plataforma, así que se restaura
+    # tal cual se hacía. No queda ningún tenant así, pero un snapshot viejo sí
+    # se puede querer recuperar algún día.
+    for pieza in \
+      "compose/postgres/compose.yml:644" \
+      "compose/postgres/.env:600" \
+      "compose/directus/compose.yml:644" \
+      "compose/directus/.env:600" \
+      "compose/n8n/compose.yml:644" \
+      "compose/n8n/.env:600" \
+      "compose/caddy/compose.yml:644" \
+      "compose/caddy/.env:600" \
+      "compose/caddy/Caddyfile:644" \
+      "compose/booking/compose.yml:644" \
+      "compose/booking/.env:600"; do
+      ruta="${pieza%:*}"
+      modo="${pieza##*:}"
+      restore_config_file_optional \
+        "${RUN_DIR}/configuration/${ruta}" \
+        "${PLATFORM_ROOT}/${ruta}" \
+        "$modo"
+    done
   fi
 fi
 
@@ -922,7 +981,9 @@ case "$DATABASE_SELECTION" in
   all)
     restore_database_dump "$POSTGRES_DIRECTUS_DB" "$POSTGRES_DIRECTUS_DB"
     restore_database_dump "$POSTGRES_N8N_DB" "$POSTGRES_N8N_DB"
-    restore_database_dump "$POSTGRES_BOOKING_DB" "$POSTGRES_BOOKING_DB"
+    if [[ "$TIENE_BOOKING_DB" == true ]]; then
+      restore_database_dump "$POSTGRES_BOOKING_DB" "$POSTGRES_BOOKING_DB"
+    fi
     ;;
 
   directus)
@@ -972,7 +1033,7 @@ if [[ "$RESTORE_FILES" == true ]]; then
     warn "No hay datos persistentes de Caddy en el snapshot."
   fi
 
-  if [[ -d "${RESTORE_DIR}${BOOKING_DATA_DIR}" ]]; then
+  if [[ -n "$BOOKING_DATA_DIR" && -d "${RESTORE_DIR}${BOOKING_DATA_DIR}" ]]; then
     restore_directory \
       "${RESTORE_DIR}${BOOKING_DATA_DIR}" \
       "$BOOKING_DATA_DIR"
