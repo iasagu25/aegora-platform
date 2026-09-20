@@ -382,12 +382,30 @@ DECLARE
 BEGIN
   EXECUTE format('ALTER SCHEMA public OWNER TO %I', '${role}');
 
+  -- Las secuencias LIGADAS a una columna (identity/serial) no admiten cambio de
+  -- dueño por su cuenta: PostgreSQL responde "cannot change owner of sequence
+  -- ... is linked to table ...". Siguen a su tabla, así que se excluyen y se
+  -- arreglan solas al cambiar el dueño de esta. Las secuencias sueltas sí van.
+  --
+  -- Las tablas primero y las secuencias sueltas al final: el ORDER BY pone
+  -- false (todo lo que no es secuencia) antes que true.
   FOR r IN
     SELECT c.relname, c.relkind
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE n.nspname = 'public'
       AND c.relkind IN ('r', 'S', 'v', 'm', 'p')
+      AND NOT (
+        c.relkind = 'S'
+        AND EXISTS (
+          SELECT 1
+          FROM pg_depend d
+          WHERE d.classid = 'pg_class'::regclass
+            AND d.objid = c.oid
+            AND d.deptype = 'a'
+        )
+      )
+    ORDER BY (c.relkind = 'S'), c.relname
   LOOP
     EXECUTE format(
       'ALTER %s public.%I OWNER TO %I',
