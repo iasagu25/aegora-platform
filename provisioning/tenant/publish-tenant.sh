@@ -379,6 +379,62 @@ validate_hostname "$N8N_HOST"
 [[ "$BOOKING_PUBLISH" != true ]] || validate_hostname "$BOOKING_HOST"
 [[ "$WEBHOOK_PUBLISH" != true ]] || validate_hostname "$WEBHOOK_HOST"
 
+# -----------------------------------------------------------------------------
+# Comprobación de DNS
+#
+# Arriba se valida que el hostname tenga forma correcta y pertenezca al dominio
+# gestionado, pero no que RESUELVA. Resultado: el onboarding terminaba diciendo
+# que todo fue bien y dejaba un tenant inalcanzable, con Caddy incapaz de pedir
+# certificado porque nadie llega hasta él. Pasó con `dev`: el síntoma aparece
+# dos días después y no se parece en nada a su causa.
+#
+# No es fatal -- el DNS puede estar propagando y la publicación en sí es
+# correcta -- pero se dice, y se dice donde se ve.
+# -----------------------------------------------------------------------------
+ip_del_servidor() {
+  ip route get 1.1.1.1 2>/dev/null |
+    awk '{ for (i = 1; i <= NF; i++) if ($i == "src") { print $(i + 1); exit } }'
+}
+
+resuelve_a() {
+  getent ahostsv4 "$1" 2>/dev/null | awk '{ print $1; exit }'
+}
+
+IP_SERVIDOR="$(ip_del_servidor || true)"
+
+# OJO: esta función se usa dentro de $( ), o sea en una subshell. No puede
+# acumular nada en una variable del shell padre -- se perdería al volver. Solo
+# devuelve texto; el recuento lo hace `hosts_sin_dns` aparte, en el shell bueno.
+estado_dns() {
+  local host="$1"
+  local ip
+  ip="$(resuelve_a "$host" || true)"
+
+  if [[ -z "$ip" ]]; then
+    printf 'NO RESUELVE'
+  elif [[ -n "$IP_SERVIDOR" && "$ip" != "$IP_SERVIDOR" ]]; then
+    printf 'apunta a %s' "$ip"
+  else
+    printf 'ok'
+  fi
+}
+
+# Los hostnames que hoy NO llevan a esta máquina. Se repite la consulta, que ya
+# está en caché y cuesta nada, a cambio de no depender de efectos colaterales.
+hosts_sin_dns() {
+  local host ip
+  for host in "$@"; do
+    [[ -n "$host" ]] || continue
+    ip="$(resuelve_a "$host" || true)"
+    if [[ -z "$ip" ]]; then
+      printf '  %s: no resuelve\n' "$host"
+    elif [[ -n "$IP_SERVIDOR" && "$ip" != "$IP_SERVIDOR" ]]; then
+      printf '  %s: resuelve a %s, no a %s\n' "$host" "$ip" "$IP_SERVIDOR"
+    fi
+  done
+}
+
+
 # =============================================================================
 # Política de dominios
 # =============================================================================
@@ -441,7 +497,7 @@ SITE_FILE="${CADDY_RUNTIME_SITES_HOST}/${TENANT}.caddy"
 if [[ "$BOOKING_PUBLISH" == true ]]; then
   BOOKING_PLAN_BLOCK="
 Booking:
-  https://${BOOKING_HOST}
+  https://${BOOKING_HOST}   [DNS: $(estado_dns "$BOOKING_HOST")]
   -> ${BOOKING_CONTAINER}:3000"
   BOOKING_SUMMARY_BLOCK="
 Booking:
@@ -456,7 +512,7 @@ fi
 if [[ "$WEBHOOK_PUBLISH" == true ]]; then
   WEBHOOK_PLAN_BLOCK="
 Webhooks (canales):
-  https://${WEBHOOK_HOST}/webhook/*
+  https://${WEBHOOK_HOST}/webhook/*   [DNS: $(estado_dns "$WEBHOOK_HOST")]
   -> ${N8N_CONTAINER}:5678  (resto de rutas: 404)"
   WEBHOOK_SUMMARY_BLOCK="
 Webhooks (canales):
@@ -478,11 +534,11 @@ Tenant:
   ${TENANT_ID}
 
 Directus:
-  https://${DIRECTUS_HOST}
+  https://${DIRECTUS_HOST}   [DNS: $(estado_dns "$DIRECTUS_HOST")]
   -> ${DIRECTUS_CONTAINER}:8055
 
 n8n:
-  https://${N8N_HOST}
+  https://${N8N_HOST}   [DNS: $(estado_dns "$N8N_HOST")]
   -> ${N8N_CONTAINER}:5678
 ${BOOKING_PLAN_BLOCK}
 ${WEBHOOK_PLAN_BLOCK}
@@ -741,3 +797,27 @@ Pendiente:
 
 ============================================================
 EOF
+
+# -----------------------------------------------------------------------------
+# Lo último que se lee es lo que se recuerda: si el DNS no lleva aquí, el tenant
+# está publicado y es inalcanzable, y eso no se nota hasta días después.
+# -----------------------------------------------------------------------------
+PENDIENTES="$(hosts_sin_dns "$DIRECTUS_HOST" "$N8N_HOST" "${BOOKING_HOST:-}" "${WEBHOOK_HOST:-}")"
+if [[ -n "$PENDIENTES" ]]; then
+  cat <<AVISO
+
+============================================================
+DNS PENDIENTE — EL TENANT NO ES ALCANZABLE TODAVÍA
+============================================================
+
+${PENDIENTES}
+Hasta que estos nombres apunten a ${IP_SERVIDOR:-esta máquina}, Caddy no puede
+emitir certificado y no responderá nada. Lo publicado es correcto; falta el DNS.
+
+Un comodín cubre los cuatro de un tenant:
+  *.${BASE_DOMAIN}    A    ${IP_SERVIDOR:-<ip>}
+
+============================================================
+
+AVISO
+fi

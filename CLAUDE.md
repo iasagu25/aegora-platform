@@ -581,7 +581,19 @@ llama a `configure-n8n-service.sh` (sin él Lucía no puede leer nada), `configu
 tenant creado solo con él sale sin permisos para el agente y sin workflows. Levantar `dev` y
 `ops` a mano es la oportunidad de fijar el orden real antes de encerrarlo en el orquestador.
 
-**Crear un tenant limpio destapa lo que `demo` tapaba.** Primer ejemplo, en el primer
+**Crear un tenant limpio destapa lo que `demo` tapaba.** Cuatro en el primer intento con
+`dev`, ninguno visible desde `demo`: el rol booking obligatorio en los backups, los scripts
+de configuración encadenados sin esperar a que Directus vuelva de un reinicio, la receta de
+snapshot con tubería en el mensaje final de `configure-directus-views.sh`, y la publicación
+sin comprobar DNS. Conviene esperar más, y son justamente el motivo de hacerlo a mano.
+
+**El DNS de un tenant son CUATRO subdominios, no el dominio a secas**: `panel.`, `n8n.`,
+`lucia.` y `reservas.` bajo `${BASE_DOMAIN}`. Un comodín `*.<dominio>` los cubre. Si faltan,
+todo se despliega y publica correctamente y el tenant es inalcanzable: Caddy no puede pedir
+certificado porque nadie llega hasta él, así que su log ni siquiera tiene errores.
+`publish-tenant.sh` ahora lo comprueba y lo dice al final.
+
+Primer ejemplo, en el primer
 intento: `backup-tenant.sh` exigía `POSTGRES_BOOKING_USER`, que `create-tenant.sh` dejó de
 escribir cuando Booking V1 pasó a usar `directus_<tenant>`. `demo` y `aegora-internal` son
 anteriores al cambio y lo tienen, así que sus backups funcionaban; el backup de cualquier
