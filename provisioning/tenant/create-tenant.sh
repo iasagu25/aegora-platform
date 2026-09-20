@@ -916,6 +916,12 @@ bash -n "$N8N_SECRET_ENV"
 # Backup manifest
 # =============================================================================
 
+# ESTE es el manifiesto de verdad: se genera aquí, no se renderiza de ninguna
+# plantilla. Hubo un templates/tenant-stack/backup.manifest.json que no usaba
+# nadie y declaraba ocho ficheros donde este declaraba cinco -- entre ellos
+# secrets/restic.env. Resultado: un tenant restaurado se quedaba sin
+# configuración de backup y dejaba de respaldarse en silencio. Se borró aquella
+# plantilla; si hay que añadir algo al backup, se añade AQUÍ.
 log "Generando backup.manifest.json."
 
 cat > "${TENANT_CONFIG_ROOT}/backup.manifest.json" <<EOF
@@ -964,6 +970,24 @@ cat > "${TENANT_CONFIG_ROOT}/backup.manifest.json" <<EOF
       "source": "${TENANT_COMPOSE_ROOT}/n8n/.env",
       "destination": "compose/n8n/.env",
       "required": true,
+      "mode": "600"
+    },
+    {
+      "source": "${TENANT_SECRETS_DIR}/restic.env",
+      "destination": "secrets/restic.env",
+      "required": true,
+      "mode": "600"
+    },
+    {
+      "source": "${TENANT_COMPOSE_ROOT}/booking/compose.yml",
+      "destination": "compose/booking/compose.yml",
+      "required": false,
+      "mode": "644"
+    },
+    {
+      "source": "${TENANT_COMPOSE_ROOT}/booking/.env",
+      "destination": "compose/booking/.env",
+      "required": false,
       "mode": "600"
     }
   ]

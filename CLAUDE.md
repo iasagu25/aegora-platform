@@ -822,10 +822,28 @@ estuviera, cae a la convención de que el rol se llama como su base. Los flags `
 --no-privileges` se conservan a propósito: hacen que la restauración no dependa de que los
 roles del dump existan, que es lo que uno quiere con el sistema caído.
 
-Regla que salió de ese primer ensayo: en la restauración de configuración, **un fichero que
-falte en el snapshot no aborta nada**. Quien restaura ya tiene la contraseña del repositorio
-(la ha necesitado para leerlo), así que perder `secrets/restic.env` es una molestia y no un
-motivo para dejar el tenant a medias en el peor día del año. Se avisa y se sigue.
+**Segundo ensayo, con el arreglo: superado entero** (20/sep/2026). 41 workflows de vuelta,
+marcador desaparecido, nombre restaurado, **cero objetos con dueño equivocado** en las dos
+bases, los tres contenedores sanos solos y el panel respondiendo. Ya no es una suposición:
+sabemos recuperar un tenant.
+
+Dos reglas que salieron de ahí:
+- **Un ensayo de recuperación no termina cuando el script dice que ha terminado, sino
+  cuando el servicio atiende peticiones.** El primer intento devolvió el dato perfecto y
+  dejó el tenant muerto; si se hubiera dado por bueno ahí, el fallo habría aparecido con un
+  cliente caído.
+- En la restauración de configuración, **un fichero que falte en el snapshot no aborta
+  nada**: se avisa y se sigue. Quien restaura ya tiene la contraseña del repositorio.
+
+**El manifiesto de backup se genera en `create-tenant.sh`, no se renderiza de ninguna
+plantilla.** Había un `templates/tenant-stack/backup.manifest.json` que no usaba nadie y
+declaraba ocho ficheros donde el generador declaraba cinco — faltaba `secrets/restic.env`,
+así que un tenant restaurado se quedaba sin configuración de backup y dejaba de respaldarse
+en silencio. La plantilla se borró. Si hay que añadir algo al backup, se añade en
+`create-tenant.sh`.
+
+**Los tenants creados antes de ese arreglo (`demo`, `dev`) tienen el manifiesto corto** y
+necesitan la entrada añadida a mano — otra vez lo que resolvería `render-tenant-config.sh`.
 
 ## Cómo mueve el gestor una cita — decidido, sin construir (16/sep/2026)
 **No se le da un selector de huecos. Se le da un botón que arranca la conversación.**
