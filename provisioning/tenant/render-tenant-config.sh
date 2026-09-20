@@ -43,6 +43,7 @@ readonly TENANTS_ROOT="/opt/aegora/tenants"
 readonly PLATFORM_ROOT="/opt/aegora/platform"
 readonly TEMPLATE_ROOT="${PLATFORM_ROOT}/templates/tenant-stack"
 readonly RENDERER="${PLATFORM_ROOT}/provisioning/tenant/render-template.py"
+readonly INVERSOR="${PLATFORM_ROOT}/provisioning/tenant/invert-template.py"
 
 TENANT=""
 APPLY=false
@@ -97,6 +98,7 @@ O no existe, o es cuestión de permisos (los secretos del tenant son de root).
 Prueba con sudo."
 fi
 [[ -f "$RENDERER" ]] || fail "No existe ${RENDERER}"
+[[ -f "$INVERSOR" ]] || fail "No existe ${INVERSOR}"
 [[ -d "$TEMPLATE_ROOT" ]] || fail "No existe ${TEMPLATE_ROOT}"
 
 # ---------------------------------------------------------------------------
@@ -152,18 +154,22 @@ heredar_de() {
   [[ -f "$existente" ]] || return 0
   # Solo tiene sentido en ficheros CLAVE=valor. En un compose.yml el valor está
   # dentro del YAML (`image: aegora-booking:sha`) y no se puede recuperar así;
-  # para esos casos el valor se busca donde de verdad vive -- ver BOOKING_IMAGE.
+  # para esos casos se busca donde de verdad vive -- ver BOOKING_IMAGE.
   [[ "$existente" == *.env ]] || return 0
 
-  while read -r var; do
-    [[ -n "${!var:-}" ]] && continue
-    valor="$(sed -n "s/^${var}=//p" "$existente" | head -1)"
-    if [[ -n "$valor" ]]; then
-      printf -v "$var" '%s' "$valor"
-      export "${var?}"
-      log "  ${var}: se conserva el valor actual (no está en tenant.env ni en secrets/)."
-    fi
-  done < <(grep -oE '\$\{[A-Z0-9_]+\}' "$plantilla" | tr -d '${}' | sort -u)
+  # Se INVIERTE la plantilla para saber qué CLAVE del fichero guarda qué
+  # VARIABLE. No se puede dar por hecho que se llamen igual: en
+  # booking/.env.tpl la línea es `DATABASE_URL=${BOOKING_DATABASE_URL}`, o sea
+  # que el valor de BOOKING_DATABASE_URL hay que leerlo de la clave
+  # DATABASE_URL. Buscar una línea `BOOKING_DATABASE_URL=` no encuentra nada,
+  # nunca -- y eso fue justo lo que falló en el primer intento sobre `dev`.
+  while IFS=$'\t' read -r var valor; do
+    [[ -n "$var" ]] || continue
+    [[ -z "${!var:-}" ]] || continue
+    printf -v "$var" '%s' "$valor"
+    export "${var?}"
+    log "  ${var}: se conserva el valor actual del tenant."
+  done < <(python3 "$INVERSOR" "$plantilla" "$existente")
 }
 
 # ---------------------------------------------------------------------------

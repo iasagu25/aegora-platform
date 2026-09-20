@@ -851,10 +851,16 @@ cada una acabó con una edición a mano de un fichero del tenant.
 `compose/{directus,n8n,booking}/{compose.yml,.env}` y `backup.manifest.json`.
 
 Tres decisiones que lo hacen usable y seguro:
-- **De dónde salen los valores, por orden**: `tenant.env` -> `secrets/*.env` -> **el fichero
-  ya renderizado**. Ese tercer paso es el que lo hace viable: `BOOKING_IMAGE` y
-  `BOOKING_DATABASE_URL` los calcula `deploy-booking.sh` y no viven en ningún fichero
-  estático; en vez de fallar, se conservan. Vale igual para lo que se añada mañana.
+- **De dónde salen los valores, por orden**: `tenant.env` -> `secrets/*.env` -> **el `.env`
+  ya renderizado** -> **el contenedor en marcha** (solo `BOOKING_IMAGE`). Los dos últimos
+  son los que lo hacen viable: `deploy-booking.sh` calcula `BOOKING_DATABASE_URL` y
+  `BOOKING_IMAGE`, que no viven en ningún fichero estático.
+  Para heredar del `.env` **se invierte la plantilla** (`invert-template.py`): no se puede
+  dar por hecho que la variable y la clave se llamen igual. En `booking/.env.tpl` la línea
+  es `DATABASE_URL=${BOOKING_DATABASE_URL}`, así que ese valor vive bajo la clave
+  `DATABASE_URL` y buscar `BOOKING_DATABASE_URL=` no encuentra nada, nunca. Las líneas
+  compuestas (`URL=https://${HOST}/x`) no se intentan despejar.
+  De un `compose.yml` no se hereda: el valor va dentro del YAML.
 - **Salvaguarda**: si un valor que hoy NO está vacío quedaría vacío o desaparecería, aborta.
   Un `.env` que pierde `N8N_ENCRYPTION_KEY` deja las credenciales del tenant ilegibles.
 - **No reinicia contenedores**: dice cuáles lo necesitan y para ahí. Un reinicio corta el
