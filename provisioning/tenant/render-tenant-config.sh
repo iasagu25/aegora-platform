@@ -19,7 +19,8 @@ IFS=$'\n\t'
 # CÓMO CONSIGUE LOS VALORES, por orden:
 #   1. `tenant.env`            -- hosts, contenedores, bases, rutas, versiones
 #   2. `secrets/*.env`         -- contraseñas y claves
-#   3. el fichero YA RENDERIZADO -- para lo que no está en ninguno de los dos
+#   3. el fichero .env YA RENDERIZADO -- para lo que no está en los dos primeros
+#   4. el contenedor en marcha -- solo para BOOKING_IMAGE, que únicamente vive ahí
 #
 # El paso 3 es el que hace esto utilizable: `BOOKING_DATABASE_URL` lo calcula
 # `deploy-booking.sh` y no vive en ningún fichero estático, así que se conserva
