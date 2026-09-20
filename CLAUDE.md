@@ -871,6 +871,13 @@ Tres decisiones que lo hacen usable y seguro:
 - **No reinicia contenedores**: dice cuáles lo necesitan y para ahí. Un reinicio corta el
   servicio del cliente; cuándo hacerlo es una decisión con horario.
 
+El **manifiesto de backup tiene su propio control**: si el nuevo respaldaría menos que el
+actual —una base, una ruta o un fichero que desaparecen— aborta. Es la misma idea que la
+salvaguarda de los `.env` y hace más falta todavía, porque perder cobertura de backup no
+rompe nada: simplemente deja de copiarse algo y no se descubre hasta que hace falta.
+Ahí NO hay `--allow-drop` a propósito: si una entrada sobra, se quita del manifiesto del
+tenant a mano, para que sea una decisión y no un efecto colateral de la plantilla.
+
 Los `.env` se muestran en el diff **por clave, nunca con sus valores**.
 
 **El manifiesto de backup pasó a ser una plantilla** (`templates/tenant-stack/backup.manifest.json.tpl`)

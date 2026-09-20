@@ -44,6 +44,7 @@ readonly PLATFORM_ROOT="/opt/aegora/platform"
 readonly TEMPLATE_ROOT="${PLATFORM_ROOT}/templates/tenant-stack"
 readonly RENDERER="${PLATFORM_ROOT}/provisioning/tenant/render-template.py"
 readonly INVERSOR="${PLATFORM_ROOT}/provisioning/tenant/invert-template.py"
+readonly COBERTURA="${PLATFORM_ROOT}/provisioning/tenant/check-manifest-coverage.py"
 
 TENANT=""
 APPLY=false
@@ -110,6 +111,7 @@ Prueba con sudo."
 fi
 [[ -f "$RENDERER" ]] || fail "No existe ${RENDERER}"
 [[ -f "$INVERSOR" ]] || fail "No existe ${INVERSOR}"
+[[ -f "$COBERTURA" ]] || fail "No existe ${COBERTURA}"
 [[ -d "$TEMPLATE_ROOT" ]] || fail "No existe ${TEMPLATE_ROOT}"
 
 # ---------------------------------------------------------------------------
@@ -238,6 +240,32 @@ PY
   fi
 }
 
+# ---------------------------------------------------------------------------
+# La misma idea que comprobar_perdidas, aplicada al manifiesto de backup.
+#
+# El manifiesto decide QUÉ se respalda, así que quitarle una base o una ruta es
+# tan grave como vaciar un secreto -- y con peor sintomatología: no falla nada,
+# simplemente deja de copiarse algo y no se descubre hasta que hace falta.
+# ---------------------------------------------------------------------------
+comprobar_cobertura() {
+  local actual="$1"
+  local nuevo="$2"
+  local perdidas
+
+  [[ -f "$actual" ]] || return 0
+
+  perdidas="$(python3 "$COBERTURA" "$actual" "$nuevo")"
+
+  if [[ -n "$perdidas" ]]; then
+    log "ERROR: el manifiesto nuevo respaldaría MENOS que el actual:"
+    printf '%s\n' "$perdidas" >&2
+    log "Si esas entradas ya no existen o no hacen falta, quítalas tú del"
+    log "manifiesto del tenant y vuelve a ejecutar: así queda claro que es"
+    log "una decisión y no un efecto colateral de la plantilla."
+    fail "Abortado. No se ha tocado nada."
+  fi
+}
+
 CAMBIOS=()
 REINICIAR=()
 
@@ -272,6 +300,10 @@ procesar() {
   # Solo para ficheros de variables; un compose.yml no tiene forma KEY=valor.
   if [[ "$destino" == *.env ]]; then
     comprobar_perdidas "$destino" "$nuevo"
+  fi
+
+  if [[ "$destino" == *backup.manifest.json ]]; then
+    comprobar_cobertura "$destino" "$nuevo"
   fi
 
   if [[ -f "$destino" ]] && diff -q "$destino" "$nuevo" >/dev/null 2>&1; then
