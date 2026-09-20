@@ -600,6 +600,17 @@ anteriores al cambio y lo tienen, así que sus backups funcionaban; el backup de
 tenant creado después habría muerto en la primera ejecución. Corregido: el rol booking es
 opcional. Conviene esperar más de estos, y son justamente el motivo de hacerlo a mano.
 
+**Borrar un tenant deja residuos que hay que conocer**: `delete-tenant.sh` ya para sus
+timers de systemd (antes no, y `aegora-internal` siguió fallando backups cada noche tras
+borrarlo), pero NO borra su bucket remoto (a propósito) ni sus certificados de Caddy (que
+caducan solos en 90 días).
+
+**Ojo con `booking_<tenant>`**: los tenants creados antes del cambio a Booking V1 conservan
+esa base Y las referencias en `tenant.env` y en su `backup.manifest.json` -- que incluye la
+base **y un `persistent_path`**. Borrar la base sin quitar las dos referencias deja el
+backup del tenant fallando. Pasó con `demo` el 18/sep, por recomendar el `dropdb` leyendo
+solo media frase de este documento.
+
 Backups por tenant: `demo` está en lista blanca para las credenciales S3 compartidas;
 cualquier otro exige `--allow-shared-s3-credentials` o `--s3-credentials-file`. `dev` va con
 compartidas (no tiene datos de valor por diseño); **`ops` debe llevar credencial dedicada**,

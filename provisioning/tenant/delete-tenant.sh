@@ -304,6 +304,46 @@ remove_caddy_site() {
 # Docker
 # =============================================================================
 
+# =============================================================================
+# Operaciones programadas (systemd)
+#
+# activate-tenant-operations.sh crea cuatro timers por tenant. Al borrar el
+# tenant NO se tocaban, así que seguían disparándose contra algo que ya no
+# existe: backups que fallan cada noche y una notificación ntfy por cada uno.
+# Pasó con `aegora-internal`.
+#
+# Se paran y deshabilitan; las unidades template son compartidas y no se tocan.
+# =============================================================================
+
+readonly OPERACIONES=(
+  aegora-backup
+  aegora-prune
+  aegora-restore-test
+  aegora-backup-health
+)
+
+disable_timers() {
+  command -v systemctl >/dev/null 2>&1 || {
+    log "systemctl no disponible; se omiten los timers."
+    return 0
+  }
+
+  local unidad
+  for base in "${OPERACIONES[@]}"; do
+    unidad="${base}@${TENANT_ID}.timer"
+    if systemctl list-unit-files "$unidad" >/dev/null 2>&1 &&
+       [[ -n "$(systemctl list-units --all --no-legend "$unidad" 2>/dev/null)" ]]; then
+      log "Deteniendo y deshabilitando: ${unidad}"
+      systemctl disable --now "$unidad" >/dev/null 2>&1 || true
+    else
+      log "Timer ausente; se omite: ${unidad}"
+    fi
+    # Un .service que quedó en estado fallido sigue apareciendo en rojo en
+    # `systemctl --failed` aunque su timer ya no exista.
+    systemctl reset-failed "${base}@${TENANT_ID}.service" >/dev/null 2>&1 || true
+  done
+}
+
 remove_container() {
   local container="$1"
 
@@ -593,6 +633,12 @@ Caddy:
   ${CADDY_SITE_FILE}
   existe: ${caddy_present}
 
+Operaciones programadas (se paran y deshabilitan):
+  aegora-backup@${TENANT_ID}.timer
+  aegora-prune@${TENANT_ID}.timer
+  aegora-restore-test@${TENANT_ID}.timer
+  aegora-backup-health@${TENANT_ID}.timer
+
 Backups remotos:
   NO SE ELIMINARÁN
 
@@ -625,13 +671,22 @@ else
 fi
 
 # =============================================================================
-# 1. Retirar publicación
+# 1. Parar las operaciones programadas
+#
+# Lo primero: si un backup arranca a mitad del borrado, falla ruidosamente y
+# encima puede dejar staging a medias.
+# =============================================================================
+
+disable_timers
+
+# =============================================================================
+# 2. Retirar publicación
 # =============================================================================
 
 remove_caddy_site
 
 # =============================================================================
-# 2. Eliminar contenedores
+# 3. Eliminar contenedores
 #
 # Booking primero por dependencia potencial.
 # =============================================================================
@@ -641,7 +696,7 @@ remove_container "$N8N_CONTAINER"
 remove_container "$DIRECTUS_CONTAINER"
 
 # =============================================================================
-# 3. Eliminar bases
+# 4. Eliminar bases
 # =============================================================================
 
 drop_database \
@@ -657,7 +712,7 @@ drop_database \
   "$POSTGRES_ADMIN_USER"
 
 # =============================================================================
-# 4. Eliminar roles
+# 5. Eliminar roles
 # =============================================================================
 
 drop_role \
@@ -673,7 +728,7 @@ drop_role \
   "$POSTGRES_ADMIN_USER"
 
 # =============================================================================
-# 5. Red
+# 6. Red
 # =============================================================================
 
 if network_exists "$TENANT_BACKEND_NETWORK"; then
@@ -694,7 +749,7 @@ else
 fi
 
 # =============================================================================
-# 6. Runtime
+# 7. Runtime
 # =============================================================================
 
 if [[ -d "$TENANT_ROOT" ]]; then
