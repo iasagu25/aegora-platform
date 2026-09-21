@@ -1042,7 +1042,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// El hilo lo lleva una persona: Lucía no contesta. El mensaje del cliente SÍ se\n// registra -- es justo lo que el gestor necesita ver -- y por eso esta rama pasa\n// igualmente por el guardado de sesión y de mensajes, como la de rate limit.\n//\n// Sin texto de salida: el adapter de WhatsApp ya no envía nada cuando el texto\n// viene vacío (`if (texto)` en Code · Preparar envío). No se manda un \"ahora te\n// atiende una persona\" automático: si el gestor ha cogido el hilo, el siguiente\n// mensaje que reciba el cliente tiene que ser suyo, no otro robot.\nconst c = $json;\n// El aviso de privacidad sí sale si tocaba: es una obligación legal, no una\n// respuesta de Lucía. En la práctica no pasa (una sesión nueva no puede estar\n// en 'humano' todavía), pero si pasara, callarlo sería lo incorrecto.\nconst privacy_prompt = c._show_privacy\n  ? { intro: c.privacy_intro, url: c.privacy_policy_url, label: c.privacy_button_label }\n  : null;\nreturn [{ json: {\n  _session_id: c._session_id, session_key: c.session_key, canal: c.canal,\n  reply_to: c.reply_to, directus_base_url: c.directus_base_url,\n  save: { session_key: c.session_key, canal: c.canal, contact_id: c._prev_contact_id,\n          flujo_activo: c._prev_flujo_activo, ventana_hasta: c._ventana_hasta,\n          state: c.state_next },\n  ok: true, intent: null,\n  reply_to_user: '', core_reply: '', privacy_prompt,\n  needs_user_reply: false,\n  modo: 'humano',\n} }];"
+        "jsCode": "// El hilo lo lleva una persona: Lucía no contesta. El mensaje del cliente SÍ se\n// registra -- es justo lo que el gestor necesita ver -- y por eso esta rama pasa\n// igualmente por el guardado de sesión y de mensajes, como la de rate limit.\n//\n// Sin texto de salida: el adapter de WhatsApp ya no envía nada cuando el texto\n// viene vacío (`if (texto)` en Code · Preparar envío). No se manda un \"ahora te\n// atiende una persona\" automático: si el gestor ha cogido el hilo, el siguiente\n// mensaje que reciba el cliente tiene que ser suyo, no otro robot.\n// El gestor de memoria va justo antes y su salida NO es el contexto, así que\n// este se busca por nombre en vez de leer $json.\nconst c = $('Code · Preparar contexto').item.json;\n// El aviso de privacidad sí sale si tocaba: es una obligación legal, no una\n// respuesta de Lucía. En la práctica no pasa (una sesión nueva no puede estar\n// en 'humano' todavía), pero si pasara, callarlo sería lo incorrecto.\nconst privacy_prompt = c._show_privacy\n  ? { intro: c.privacy_intro, url: c.privacy_policy_url, label: c.privacy_button_label }\n  : null;\nreturn [{ json: {\n  _session_id: c._session_id, session_key: c.session_key, canal: c.canal,\n  reply_to: c.reply_to, directus_base_url: c.directus_base_url,\n  save: { session_key: c.session_key, canal: c.canal, contact_id: c._prev_contact_id,\n          flujo_activo: c._prev_flujo_activo, ventana_hasta: c._ventana_hasta,\n          state: c.state_next },\n  ok: true, intent: null,\n  reply_to_user: '', core_reply: '', privacy_prompt,\n  needs_user_reply: false,\n  modo: 'humano',\n} }];"
       },
       "id": "d5c19f83-2a6e-4718-b0d4-97e35a1c8f60",
       "name": "Code · Salida relevo humano",
@@ -1052,6 +1052,51 @@
         1120,
         320
       ]
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "insertMode": "insert",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "user",
+              "message": "={{ $('Code · Validar entrada').item.json.message }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b7e4c2a1-9036-4f58-a2d7-4e91c05b3f87",
+      "name": "Memoria · Anotar mensaje del cliente",
+      "type": "@n8n/n8n-nodes-langchain.memoryManager",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Code · Validar entrada').item.json.session_key }}",
+        "tableName": "n8n_chat_histories",
+        "contextWindowLength": 10
+      },
+      "id": "Postgres-0000-4000-8000-000000000001",
+      "name": "Postgres Chat Memory (relevo)",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        1120,
+        380
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "__CRED_POSTGRES_ACCOUNT__",
+          "name": "Postgres account"
+        }
+      }
     }
   ],
   "connections": {
@@ -1297,7 +1342,7 @@
       "main": [
         [
           {
-            "node": "Code · Salida relevo humano",
+            "node": "Memoria · Anotar mensaje del cliente",
             "type": "main",
             "index": 0
           }
@@ -1317,6 +1362,28 @@
           {
             "node": "¿Sesión existe?",
             "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memoria · Anotar mensaje del cliente": {
+      "main": [
+        [
+          {
+            "node": "Code · Salida relevo humano",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory (relevo)": {
+      "ai_memory": [
+        [
+          {
+            "node": "Memoria · Anotar mensaje del cliente",
+            "type": "ai_memory",
             "index": 0
           }
         ]

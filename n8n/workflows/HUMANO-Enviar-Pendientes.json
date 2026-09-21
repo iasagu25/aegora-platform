@@ -136,7 +136,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Decide qué se puede enviar y qué no, y por qué. El \"por qué\" acaba en el campo\n// `error` de la fila, en cristiano: quien escribe el mensaje es un gestor, no\n// alguien que vaya a leer un log.\nconst cfg = $('Config (editar por tenant)').item.json;\nconst r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 300 || (body && body.errors)) {\n  throw new Error('Directus /items/conversation_messages ' + code + ': ' + JSON.stringify(body.errors || body));\n}\nconst filas = Array.isArray(body.data) ? body.data : [];\nconst base_url = `https://graph.facebook.com/${cfg.graph_version || 'v21.0'}/${cfg.phone_number_id}/messages`;\nconst ahora = Date.now();\n\n// Mismo dialecto que el adapter: el gestor escribe en una caja de texto normal y\n// puede pegar markdown sin saberlo.\nconst aWhatsApp = (t) => (t || '').toString()\n  .replace(/`{3}([\\s\\S]*?)`{3}/g, '$1')\n  .replace(/^#{1,6}\\s*(.+)$/gm, '*$1*')\n  .replace(/\\*\\*\\*(.+?)\\*\\*\\*/g, '*$1*')\n  .replace(/\\*\\*(.+?)\\*\\*/g, '*$1*')\n  .replace(/__(.+?)__/g, '_$1_')\n  .replace(/`(.+?)`/g, '$1')\n  .replace(/\\[([^\\]]+)\\]\\((https?:\\/\\/[^)\\s]+)\\)/g, '$1: $2')\n  .replace(/^[ \\t]*[*+][ \\t]+/gm, '- ')\n  .trim();\n\nconst salida = [];\nfor (const f of filas) {\n  const ses = f.session_id || {};\n  const key = (ses.session_key || '').toString();\n  const texto = aWhatsApp(f.texto);\n  const comun = { _id: f.id, _enviar: false, _error: null, directus_base_url: cfg.directus_base_url };\n\n  if (!texto) {\n    salida.push({ json: { ...comun, _error: 'El mensaje está vacío.' } });\n    continue;\n  }\n  // El canal de verdad lo dice el `session_key` de la sesión, NO la columna\n  // `canal` de la fila: cuando el gestor escribe un mensaje desde Directus esa\n  // columna se queda vacía (depende de la sesión y no puede tener un default),\n  // y exigirla rechazaría precisamente el caso para el que está hecho esto.\n  const canal = key.startsWith('whatsapp:') ? 'whatsapp' : (f.canal || 'desconocido');\n  // Hoy solo se sabe enviar por WhatsApp. En webchat no hay a dónde empujar un\n  // mensaje si el cliente cerró la pestaña, así que se falla claro en vez de\n  // dejar la fila en 'pendiente' para siempre esperando algo que no va a pasar.\n  if (canal !== 'whatsapp') {\n    salida.push({ json: { ...comun,\n      _error: `El canal \"${canal}\" no admite enviar un mensaje más tarde. Solo WhatsApp.` } });\n    continue;\n  }\n  // La ventana de 24h de Meta vale también para la persona que escribe: pasada,\n  // solo entra una plantilla aprobada. Sin esta comprobación el envío falla en\n  // Graph con un error que no dice nada y el gestor no entiende por qué.\n  const hasta = ses.ventana_hasta ? Date.parse(ses.ventana_hasta) : NaN;\n  if (!Number.isFinite(hasta) || hasta <= ahora) {\n    salida.push({ json: { ...comun,\n      _error: 'La ventana de 24h de WhatsApp está cerrada: el cliente no escribe desde hace más de un día. '\n            + 'Hasta que vuelva a escribir, solo se le puede mandar una plantilla aprobada por Meta.' } });\n    continue;\n  }\n\n  salida.push({ json: { ...comun,\n    _enviar: true,\n    _url: base_url,\n    _body: {\n      messaging_product: 'whatsapp', recipient_type: 'individual',\n      to: key.replace(/^whatsapp:/, ''),\n      type: 'text', text: { preview_url: false, body: texto },\n    },\n  } });\n}\nreturn salida;"
+        "jsCode": "// Decide qué se puede enviar y qué no, y por qué. El \"por qué\" acaba en el campo\n// `error` de la fila, en cristiano: quien escribe el mensaje es un gestor, no\n// alguien que vaya a leer un log.\nconst cfg = $('Config (editar por tenant)').item.json;\nconst r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 300 || (body && body.errors)) {\n  throw new Error('Directus /items/conversation_messages ' + code + ': ' + JSON.stringify(body.errors || body));\n}\nconst filas = Array.isArray(body.data) ? body.data : [];\nconst base_url = `https://graph.facebook.com/${cfg.graph_version || 'v21.0'}/${cfg.phone_number_id}/messages`;\nconst ahora = Date.now();\n\n// Mismo dialecto que el adapter: el gestor escribe en una caja de texto normal y\n// puede pegar markdown sin saberlo.\nconst aWhatsApp = (t) => (t || '').toString()\n  .replace(/`{3}([\\s\\S]*?)`{3}/g, '$1')\n  .replace(/^#{1,6}\\s*(.+)$/gm, '*$1*')\n  .replace(/\\*\\*\\*(.+?)\\*\\*\\*/g, '*$1*')\n  .replace(/\\*\\*(.+?)\\*\\*/g, '*$1*')\n  .replace(/__(.+?)__/g, '_$1_')\n  .replace(/`(.+?)`/g, '$1')\n  .replace(/\\[([^\\]]+)\\]\\((https?:\\/\\/[^)\\s]+)\\)/g, '$1: $2')\n  .replace(/^[ \\t]*[*+][ \\t]+/gm, '- ')\n  .trim();\n\nconst salida = [];\nfor (const f of filas) {\n  const ses = f.session_id || {};\n  const key = (ses.session_key || '').toString();\n  const texto = aWhatsApp(f.texto);\n  // _session_key y _texto viajan hasta el final: son lo que hace falta para\n  // anotar la respuesta en la memoria del Core cuando el envío sale bien.\n  const comun = { _id: f.id, _enviar: false, _error: null,\n                  _session_key: key, _texto: texto,\n                  directus_base_url: cfg.directus_base_url };\n\n  if (!texto) {\n    salida.push({ json: { ...comun, _error: 'El mensaje está vacío.' } });\n    continue;\n  }\n  // El canal de verdad lo dice el `session_key` de la sesión, NO la columna\n  // `canal` de la fila: cuando el gestor escribe un mensaje desde Directus esa\n  // columna se queda vacía (depende de la sesión y no puede tener un default),\n  // y exigirla rechazaría precisamente el caso para el que está hecho esto.\n  const canal = key.startsWith('whatsapp:') ? 'whatsapp' : (f.canal || 'desconocido');\n  // Hoy solo se sabe enviar por WhatsApp. En webchat no hay a dónde empujar un\n  // mensaje si el cliente cerró la pestaña, así que se falla claro en vez de\n  // dejar la fila en 'pendiente' para siempre esperando algo que no va a pasar.\n  if (canal !== 'whatsapp') {\n    salida.push({ json: { ...comun,\n      _error: `El canal \"${canal}\" no admite enviar un mensaje más tarde. Solo WhatsApp.` } });\n    continue;\n  }\n  // La ventana de 24h de Meta vale también para la persona que escribe: pasada,\n  // solo entra una plantilla aprobada. Sin esta comprobación el envío falla en\n  // Graph con un error que no dice nada y el gestor no entiende por qué.\n  const hasta = ses.ventana_hasta ? Date.parse(ses.ventana_hasta) : NaN;\n  if (!Number.isFinite(hasta) || hasta <= ahora) {\n    salida.push({ json: { ...comun,\n      _error: 'La ventana de 24h de WhatsApp está cerrada: el cliente no escribe desde hace más de un día. '\n            + 'Hasta que vuelva a escribir, solo se le puede mandar una plantilla aprobada por Meta.' } });\n    continue;\n  }\n\n  salida.push({ json: { ...comun,\n    _enviar: true,\n    _url: base_url,\n    _body: {\n      messaging_product: 'whatsapp', recipient_type: 'individual',\n      to: key.replace(/^whatsapp:/, ''),\n      type: 'text', text: { preview_url: false, body: texto },\n    },\n  } });\n}\nreturn salida;"
       },
       "id": "4e51a279-208b-4fd6-e437-95c116ad8a25",
       "name": "Code · Preparar envíos",
@@ -222,7 +222,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Traduce la respuesta de Graph a la fila. Un envío que falla NO se reintenta\n// solo: se deja 'fallido' con el motivo y lo decide una persona. Reintentar a\n// ciegas contra WhatsApp es la forma de mandar cuatro veces lo mismo.\nconst p = $('Code · Preparar envíos').item.json;\nconst r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 200 && code < 300 && body && Array.isArray(body.messages) && body.messages[0]) {\n  return [{ json: { _id: p._id, directus_base_url: p.directus_base_url,\n    _patch: { estado_envio: 'enviado', canal: 'whatsapp',\n              canal_message_id: body.messages[0].id || null, error: null } } }];\n}\nconst detalle = (body && body.error && body.error.message)\n  ? body.error.message\n  : JSON.stringify(body).slice(0, 400);\nreturn [{ json: { _id: p._id, directus_base_url: p.directus_base_url,\n  _patch: { estado_envio: 'fallido', error: `WhatsApp rechazó el envío (${code}): ${detalle}` } } }];"
+        "jsCode": "// Traduce la respuesta de Graph a la fila. Un envío que falla NO se reintenta\n// solo: se deja 'fallido' con el motivo y lo decide una persona. Reintentar a\n// ciegas contra WhatsApp es la forma de mandar cuatro veces lo mismo.\nconst p = $('Code · Preparar envíos').item.json;\nconst r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 200 && code < 300 && body && Array.isArray(body.messages) && body.messages[0]) {\n  return [{ json: { _id: p._id, directus_base_url: p.directus_base_url,\n    _enviado: true, _session_key: p._session_key, _texto: p._texto,\n    _patch: { estado_envio: 'enviado', canal: 'whatsapp',\n              canal_message_id: body.messages[0].id || null, error: null } } }];\n}\nconst detalle = (body && body.error && body.error.message)\n  ? body.error.message\n  : JSON.stringify(body).slice(0, 400);\nreturn [{ json: { _id: p._id, directus_base_url: p.directus_base_url, _enviado: false,\n  _patch: { estado_envio: 'fallido', error: `WhatsApp rechazó el envío (${code}): ${detalle}` } } }];"
       },
       "id": "8295e6bd-642f-431a-2871-d9055aec2269",
       "name": "Code · Resultado envío",
@@ -278,6 +278,98 @@
           "name": "Directus"
         }
       }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1d2e3f4-a5b6-4708-9c0d-1e2f3a4b5c6d",
+              "leftValue": "={{ $json._enviado }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d2e3f4a5-b6c7-4819-ad1e-2f3a4b5c6d7e",
+      "name": "¿Enviado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "insertMode": "insert",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "ai",
+              "message": "={{ $json._texto }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e3f4a5b6-c7d8-492a-be2f-3a4b5c6d7e8f",
+      "name": "Memoria · Anotar respuesta del gestor",
+      "type": "@n8n/n8n-nodes-langchain.memoryManager",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        -140
+      ]
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json._session_key }}",
+        "tableName": "n8n_chat_histories",
+        "contextWindowLength": 10
+      },
+      "id": "Postgres-0000-4000-8000-000000000001",
+      "name": "Postgres Chat Memory (gestor)",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        1700,
+        40
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "__CRED_POSTGRES_ACCOUNT__",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// El gestor de memoria devuelve lo que ha insertado, no nuestro payload: se\n// recupera por nombre para que el PATCH siga teniendo _id y _patch.\nreturn [{ json: $('Code · Resultado envío').item.json }];"
+      },
+      "id": "f4a5b6c7-d8e9-4a3b-cf30-4b5c6d7e8f90",
+      "name": "Code · Retomar patch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1900,
+        -140
+      ]
     }
   ],
   "connections": {
@@ -369,7 +461,7 @@
       "main": [
         [
           {
-            "node": "HTTP · Marcar mensaje",
+            "node": "¿Enviado?",
             "type": "main",
             "index": 0
           }
@@ -382,6 +474,57 @@
           {
             "node": "HTTP · Marcar mensaje",
             "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Enviado?": {
+      "main": [
+        [
+          {
+            "node": "Memoria · Anotar respuesta del gestor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP · Marcar mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memoria · Anotar respuesta del gestor": {
+      "main": [
+        [
+          {
+            "node": "Code · Retomar patch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Retomar patch": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Marcar mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory (gestor)": {
+      "ai_memory": [
+        [
+          {
+            "node": "Memoria · Anotar respuesta del gestor",
+            "type": "ai_memory",
             "index": 0
           }
         ]
