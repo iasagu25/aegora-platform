@@ -19,6 +19,38 @@
    - Verify token: el `WHATSAPP_VERIFY_TOKEN`
    - Suscribirse al campo **`messages`**.
 
+## Número de pruebas de Meta (para `dev`)
+
+Meta da un **número de prueba gratuito** por app, y es exactamente lo que quieres
+para un tenant de desarrollo. Dos cosas que no son evidentes:
+
+**El webhook se define en la APP, no en el número** (App → WhatsApp →
+Configuración). Por eso no aparece en la pantalla del número. Y de ahí sale lo
+importante: **una app = un webhook**. La app de `demo` ya apunta a su host, así
+que `dev` necesita **su propia app de Meta**, no un número más dentro de la de
+`demo`. Las dos pueden colgar del mismo Meta Business.
+
+**El número de prueba solo escribe a 5 destinatarios** que tú das de alta y
+verificas en el panel. Para `dev` no es una limitación, es una red: ese tenant
+no puede escribirle a un cliente real por error.
+
+Pasos:
+
+1. developers.facebook.com → Crear app, tipo **Empresa** → añadir el producto
+   **WhatsApp**. Meta crea el número de prueba y un WABA de prueba.
+2. En *API Setup*: apuntar el **Phone number ID** y dar de alta tu móvil en
+   *To* (te llega un código de verificación).
+3. **App Secret**: App → Configuración → Básica.
+4. **Webhook**: App → WhatsApp → Configuración →
+   URL `https://lucia.dev.aegora.es/webhook/whatsapp`, verify token el tuyo,
+   y suscribirse al campo **`messages`**.
+5. **Token permanente**: el que enseña *API Setup* caduca en 24 h y `dev` se
+   rompería a diario. Hace falta un System User token como el de arriba.
+
+El resto (fichero `secrets/whatsapp.env`, credencial de n8n, `render-workflows.sh`)
+es idéntico a un tenant de pago. El número de prueba **no se puede convertir**
+después en uno real, pero para `dev` da igual: nunca va a serlo.
+
 ## En n8n (por tenant)
 
 - Credencial **Header Auth** `WhatsApp` (el nombre ya no lleva el tenant):
