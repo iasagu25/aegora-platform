@@ -465,6 +465,31 @@ bueno:
     Los dos tienen ya el manifiesto con `secrets/restic.env` y la `WEBHOOK_URL` buena;
     verificado en el entorno del contenedor y con un WhatsApp real en `demo`.
 
+## El snapshot va SIEMPRE al final de la cadena (21/sep/2026)
+`base.yaml` lleva la forma **cruda** del esquema; la capa de interfaz la ponen
+`configure-directus-views.sh` (visibilidad en el menú, orden y ancho de campos,
+`display_template`) y `configure-directus-ui.sh` (displays propios). Las dos fuentes
+discrepan por diseño, así que **el orden importa y no es opcional**:
+
+    apply-schema --apply  ->  configure-directus-views  ->  configure-directus-ui
+                          ->  configure-spanish-ui      ->  snapshot-schema
+
+Capturar el snapshot ANTES de los `configure-*` mete el estado crudo en Git, y el
+siguiente `apply-schema` de cualquiera vuelve a esconder del menú lo que el script de
+vistas había puesto. Pasó dos veces el mismo día: con `service_resources` (venía de un
+commit de septiembre) y con `conversation_sessions` (capturado a las 05:04, con las
+vistas configuradas a las 07:2x). El síntoma es siempre el mismo: un dry-run que
+propone `Set hidden to true` sobre algo que quieres ver.
+
+**`apply-schema.sh` NO ejecuta los `configure-*`** aunque su ayuda lo afirmara hasta
+hoy. Ahora los nombra al terminar, pero sigue sin ejecutarlos: aplicar el esquema y
+parar ahí deja el tenant sin la capa de interfaz.
+
+Detalle menor que hace dudar de un apply correcto: **el resumen del dry-run no imprime
+las altas dentro de un array**, solo las modificaciones. Al añadir un valor a un
+`choices` se ven los índices que se desplazan pero no el nuevo, y parece que se pierde
+el último. Se comprueba en la BD (`SELECT options FROM directus_fields WHERE ...`).
+
 ## Los workflows de n8n no llevan el tenant dentro — resuelto (17/sep/2026)
 
 `$env` **no sirve**: n8n 2.31 lo bloquea en nodos **por defecto** (`access to
