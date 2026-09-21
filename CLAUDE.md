@@ -461,8 +461,9 @@ bueno:
     Con 5 conversaciones simultáneas el p50 ya es de 7 s, y hace falta saber
     cuánto de eso es la cadena LLM -> tool -> LLM y cuánto encolamiento. Si es
     lo primero, es un asunto de producto: son 7 segundos que el cliente espera.
-  - Ejecutar `render-tenant-config.sh --apply` en `demo` y `dev`, que arrastran
-    el manifiesto sin `secrets/restic.env` y cualquier otro desfase de plantilla.
+  - ~~Ejecutar `render-tenant-config.sh --apply` en `demo` y `dev`~~ — **hecho (21/sep/2026)**.
+    Los dos tienen ya el manifiesto con `secrets/restic.env` y la `WEBHOOK_URL` buena;
+    verificado en el entorno del contenedor y con un WhatsApp real en `demo`.
 
 ## Los workflows de n8n no llevan el tenant dentro — resuelto (17/sep/2026)
 
