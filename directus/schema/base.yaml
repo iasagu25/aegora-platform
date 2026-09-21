@@ -12,7 +12,7 @@ collections:
       collapse: open
       collection: appointment_resources
       color: null
-      display_template: null
+      display_template: '{{resource_id}}'
       group: null
       hidden: true
       icon: null
@@ -828,8 +828,9 @@ fields:
     meta:
       collection: appointments
       conditions: null
-      display: null
-      display_options: null
+      display: related-values
+      display_options:
+        template: '{{first_name}} {{last_name}} · {{company}}'
       field: contact_id
       group: null
       hidden: false
@@ -839,7 +840,7 @@ fields:
       readonly: true
       required: false
       searchable: true
-      sort: 5
+      sort: 6
       special:
         - m2o
       translations:
@@ -882,7 +883,7 @@ fields:
       readonly: false
       required: true
       searchable: true
-      sort: 3
+      sort: 4
       special: null
       translations:
         - language: es-ES
@@ -924,7 +925,7 @@ fields:
       readonly: true
       required: true
       searchable: true
-      sort: 6
+      sort: 7
       special: null
       translations:
         - language: es-ES
@@ -966,7 +967,7 @@ fields:
       readonly: true
       required: true
       searchable: true
-      sort: 7
+      sort: 8
       special: null
       translations:
         - language: es-ES
@@ -1098,7 +1099,7 @@ fields:
       readonly: false
       required: false
       searchable: true
-      sort: 4
+      sort: 5
       special: null
       translations:
         - language: es-ES
@@ -1147,7 +1148,7 @@ fields:
       readonly: false
       required: true
       searchable: true
-      sort: 8
+      sort: 9
       special: null
       translations:
         - language: es-ES
@@ -1189,7 +1190,7 @@ fields:
       readonly: false
       required: false
       searchable: true
-      sort: 12
+      sort: 13
       special: null
       translations:
         - language: es-ES
@@ -1231,7 +1232,7 @@ fields:
       readonly: false
       required: false
       searchable: true
-      sort: 13
+      sort: 14
       special: null
       translations:
         - language: es-ES
@@ -1273,7 +1274,7 @@ fields:
       readonly: true
       required: false
       searchable: true
-      sort: 14
+      sort: 15
       special:
         - date-created
       translations:
@@ -1316,7 +1317,7 @@ fields:
       readonly: true
       required: false
       searchable: true
-      sort: 15
+      sort: 16
       special:
         - date-updated
       translations:
@@ -1360,7 +1361,7 @@ fields:
       readonly: true
       required: false
       searchable: true
-      sort: 9
+      sort: 10
       special:
         - m2o
       translations: null
@@ -1402,7 +1403,7 @@ fields:
       readonly: false
       required: false
       searchable: true
-      sort: 10
+      sort: 11
       special:
         - m2o
       translations: null
@@ -1444,7 +1445,7 @@ fields:
       readonly: false
       required: false
       searchable: true
-      sort: 11
+      sort: 12
       special:
         - m2o
       translations: null
@@ -1485,7 +1486,7 @@ fields:
       readonly: false
       required: false
       searchable: true
-      sort: 16
+      sort: 17
       special: null
       translations: null
       validation: null
@@ -1508,6 +1509,34 @@ fields:
       has_auto_increment: false
       foreign_key_table: null
       foreign_key_column: null
+  - collection: appointments
+    field: recursos
+    type: alias
+    meta:
+      collection: appointments
+      conditions: null
+      display: related-values
+      display_options: null
+      field: recursos
+      group: null
+      hidden: false
+      interface: list-o2m
+      note: >-
+        Quién atiende la cita. Lo asigna el Booking API al reservar; no se edita
+        a mano.
+      options: null
+      readonly: true
+      required: false
+      searchable: false
+      sort: 3
+      special:
+        - o2m
+      translations:
+        - language: es-ES
+          translation: Atendida por
+      validation: null
+      validation_message: null
+      width: half
   - collection: availability_exceptions
     field: id
     type: uuid
@@ -3726,8 +3755,9 @@ fields:
     meta:
       collection: conversation_messages
       conditions: null
-      display: null
-      display_options: null
+      display: related-values
+      display_options:
+        template: '{{first_name}} {{last_name}} · {{company}}'
       field: contact_id
       group: null
       hidden: false
@@ -4270,8 +4300,9 @@ fields:
     meta:
       collection: conversation_sessions
       conditions: null
-      display: null
-      display_options: null
+      display: related-values
+      display_options:
+        template: '{{first_name}} {{last_name}} · {{company}}'
       field: contact_id
       group: null
       hidden: false
@@ -7503,8 +7534,9 @@ fields:
     meta:
       collection: tasks
       conditions: null
-      display: null
-      display_options: null
+      display: related-values
+      display_options:
+        template: '{{first_name}} {{last_name}} · {{company}}'
       field: contact_id
       group: null
       hidden: false
@@ -8029,34 +8061,6 @@ fields:
       has_auto_increment: false
       foreign_key_table: null
       foreign_key_column: null
-  - collection: appointments
-    field: recursos
-    type: alias
-    meta:
-      collection: appointments
-      conditions: null
-      display: related-values
-      display_options: null
-      field: recursos
-      group: null
-      hidden: false
-      interface: list-o2m
-      note: >-
-        Quién atiende la cita. Lo asigna el Booking API al reservar; no se edita
-        a mano.
-      options: null
-      readonly: true
-      required: false
-      searchable: false
-      sort: 6
-      special:
-        - o2m
-      translations:
-        - language: es-ES
-          translation: Atendida por
-      validation: null
-      validation_message: null
-      width: full
 systemFields:
   - collection: directus_activity
     field: timestamp
@@ -8359,6 +8363,27 @@ relations:
       constraint_name: conversation_messages_contact_id_foreign
       on_update: NO ACTION
       on_delete: SET NULL
+  - collection: conversation_sessions
+    field: contact_id
+    related_collection: contacts
+    meta:
+      junction_field: null
+      many_collection: conversation_sessions
+      many_field: contact_id
+      one_allowed_collections: null
+      one_collection: contacts
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: conversation_sessions
+      column: contact_id
+      foreign_key_table: contacts
+      foreign_key_column: id
+      constraint_name: conversation_sessions_contact_id_foreign
+      on_update: NO ACTION
+      on_delete: SET NULL
   - collection: employees
     field: directus_user_id
     related_collection: directus_users
@@ -8525,26 +8550,5 @@ relations:
       foreign_key_table: employees
       foreign_key_column: id
       constraint_name: tasks_assignee_id_foreign
-      on_update: NO ACTION
-      on_delete: SET NULL
-  - collection: conversation_sessions
-    field: contact_id
-    related_collection: contacts
-    meta:
-      junction_field: null
-      many_collection: conversation_sessions
-      many_field: contact_id
-      one_allowed_collections: null
-      one_collection: contacts
-      one_collection_field: null
-      one_deselect_action: nullify
-      one_field: null
-      sort_field: null
-    schema:
-      table: conversation_sessions
-      column: contact_id
-      foreign_key_table: contacts
-      foreign_key_column: id
-      constraint_name: conversation_sessions_contact_id_foreign
       on_update: NO ACTION
       on_delete: SET NULL

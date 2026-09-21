@@ -225,7 +225,12 @@ const orden = {
 // La empresa va dentro porque en una gestoría a la gente se la conoce por ella.
 // OJO: sin empresa queda un " · " colgando -- Directus no hace condicionales en
 // una plantilla, y es preferible a no ver de qué empresa es nadie.
-const PLANTILLA_CONTACTO = '{{first_name}} {{last_name}} · {{company}}';
+// Empresa primero: en una gestoría a la gente se la conoce por su empresa antes
+// que por su nombre, y así la lista de contactos se agrupa sola. Ya estaba
+// decidido en base.yaml antes de hoy; se mantiene.
+// Tiene que coincidir con el display_template de `contacts` -- y coincide porque
+// lo pone este mismo fichero, un poco más abajo.
+const PLANTILLA_CONTACTO = '{{company}} · {{first_name}} {{last_name}}';
 
 const comoSeLlaman = {
   contacts: PLANTILLA_CONTACTO,
