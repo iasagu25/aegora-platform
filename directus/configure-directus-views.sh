@@ -224,6 +224,9 @@ const comoSeLlaman = {
   // solo. No se mete el contacto: cuando es null, la plantilla deja un " · "
   // suelto y parece que algo se ha roto. El contacto va como columna.
   conversation_sessions: '{{session_key}}',
+  // Sin esto, "Atendida por" en una cita enseña el UUID de la fila puente en vez
+  // del nombre de quien atiende, que es el único motivo de que el campo exista.
+  appointment_resources: '{{resource_id}}',
   employees: '{{first_name}} {{last_name}}',
   services: '{{name}}',
   resources: '{{name}}',

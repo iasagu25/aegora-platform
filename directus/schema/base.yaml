@@ -8028,6 +8028,34 @@ fields:
       has_auto_increment: false
       foreign_key_table: null
       foreign_key_column: null
+  - collection: appointments
+    field: recursos
+    type: alias
+    meta:
+      collection: appointments
+      conditions: null
+      display: related-values
+      display_options: null
+      field: recursos
+      group: null
+      hidden: false
+      interface: list-o2m
+      note: >-
+        Quién atiende la cita. Lo asigna el Booking API al reservar; no se edita
+        a mano.
+      options: null
+      readonly: true
+      required: false
+      searchable: false
+      sort: 6
+      special:
+        - o2m
+      translations:
+        - language: es-ES
+          translation: Atendida por
+      validation: null
+      validation_message: null
+      width: full
 systemFields:
   - collection: directus_activity
     field: timestamp
@@ -8089,7 +8117,7 @@ relations:
       one_collection: appointments
       one_collection_field: null
       one_deselect_action: nullify
-      one_field: null
+      one_field: recursos
       sort_field: null
     schema:
       table: appointment_resources

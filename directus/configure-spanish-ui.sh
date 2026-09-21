@@ -355,6 +355,7 @@ const collectionTranslations = {
     singular: 'Cita',
     plural: 'Citas',
     translation: 'Citas',
+    recursos: 'Atendida por',
   },
 
   services: {
