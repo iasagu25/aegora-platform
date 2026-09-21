@@ -24,6 +24,7 @@ readonly TENANTS_ROOT="/opt/aegora/tenants"
 readonly EXTENSIONS_SOURCE_ROOT="${PLATFORM_ROOT}/directus/extensions"
 
 readonly MANAGED_EXTENSIONS=(
+  "directus-extension-aegora-conversation"
   "directus-extension-aegora-phone-display"
   "directus-extension-aegora-phone-normalizer"
   "directus-extension-aegora-tasks-layout"

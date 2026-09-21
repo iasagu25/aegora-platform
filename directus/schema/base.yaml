@@ -4583,7 +4583,7 @@ fields:
       field: mensajes
       group: null
       hidden: false
-      interface: list-o2m
+      interface: aegora-conversation
       note: null
       options: null
       readonly: false

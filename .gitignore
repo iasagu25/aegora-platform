@@ -80,3 +80,13 @@ __pycache__/
 # El handover .docx es la copia de referencia y NO se versiona: lo que va a
 # git es su conversión a docs/AEGORA_handover_tecnico_post_Lumadock.md
 *.docx
+
+# =============================================================================
+# Dependencias de las extensiones de Directus
+# =============================================================================
+# Lo que se versiona de una extensión es `package.json` + `dist/` (es lo que
+# copia configure-directus-extensions.sh al tenant) y su package-lock.json.
+# node_modules no: un solo `npm install` mete 16.000 ficheros en el repo, y las
+# otras extensiones se libraron por accidente, porque nadie había construido
+# dentro del checkout.
+node_modules/
