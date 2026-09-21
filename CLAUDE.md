@@ -807,9 +807,25 @@ de tocar nada.
 
 **Un tenant solo puede enseñar una vertical a la vez**: servicios, empleados y KB son de
 todo el tenant. Así que o son dos tenants de demo (~1 GiB cada uno según el modelo de
-capacidad medido) o un script que carga y reinicia el conjunto en `demo`. **La segunda es
-mejor**: el conjunto se versiona, se puede volver a dejar como estaba después de una demo
-que se ensució, y no come recursos. Precedente de formato: `directus/seed/knowledge-demo.json`.
+capacidad medido) o un script que carga y reinicia el conjunto. Se hizo lo segundo:
+
+- `directus/seed/<conjunto>.json` — los datos. Las referencias entre colecciones van por
+  `_ref`/`@ref` y **no por UUID**: los ids los genera Directus al insertar, así que un
+  seed con UUIDs dentro solo se podría cargar una vez y en un tenant.
+- `directus/seed/load-seed.sh --tenant X --set gestoria [--apply]` — idempotente por clave
+  natural. Lo que ya existe se reutiliza y **no se modifica**: si alguien ajustó un horario
+  durante una demo, recargar no se lo pisa. No borra nada.
+- `directus/seed/reset-tenant-data.sh --tenant X [--apply --yes-destroy-data]` — vaciar.
+  Es otra orden y no una bandera de la anterior, porque tiene otros riesgos. Exige la
+  segunda bandera aparte **porque `--apply` se escribe cincuenta veces al día y esto no se
+  deshace**, y **se niega en seco con `ops`**, el único tenant cuyos datos son de Aegora.
+  Borra en una transacción y en orden de claves ajenas: a medias dejaría servicios sin
+  recursos, que es peor que no empezar.
+
+Del conjunto de gestoría, lo que lo hace útil: **los tres empleados tienen horarios
+distintos a propósito**. Uno donde todos atienden a la vez no enseña nada -- la gracia es
+que Lucía ofrezca huecos diferentes según el servicio, porque cada servicio lo dan
+personas distintas.
 
 ## Sincronización con el calendario del cliente (Google / Outlook) — decidido, sin construir
 El layout Calendario de Directus **no admite color por evento** (sus únicas opciones son

@@ -26,7 +26,7 @@
     {
       "_ref": "arturo",
       "first_name": "Arturo",
-      "last_name": "Benavides",
+      "last_name": "Cifuentes",
       "email": "arturo@gestoria-demo.es",
       "role": "Área fiscal"
     },
@@ -48,7 +48,7 @@
   "resources": [
     {
       "_ref": "r_arturo",
-      "name": "Arturo Benavides",
+      "name": "Arturo Cifuentes",
       "resource_type": "person",
       "employee_id": "@arturo",
       "location_id": "@oficina",
@@ -378,7 +378,7 @@
       "sort": 4,
       "active": true,
       "title": "El equipo",
-      "body": "**Arturo Benavides** lleva el área fiscal: impuestos, renta y todo lo que venga de Hacienda.\n\n**Juan Peralta** lleva el área laboral: altas, nóminas, contratos y Seguridad Social.\n\n**Carlos Ledesma** lleva la parte mercantil y contable: sociedades, contabilidad y constituciones."
+      "body": "**Arturo Cifuentes** lleva el área fiscal: impuestos, renta y todo lo que venga de Hacienda.\n\n**Juan Peralta** lleva el área laboral: altas, nóminas, contratos y Seguridad Social.\n\n**Carlos Ledesma** lleva la parte mercantil y contable: sociedades, contabilidad y constituciones."
     },
     {
       "sort": 5,

@@ -220,6 +220,13 @@ const orden = {
 // Directus pinta el UUID: el responsable de una tarea salía como
 // "3778d1f3-2778-4..." en vez de por su nombre.
 const comoSeLlaman = {
+  // Sin esto un contacto sale como UUID en cualquier sitio que lo referencie: la
+  // columna Contacto de la bandeja, el selector de una cita, una tarea...
+  // La empresa va dentro porque en una gestoría a la gente se la conoce por ella.
+  // OJO: si un contacto no tiene empresa queda un " · " colgando al final --
+  // Directus no sabe hacer condicionales en una plantilla. Es feo y es preferible
+  // a no ver de qué empresa es nadie.
+  contacts: '{{first_name}} {{last_name}} · {{company}}',
   // session_key ya lleva el canal delante ("webchat:xxxx"), así que se basta
   // solo. No se mete el contacto: cuando es null, la plantilla deja un " · "
   // suelto y parece que algo se ha roto. El contacto va como columna.
