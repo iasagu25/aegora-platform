@@ -484,6 +484,37 @@ collections:
       versioning: false
     schema:
       name: tasks
+  - collection: conversation_messages
+    meta:
+      accountability: all
+      archive_app_filter: true
+      archive_field: null
+      archive_value: null
+      autosave_revision_interval: null
+      collapse: open
+      collection: conversation_messages
+      color: null
+      display_template: '{{autor}} · {{texto}}'
+      group: null
+      hidden: false
+      icon: forum
+      item_duplication_fields: null
+      note: Mensajes de las conversaciones de Lucía, de todos los canales. Una fila por
+        mensaje.
+      preview_url: null
+      singleton: false
+      sort: 5
+      sort_field: null
+      status: active
+      translations:
+      - language: es-ES
+        plural: Mensajes
+        singular: Mensaje
+        translation: Mensajes de conversación
+      unarchive_value: null
+      versioning: false
+    schema:
+      name: conversation_messages
 fields:
   - collection: appointment_resources
     field: id
@@ -7370,6 +7401,615 @@ fields:
       has_auto_increment: false
       foreign_key_table: null
       foreign_key_column: null
+  - collection: conversation_messages
+    field: id
+    type: uuid
+    meta:
+      collection: conversation_messages
+      conditions: null
+      display: null
+      display_options: null
+      field: id
+      group: null
+      hidden: true
+      interface: input
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 1
+      special:
+      - uuid
+      translations:
+      - language: es-ES
+        translation: ID
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: id
+      table: conversation_messages
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: true
+      is_indexed: false
+      is_primary_key: true
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: conversation_messages
+    field: session_id
+    type: uuid
+    meta:
+      collection: conversation_messages
+      conditions: null
+      display: null
+      display_options: null
+      field: session_id
+      group: null
+      hidden: false
+      interface: select-dropdown-m2o
+      note: 'Hilo al que pertenece. Agrupa la conversación.'
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 2
+      special:
+      - m2o
+      translations:
+      - language: es-ES
+        translation: Conversación
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: session_id
+      table: conversation_messages
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: true
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: conversation_sessions
+      foreign_key_column: id
+  - collection: conversation_messages
+    field: contact_id
+    type: uuid
+    meta:
+      collection: conversation_messages
+      conditions: null
+      display: null
+      display_options: null
+      field: contact_id
+      group: null
+      hidden: false
+      interface: select-dropdown-m2o
+      note: 'Se rellena en cuanto se sabe quién es; puede ser nulo al principio.'
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 3
+      special:
+      - m2o
+      translations:
+      - language: es-ES
+        translation: Contacto
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: contact_id
+      table: conversation_messages
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: true
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: contacts
+      foreign_key_column: id
+  - collection: conversation_messages
+    field: canal
+    type: string
+    meta:
+      collection: conversation_messages
+      conditions: null
+      display: null
+      display_options: null
+      field: canal
+      group: null
+      hidden: false
+      interface: select-dropdown
+      note: 'Denormalizado de la sesión: la bandeja filtra por canal sin join.'
+      options:
+        choices:
+        - text: WhatsApp
+          value: whatsapp
+        - text: Webchat
+          value: webchat
+        - text: Voz
+          value: voz
+      readonly: false
+      required: false
+      searchable: true
+      sort: 4
+      special: null
+      translations:
+      - language: es-ES
+        translation: Canal
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: canal
+      table: conversation_messages
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: true
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: conversation_messages
+    field: direccion
+    type: string
+    meta:
+      collection: conversation_messages
+      conditions: null
+      display: null
+      display_options: null
+      field: direccion
+      group: null
+      hidden: false
+      interface: select-dropdown
+      note: null
+      options:
+        choices:
+        - text: Entrante
+          value: entrante
+        - text: Saliente
+          value: saliente
+      readonly: false
+      required: false
+      searchable: true
+      sort: 5
+      special: null
+      translations:
+      - language: es-ES
+        translation: Dirección
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: direccion
+      table: conversation_messages
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: conversation_messages
+    field: autor
+    type: string
+    meta:
+      collection: conversation_messages
+      conditions: null
+      display: null
+      display_options: null
+      field: autor
+      group: null
+      hidden: false
+      interface: select-dropdown
+      note: 'Eje distinto de la dirección: un saliente puede ser de Lucía o del gestor.'
+      options:
+        choices:
+        - text: Cliente
+          value: cliente
+        - text: Lucía
+          value: lucia
+        - text: Humano
+          value: humano
+      readonly: false
+      required: false
+      searchable: true
+      sort: 6
+      special: null
+      translations:
+      - language: es-ES
+        translation: Autor
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: autor
+      table: conversation_messages
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: conversation_messages
+    field: texto
+    type: text
+    meta:
+      collection: conversation_messages
+      conditions: null
+      display: null
+      display_options: null
+      field: texto
+      group: null
+      hidden: false
+      interface: input-multiline
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 7
+      special: null
+      translations:
+      - language: es-ES
+        translation: Texto
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: texto
+      table: conversation_messages
+      data_type: text
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: conversation_messages
+    field: estado_envio
+    type: string
+    meta:
+      collection: conversation_messages
+      conditions: null
+      display: null
+      display_options: null
+      field: estado_envio
+      group: null
+      hidden: false
+      interface: select-dropdown
+      note: 'Un saliente creado como ''pendiente'' es lo que dispara el envío real.'
+      options:
+        choices:
+        - text: Recibido
+          value: recibido
+        - text: Pendiente de enviar
+          value: pendiente
+        - text: Enviado
+          value: enviado
+        - text: Fallido
+          value: fallido
+      readonly: false
+      required: false
+      searchable: true
+      sort: 8
+      special: null
+      translations:
+      - language: es-ES
+        translation: Estado
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: estado_envio
+      table: conversation_messages
+      data_type: character varying
+      default_value: recibido
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: true
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: conversation_messages
+    field: error
+    type: text
+    meta:
+      collection: conversation_messages
+      conditions: null
+      display: null
+      display_options: null
+      field: error
+      group: null
+      hidden: false
+      interface: input-multiline
+      note: 'Por qué no se pudo enviar, en cristiano (p. ej. ventana de 24h cerrada).'
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 9
+      special: null
+      translations:
+      - language: es-ES
+        translation: Error
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: error
+      table: conversation_messages
+      data_type: text
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: conversation_messages
+    field: canal_message_id
+    type: string
+    meta:
+      collection: conversation_messages
+      conditions: null
+      display: null
+      display_options: null
+      field: canal_message_id
+      group: null
+      hidden: true
+      interface: input
+      note: 'El wamid en WhatsApp. Ata la fila al identificador del proveedor.'
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 10
+      special: null
+      translations:
+      - language: es-ES
+        translation: ID del canal
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: canal_message_id
+      table: conversation_messages
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: true
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: conversation_messages
+    field: created_at
+    type: timestamp
+    meta:
+      collection: conversation_messages
+      conditions: null
+      display: null
+      display_options: null
+      field: created_at
+      group: null
+      hidden: true
+      interface: datetime
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 11
+      special:
+      - date-created
+      translations:
+      - language: es-ES
+        translation: Creado
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: created_at
+      table: conversation_messages
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: conversation_sessions
+    field: modo
+    type: string
+    meta:
+      collection: conversation_sessions
+      conditions: null
+      display: null
+      display_options: null
+      field: modo
+      group: null
+      hidden: false
+      interface: select-dropdown
+      note: 'En ''humano'' Lucía deja de responder en este hilo. Es el relevo.'
+      options:
+        choices:
+        - text: Lucía responde
+          value: auto
+        - text: Lo lleva una persona
+          value: humano
+      readonly: false
+      required: false
+      searchable: true
+      sort: 9
+      special: null
+      translations:
+      - language: es-ES
+        translation: Modo
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: modo
+      table: conversation_sessions
+      data_type: character varying
+      default_value: auto
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: false
+      is_indexed: true
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: conversation_sessions
+    field: ventana_hasta
+    type: timestamp
+    meta:
+      collection: conversation_sessions
+      conditions: null
+      display: null
+      display_options: null
+      field: ventana_hasta
+      group: null
+      hidden: false
+      interface: datetime
+      note: 'Fin de la ventana de 24h de WhatsApp. Pasada, solo se puede enviar una plantilla aprobada, también a mano.'
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 10
+      special: null
+      translations:
+      - language: es-ES
+        translation: Ventana abierta hasta
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: ventana_hasta
+      table: conversation_sessions
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: conversation_sessions
+    field: mensajes
+    type: alias
+    meta:
+      collection: conversation_sessions
+      conditions: null
+      display: related-values
+      display_options: null
+      field: mensajes
+      group: null
+      hidden: false
+      interface: list-o2m
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 11
+      special:
+      - o2m
+      translations:
+      - language: es-ES
+        translation: Mensajes
+      validation: null
+      validation_message: null
+      width: full
 systemFields:
   - collection: directus_activity
     field: timestamp
@@ -7796,5 +8436,47 @@ relations:
       foreign_key_table: employees
       foreign_key_column: id
       constraint_name: tasks_assignee_id_foreign
+      on_update: NO ACTION
+      on_delete: SET NULL
+  - collection: conversation_messages
+    field: session_id
+    related_collection: conversation_sessions
+    meta:
+      junction_field: null
+      many_collection: conversation_messages
+      many_field: session_id
+      one_allowed_collections: null
+      one_collection: conversation_sessions
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: mensajes
+      sort_field: null
+    schema:
+      table: conversation_messages
+      column: session_id
+      foreign_key_table: conversation_sessions
+      foreign_key_column: id
+      constraint_name: conversation_messages_session_id_foreign
+      on_update: NO ACTION
+      on_delete: CASCADE
+  - collection: conversation_messages
+    field: contact_id
+    related_collection: contacts
+    meta:
+      junction_field: null
+      many_collection: conversation_messages
+      many_field: contact_id
+      one_allowed_collections: null
+      one_collection: contacts
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: conversation_messages
+      column: contact_id
+      foreign_key_table: contacts
+      foreign_key_column: id
+      constraint_name: conversation_messages_contact_id_foreign
       on_update: NO ACTION
       on_delete: SET NULL

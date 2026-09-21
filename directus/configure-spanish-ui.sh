@@ -421,6 +421,12 @@ const collectionTranslations = {
     translation: 'Conversaciones',
   },
 
+  conversation_messages: {
+    singular: 'Mensaje',
+    plural: 'Mensajes',
+    translation: 'Mensajes de conversación',
+  },
+
   languages: {
     singular: 'Idioma',
     plural: 'Idiomas',
@@ -606,8 +612,25 @@ const fieldTranslations = {
     contact_id: 'Contacto',
     flujo_activo: 'Flujo activo',
     state: 'Estado interno',
+    modo: 'Modo',
+    ventana_hasta: 'Ventana abierta hasta',
+    mensajes: 'Mensajes',
     created_at: 'Fecha de creación',
     updated_at: 'Última modificación',
+  },
+
+  conversation_messages: {
+    id: 'ID',
+    session_id: 'Conversación',
+    contact_id: 'Contacto',
+    canal: 'Canal',
+    direccion: 'Dirección',
+    autor: 'Autor',
+    texto: 'Texto',
+    estado_envio: 'Estado',
+    error: 'Error',
+    canal_message_id: 'ID del canal',
+    created_at: 'Fecha de creación',
   },
 
   languages: {
