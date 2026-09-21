@@ -52,9 +52,12 @@ Sin --apply:
 
 Con --apply:
   aplica directus/schema/base.yaml al tenant, verifica el estado base,
-  aplica directus/sql/booking-indexes.sql (índices/constraints
-  idempotentes) dentro de BEGIN ... COMMIT, y restaura después la
-  configuración UI administrada por Aegora.
+  y aplica directus/sql/booking-indexes.sql (índices/constraints
+  idempotentes) dentro de BEGIN ... COMMIT.
+
+  NO restaura la configuración UI administrada por Aegora: base.yaml la
+  pisa y hay que volver a ponerla con los dos configure-* que se indican
+  al terminar. Decía que lo hacía y no lo hacía.
 
 Nota:
   Los custom displays se gestionan fuera de base.yaml mediante
@@ -268,6 +271,21 @@ SQL:
 
 Estado:
   OK
+
+FALTA, y no lo hago yo:
+
+  sudo ${PLATFORM_ROOT}/directus/configure-directus-views.sh --tenant ${TENANT_ID} --apply
+  sudo ${PLATFORM_ROOT}/directus/configure-directus-ui.sh    --tenant ${TENANT_ID} --apply
+  sudo ${PLATFORM_ROOT}/directus/configure-spanish-ui.sh     --tenant ${TENANT_ID} --apply
+
+base.yaml lleva dentro la forma "cruda" del esquema, así que aplicarlo pisa
+la capa de interfaz que gestiona Aegora: los displays propios se quedan a
+null y service_resources vuelve a esconderse del menú -- y esa colección es
+el ÚNICO sitio donde se dice qué recurso presta qué servicio.
+
+Si has añadido colecciones o campos, revisa también que sus traducciones
+estén en configure-spanish-ui.sh: lo que no esté ahí sale en inglés en el
+siguiente tenant.
 
 ============================================================
 EOF
