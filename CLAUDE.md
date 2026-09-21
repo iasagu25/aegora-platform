@@ -490,6 +490,50 @@ las altas dentro de un array**, solo las modificaciones. Al añadir un valor a u
 `choices` se ven los índices que se desplazan pero no el nuevo, y parece que se pierde
 el último. Se comprueba en la BD (`SELECT options FROM directus_fields WHERE ...`).
 
+## Las conversaciones se leen y se contestan desde Directus (21/sep/2026)
+La objeción que sale en cada venta: al pasar a WABA el negocio **pierde la app de
+WhatsApp** y pregunta enseguida dónde va a ver y contestar sus conversaciones. Hasta
+hoy la respuesta no existía -- la conversación vivía en el `Postgres Chat Memory` del
+Core, dentro de `n8n_<tenant>`, en formato interno y en otra base de datos.
+
+`conversation_messages` (una fila por mensaje, cualquier canal) + dos campos en
+`conversation_sessions` (`modo`, `ventana_hasta`). Decisiones que importan:
+- **`direccion` y `autor` son ejes distintos.** Un saliente puede ser de Lucía o de una
+  persona, y eso es lo que hace legible un relevo.
+- **Se guarda lo que el canal ENTREGA**, no el `reply_to_user` combinado de v1, que no
+  lo recibe nadie tal cual: el aviso de privacidad va como mensaje propio (CTA-url en
+  WhatsApp, pintado por el widget en webchat) y `core_reply` es la respuesta. Guardar
+  el combinado le enseñaba al gestor un mensaje que el cliente nunca vio así.
+- **Entry solo LEE `modo`.** Si lo escribiera, cada turno devolvería la sesión a `auto`
+  y un relevo duraría un mensaje.
+- **El relevo es de WhatsApp.** En webchat no hay forma de empujarle nada a un
+  navegador cerrado: callar a Lucía ahí deja al cliente en un chat muerto.
+- **`ventana_hasta` se enseña porque la ventana de 24h aplica también al humano.** Un
+  gestor que no la ve escribe, falla, y no vuelve.
+- El gestor tiene `create` sobre los mensajes y **nunca `update` ni `delete`**: un
+  historial que se puede editar deja de ser un registro de lo que pasó.
+
+`HUMANO · Enviar pendientes` recoge los `pendiente` cada 30 s. **Se reserva las filas
+poniéndolas en `enviando` con un update-by-query antes de enviar**: sin esa reserva,
+dos pasadas solapadas del temporizador mandan el mismo mensaje dos veces a una persona
+real. Un envío fallido **no se reintenta solo** -- reintentar a ciegas contra WhatsApp
+es como se manda cuatro veces lo mismo. Y va con `saveDataSuccessExecution: none`: a
+2.880 ejecuciones diarias se comería el límite de 10.000 del pruning en tres días,
+desalojando las de conversaciones.
+
+**Pendiente y conocido: Lucía vuelve ciega.** Los turnos que escribe el gestor no pasan
+por el Core, así que al devolver el mando ella sigue como si nadie hubiera hablado. Es
+otra vez el patrón de siempre (un hecho que solo conoce la capa determinista no llega a
+la memoria del LLM); la diferencia es que aquí el hecho lo dijo una persona.
+
+**Dos trampas que costaron la tarde y volverán:**
+- **Una lista explícita de `fields` convierte una columna nueva en un valor por defecto,
+  sin error.** `HTTP · Cargar sesión` no pedía `modo`, así que llegaba `undefined`,
+  caía a `auto` y el relevo no se activaba nunca sin nada anómalo que mirar.
+- **La vista por defecto de una colección nueva no enseña lo importante.** Directus
+  elige las primeras columnas y el texto del mensaje se quedaba fuera: una lista de
+  mensajes sin mensajes. Las columnas se fijan en `configure-directus-presets.sh`.
+
 ## Los workflows de n8n no llevan el tenant dentro — resuelto (17/sep/2026)
 
 `$env` **no sirve**: n8n 2.31 lo bloquea en nodos **por defecto** (`access to
