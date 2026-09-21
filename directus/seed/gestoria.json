@@ -1,0 +1,408 @@
+{
+  "_nota": [
+    "Conjunto de demostración: gestoría. Se carga con directus/seed/load-seed.sh.",
+    "",
+    "Las referencias entre colecciones van por `_ref` y `@ref`, no por UUID: los",
+    "identificadores los genera Directus al insertar, así que un seed con UUIDs",
+    "dentro solo se podría cargar una vez y en un tenant.",
+    "",
+    "Los tres empleados tienen horarios DISTINTOS a propósito. Un conjunto donde",
+    "todos atienden a la misma hora no enseña nada: la gracia de la demo es que",
+    "Lucía ofrezca huecos diferentes según el servicio que resuelva."
+  ],
+  "locations": [
+    {
+      "_ref": "oficina",
+      "name": "Oficina Centro",
+      "code": "CENTRO",
+      "address": "Calle Mayor 12, 2º B\n28013 Madrid",
+      "phone": "+34 910 000 000",
+      "email": "hola@gestoria-demo.es",
+      "timezone": "Europe/Madrid",
+      "active": true
+    }
+  ],
+  "employees": [
+    {
+      "_ref": "arturo",
+      "first_name": "Arturo",
+      "last_name": "Benavides",
+      "email": "arturo@gestoria-demo.es",
+      "role": "Área fiscal"
+    },
+    {
+      "_ref": "juan",
+      "first_name": "Juan",
+      "last_name": "Peralta",
+      "email": "juan@gestoria-demo.es",
+      "role": "Área laboral"
+    },
+    {
+      "_ref": "carlos",
+      "first_name": "Carlos",
+      "last_name": "Ledesma",
+      "email": "carlos@gestoria-demo.es",
+      "role": "Área mercantil y contable"
+    }
+  ],
+  "resources": [
+    {
+      "_ref": "r_arturo",
+      "name": "Arturo Benavides",
+      "resource_type": "person",
+      "employee_id": "@arturo",
+      "location_id": "@oficina",
+      "capacity": 1,
+      "active": true
+    },
+    {
+      "_ref": "r_juan",
+      "name": "Juan Peralta",
+      "resource_type": "person",
+      "employee_id": "@juan",
+      "location_id": "@oficina",
+      "capacity": 1,
+      "active": true
+    },
+    {
+      "_ref": "r_carlos",
+      "name": "Carlos Ledesma",
+      "resource_type": "person",
+      "employee_id": "@carlos",
+      "location_id": "@oficina",
+      "capacity": 1,
+      "active": true
+    }
+  ],
+  "services": [
+    {
+      "_ref": "s_fiscal",
+      "name": "Consulta fiscal",
+      "duration_minutes": 45,
+      "description": "Dudas de impuestos, requerimientos de Hacienda y planificación del trimestre.",
+      "booking_mode": "fixed_duration",
+      "minimum_notice_minutes": 120,
+      "maximum_booking_days": 60,
+      "requires_confirmation": false,
+      "active": true,
+      "buffer_before_minutes": 0,
+      "buffer_after_minutes": 10
+    },
+    {
+      "_ref": "s_renta",
+      "name": "Declaración de la renta",
+      "duration_minutes": 60,
+      "description": "Preparación y presentación del IRPF. Trae el borrador si ya lo tienes.",
+      "booking_mode": "fixed_duration",
+      "minimum_notice_minutes": 1440,
+      "maximum_booking_days": 90,
+      "requires_confirmation": false,
+      "active": true,
+      "buffer_before_minutes": 0,
+      "buffer_after_minutes": 10
+    },
+    {
+      "_ref": "s_autonomo",
+      "name": "Alta de autónomo",
+      "duration_minutes": 45,
+      "description": "Alta en Hacienda y en la Seguridad Social, y qué obligaciones te tocan.",
+      "booking_mode": "fixed_duration",
+      "minimum_notice_minutes": 120,
+      "maximum_booking_days": 60,
+      "requires_confirmation": false,
+      "active": true,
+      "buffer_before_minutes": 0,
+      "buffer_after_minutes": 10
+    },
+    {
+      "_ref": "s_nominas",
+      "name": "Nóminas y Seguridad Social",
+      "duration_minutes": 30,
+      "description": "Altas y bajas de trabajadores, nóminas, contratos y seguros sociales.",
+      "booking_mode": "fixed_duration",
+      "minimum_notice_minutes": 120,
+      "maximum_booking_days": 60,
+      "requires_confirmation": false,
+      "active": true,
+      "buffer_before_minutes": 0,
+      "buffer_after_minutes": 5
+    },
+    {
+      "_ref": "s_sociedad",
+      "name": "Constitución de sociedad",
+      "duration_minutes": 60,
+      "description": "Montar una S.L.: pasos, plazos, coste y qué documentación hace falta.",
+      "booking_mode": "fixed_duration",
+      "minimum_notice_minutes": 1440,
+      "maximum_booking_days": 90,
+      "requires_confirmation": false,
+      "active": true,
+      "buffer_before_minutes": 0,
+      "buffer_after_minutes": 15
+    }
+  ],
+  "service_resources": [
+    {
+      "service_id": "@s_fiscal",
+      "resource_id": "@r_arturo"
+    },
+    {
+      "service_id": "@s_fiscal",
+      "resource_id": "@r_carlos"
+    },
+    {
+      "service_id": "@s_renta",
+      "resource_id": "@r_arturo"
+    },
+    {
+      "service_id": "@s_autonomo",
+      "resource_id": "@r_juan"
+    },
+    {
+      "service_id": "@s_autonomo",
+      "resource_id": "@r_carlos"
+    },
+    {
+      "service_id": "@s_nominas",
+      "resource_id": "@r_juan"
+    },
+    {
+      "service_id": "@s_sociedad",
+      "resource_id": "@r_carlos"
+    }
+  ],
+  "availability_rules": [
+    {
+      "resource_id": "@r_arturo",
+      "day_of_week": 1,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_arturo",
+      "day_of_week": 2,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_arturo",
+      "day_of_week": 3,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_arturo",
+      "day_of_week": 4,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_arturo",
+      "day_of_week": 1,
+      "start_time": "16:00:00",
+      "end_time": "19:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_arturo",
+      "day_of_week": 2,
+      "start_time": "16:00:00",
+      "end_time": "19:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_arturo",
+      "day_of_week": 3,
+      "start_time": "16:00:00",
+      "end_time": "19:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_arturo",
+      "day_of_week": 4,
+      "start_time": "16:00:00",
+      "end_time": "19:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_arturo",
+      "day_of_week": 5,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_juan",
+      "day_of_week": 1,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_juan",
+      "day_of_week": 2,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_juan",
+      "day_of_week": 3,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_juan",
+      "day_of_week": 4,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_juan",
+      "day_of_week": 5,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_juan",
+      "day_of_week": 1,
+      "start_time": "16:00:00",
+      "end_time": "18:30:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_juan",
+      "day_of_week": 2,
+      "start_time": "16:00:00",
+      "end_time": "18:30:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_juan",
+      "day_of_week": 3,
+      "start_time": "16:00:00",
+      "end_time": "18:30:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_carlos",
+      "day_of_week": 1,
+      "start_time": "10:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_carlos",
+      "day_of_week": 2,
+      "start_time": "10:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_carlos",
+      "day_of_week": 3,
+      "start_time": "10:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_carlos",
+      "day_of_week": 4,
+      "start_time": "10:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_carlos",
+      "day_of_week": 5,
+      "start_time": "10:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_carlos",
+      "day_of_week": 1,
+      "start_time": "16:00:00",
+      "end_time": "19:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_carlos",
+      "day_of_week": 2,
+      "start_time": "16:00:00",
+      "end_time": "19:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_carlos",
+      "day_of_week": 3,
+      "start_time": "16:00:00",
+      "end_time": "19:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_carlos",
+      "day_of_week": 4,
+      "start_time": "16:00:00",
+      "end_time": "19:00:00",
+      "active": true
+    }
+  ],
+  "knowledge": [
+    {
+      "sort": 1,
+      "active": true,
+      "title": "Sobre nosotros",
+      "body": "Somos una gestoría de barrio con trato directo: hablas siempre con la misma persona, no con un número de expediente.\n\nLlevamos la parte fiscal, laboral y contable de autónomos y pequeñas empresas, y nos encargamos de que no se te pase ningún plazo.\n\nSi algo no es de nuestro ámbito, te lo decimos y te orientamos sobre a quién acudir."
+    },
+    {
+      "sort": 2,
+      "active": true,
+      "title": "A quién ayudamos",
+      "body": "Autónomos que empiezan y no saben por dónde, y a los que ya llevan años y quieren dejar de preocuparse por los trimestres.\n\nPequeñas empresas y sociedades que necesitan contabilidad, nóminas y presentación de impuestos.\n\nParticulares para la declaración de la renta y trámites puntuales."
+    },
+    {
+      "sort": 3,
+      "active": true,
+      "title": "Servicios",
+      "body": "- **Consulta fiscal** (45 min): impuestos, requerimientos de Hacienda y planificación del trimestre.\n- **Declaración de la renta** (60 min): preparación y presentación del IRPF.\n- **Alta de autónomo** (45 min): alta en Hacienda y Seguridad Social, y qué obligaciones te tocan.\n- **Nóminas y Seguridad Social** (30 min): altas y bajas, nóminas, contratos y seguros sociales.\n- **Constitución de sociedad** (60 min): montar una S.L., pasos, plazos y coste.\n\nLa primera consulta para valorar tu caso no se cobra."
+    },
+    {
+      "sort": 4,
+      "active": true,
+      "title": "El equipo",
+      "body": "**Arturo Benavides** lleva el área fiscal: impuestos, renta y todo lo que venga de Hacienda.\n\n**Juan Peralta** lleva el área laboral: altas, nóminas, contratos y Seguridad Social.\n\n**Carlos Ledesma** lleva la parte mercantil y contable: sociedades, contabilidad y constituciones."
+    },
+    {
+      "sort": 5,
+      "active": true,
+      "title": "Horario de atención",
+      "body": "Lunes a jueves: de 9:00 a 14:00 y de 16:00 a 19:00.\nViernes: de 9:00 a 14:00.\nSábados y domingos: cerrado.\n\nAgosto: solo por las mañanas.\n\nLas visitas son con cita previa."
+    },
+    {
+      "sort": 6,
+      "active": true,
+      "title": "Dónde estamos",
+      "body": "Calle Mayor 12, 2º B, 28013 Madrid.\n\nHay ascensor. Metro Sol y Ópera a cinco minutos andando."
+    },
+    {
+      "sort": 7,
+      "active": true,
+      "title": "Qué traer a la cita",
+      "body": "**Consulta fiscal**: los modelos que hayas presentado este año y cualquier carta de Hacienda que hayas recibido.\n\n**Declaración de la renta**: DNI, el borrador si lo tienes, y justificantes de hipoteca, alquiler o donativos.\n\n**Alta de autónomo**: DNI y número de cuenta bancaria.\n\n**Nóminas**: contratos vigentes y las últimas nóminas presentadas.\n\n**Constitución de sociedad**: DNI de los socios y una idea del nombre que quieres para la sociedad.\n\nSi no tienes algo a mano, ven igualmente: casi todo se puede completar después."
+    },
+    {
+      "sort": 8,
+      "active": true,
+      "title": "Contacto",
+      "body": "Teléfono: +34 910 000 000\nCorreo: hola@gestoria-demo.es\n\nPor WhatsApp puedes pedir cita, cambiarla o cancelarla a cualquier hora."
+    }
+  ]
+}
