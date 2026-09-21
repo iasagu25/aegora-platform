@@ -232,7 +232,7 @@ collections:
         por mensaje.
       preview_url: null
       singleton: false
-      sort: 5
+      sort: 6
       sort_field: null
       status: active
       translations:
@@ -256,7 +256,7 @@ collections:
       color: null
       display_template: '{{session_key}}'
       group: null
-      hidden: true
+      hidden: false
       icon: forum
       item_duplication_fields: null
       note: >-
@@ -264,7 +264,7 @@ collections:
         AGENT-Lucia-Entry). NO es la memoria del LLM.
       preview_url: null
       singleton: false
-      sort: null
+      sort: 5
       sort_field: null
       status: active
       translations:
@@ -3651,7 +3651,7 @@ fields:
       readonly: true
       required: false
       searchable: true
-      sort: 1
+      sort: 11
       special:
         - uuid
       translations:
@@ -3694,7 +3694,7 @@ fields:
       readonly: false
       required: false
       searchable: true
-      sort: 2
+      sort: 8
       special:
         - m2o
       translations:
@@ -3737,7 +3737,7 @@ fields:
       readonly: false
       required: false
       searchable: true
-      sort: 3
+      sort: 9
       special:
         - m2o
       translations:
@@ -3787,14 +3787,14 @@ fields:
       readonly: false
       required: false
       searchable: true
-      sort: 4
+      sort: 5
       special: null
       translations:
         - language: es-ES
           translation: Canal
       validation: null
       validation_message: null
-      width: full
+      width: half
     schema:
       name: canal
       table: conversation_messages
@@ -3834,14 +3834,14 @@ fields:
       readonly: false
       required: false
       searchable: true
-      sort: 5
+      sort: 4
       special: null
       translations:
         - language: es-ES
           translation: Dirección
       validation: null
       validation_message: null
-      width: full
+      width: half
     schema:
       name: direccion
       table: conversation_messages
@@ -3885,14 +3885,14 @@ fields:
       readonly: false
       required: false
       searchable: true
-      sort: 6
+      sort: 2
       special: null
       translations:
         - language: es-ES
           translation: Autor
       validation: null
       validation_message: null
-      width: full
+      width: half
     schema:
       name: autor
       table: conversation_messages
@@ -3927,7 +3927,7 @@ fields:
       readonly: false
       required: false
       searchable: true
-      sort: 7
+      sort: 3
       special: null
       translations:
         - language: es-ES
@@ -3984,14 +3984,14 @@ fields:
       readonly: false
       required: false
       searchable: true
-      sort: 8
+      sort: 6
       special: null
       translations:
         - language: es-ES
           translation: Estado
       validation: null
       validation_message: null
-      width: full
+      width: half
     schema:
       name: estado_envio
       table: conversation_messages
@@ -4026,7 +4026,7 @@ fields:
       readonly: true
       required: false
       searchable: true
-      sort: 9
+      sort: 7
       special: null
       translations:
         - language: es-ES
@@ -4110,7 +4110,7 @@ fields:
       readonly: true
       required: false
       searchable: true
-      sort: 11
+      sort: 1
       special:
         - date-created
       translations:
@@ -4118,7 +4118,7 @@ fields:
           translation: Fecha de creación
       validation: null
       validation_message: null
-      width: full
+      width: half
     schema:
       name: created_at
       table: conversation_messages
@@ -4153,7 +4153,7 @@ fields:
       readonly: true
       required: false
       searchable: true
-      sort: 1
+      sort: 11
       special:
         - uuid
       translations:
@@ -4197,7 +4197,7 @@ fields:
       readonly: false
       required: true
       searchable: true
-      sort: 2
+      sort: 6
       special: null
       translations:
         - language: es-ES
@@ -4239,7 +4239,7 @@ fields:
       readonly: false
       required: false
       searchable: true
-      sort: 3
+      sort: 1
       special: null
       translations:
         - language: es-ES
@@ -4281,7 +4281,7 @@ fields:
       readonly: false
       required: false
       searchable: true
-      sort: 4
+      sort: 2
       special: null
       translations:
         - language: es-ES
@@ -4323,7 +4323,7 @@ fields:
       readonly: false
       required: false
       searchable: true
-      sort: 5
+      sort: 7
       special: null
       translations:
         - language: es-ES
@@ -4366,7 +4366,7 @@ fields:
       readonly: false
       required: false
       searchable: true
-      sort: 6
+      sort: 10
       special:
         - cast-json
       translations:
@@ -4398,8 +4398,11 @@ fields:
     meta:
       collection: conversation_sessions
       conditions: null
-      display: null
-      display_options: null
+      display: datetime
+      display_options:
+        format: short
+        relative: true
+        suffix: true
       field: updated_at
       group: null
       hidden: true
@@ -4409,7 +4412,7 @@ fields:
       readonly: true
       required: false
       searchable: true
-      sort: 7
+      sort: 8
       special:
         - date-updated
       translations:
@@ -4417,7 +4420,7 @@ fields:
           translation: Última modificación
       validation: null
       validation_message: null
-      width: full
+      width: half
     schema:
       name: updated_at
       table: conversation_sessions
@@ -4452,7 +4455,7 @@ fields:
       readonly: true
       required: false
       searchable: true
-      sort: 8
+      sort: 9
       special:
         - date-created
       translations:
@@ -4460,7 +4463,7 @@ fields:
           translation: Fecha de creación
       validation: null
       validation_message: null
-      width: full
+      width: half
     schema:
       name: created_at
       table: conversation_sessions
@@ -4492,8 +4495,9 @@ fields:
       interface: select-dropdown
       note: >-
         En 'humano' Lucía deja de responder en este hilo y contesta una persona.
-        Solo tiene efecto en WhatsApp: en webchat no hay forma de enviarle nada a
-        un navegador cerrado, así que callarla dejaría al cliente en un chat muerto.
+        Solo tiene efecto en WhatsApp: en webchat no hay forma de enviarle nada
+        a un navegador cerrado, así que callarla dejaría al cliente en un chat
+        muerto.
       options:
         choices:
           - text: Lucía responde
@@ -4503,7 +4507,7 @@ fields:
       readonly: false
       required: false
       searchable: true
-      sort: 9
+      sort: 4
       special: null
       translations:
         - language: es-ES
@@ -4547,7 +4551,7 @@ fields:
       readonly: true
       required: false
       searchable: true
-      sort: 10
+      sort: 5
       special: null
       translations:
         - language: es-ES
@@ -4589,7 +4593,7 @@ fields:
       readonly: false
       required: false
       searchable: true
-      sort: 11
+      sort: 3
       special:
         - o2m
       translations:
