@@ -718,6 +718,30 @@ compartidas (no tiene datos de valor por diseño); **`ops` debe llevar credencia
 porque es el único tenant cuyos datos son de Aegora y valiosos. Crear esa llave en Hetzner
 ANTES de lanzar el onboarding, o para en la etapa 7/8.
 
+## Datos de demostración por vertical — pedido, sin construir (21/sep/2026)
+Dos conjuntos para enseñar la plataforma a un cliente sin que parezca un tenant vacío:
+
+- **Gestoría**: 3 empleados (Arturo, Juan, Carlos), servicios típicos del ramo,
+  disponibilidad y una KB de gestoría.
+- **Gimnasio**: **clases en bloque con N plazas** — varias personas se apuntan al mismo
+  hueco.
+
+**El de gimnasio NO se puede montar con datos: le falta motor.** El modelo V1 es
+`service_resources` como pool OR y una cita ocupa un recurso; una clase de 19:00 con 12
+plazas es otra cosa -- la capacidad vive en el hueco, no en el recurso. `availability` hoy
+devuelve libre/ocupado, no plazas restantes, y `book` bloquea el hueco con la primera
+reserva. `appointment_resources.role = participant` **no sirve** para esto: es un recurso
+que acompaña a la cita, no una persona que ocupa una plaza. Es trabajo de
+`aegora-booking`, y está en la lista de pendientes como "soporte de clases en grupo".
+Conviene decidir dónde vive la capacidad (¿en `services`? ¿en `availability_rules`?) antes
+de tocar nada.
+
+**Un tenant solo puede enseñar una vertical a la vez**: servicios, empleados y KB son de
+todo el tenant. Así que o son dos tenants de demo (~1 GiB cada uno según el modelo de
+capacidad medido) o un script que carga y reinicia el conjunto en `demo`. **La segunda es
+mejor**: el conjunto se versiona, se puede volver a dejar como estaba después de una demo
+que se ensució, y no come recursos. Precedente de formato: `directus/seed/knowledge-demo.json`.
+
 ## Sincronización con el calendario del cliente (Google / Outlook) — decidido, sin construir
 El layout Calendario de Directus **no admite color por evento** (sus únicas opciones son
 plantilla, campo inicio, campo fin y primer día) y además **renderiza la plantilla como
