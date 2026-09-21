@@ -551,13 +551,23 @@ Core, dentro de `n8n_<tenant>`, en formato interno y en otra base de datos.
 - El gestor tiene `create` sobre los mensajes y **nunca `update` ni `delete`**: un
   historial que se puede editar deja de ser un registro de lo que pasó.
 
-`HUMANO · Enviar pendientes` recoge los `pendiente` cada 30 s. **Se reserva las filas
+`HUMANO · Enviar pendientes` recoge los `pendiente` cada 10 s. **Se reserva las filas
 poniéndolas en `enviando` con un update-by-query antes de enviar**: sin esa reserva,
 dos pasadas solapadas del temporizador mandan el mismo mensaje dos veces a una persona
 real. Un envío fallido **no se reintenta solo** -- reintentar a ciegas contra WhatsApp
-es como se manda cuatro veces lo mismo. Y va con `saveDataSuccessExecution: none`: a
-2.880 ejecuciones diarias se comería el límite de 10.000 del pruning en tres días,
-desalojando las de conversaciones.
+es como se manda cuatro veces lo mismo. Y va con `saveDataSuccessExecution: none`, que es
+lo que permite sondear rápido: una pasada que no encuentra nada no deja rastro, así que el
+límite de 10.000 del pruning deja de ser la restricción y el intervalo lo decide la
+latencia que quieres, no la contabilidad. (A 30 s lo elegía la contabilidad: 2.880
+ejecuciones diarias se habrían comido ese límite en tres días, desalojando las de
+conversaciones, que son las que sirven para depurar.)
+
+**Por eso el chat NO necesita Flows de Directus.** Se recurrió a ellos dos veces y las dos
+hubo algo mejor: cancelar las citas al borrar un contacto es un trigger (cubre más, es
+atómico y viaja en el dump), y el empujón para que el gestor no espere se resolvió bajando
+el sondeo. Los flows no entran en `schema snapshot` y necesitarían provisioning propio; si
+algún día hacen falta, que sea por un caso que de verdad no se pueda resolver de otra
+forma.
 
 **Los turnos del relevo entran en la memoria del Core** (`Chat Memory Manager`, misma
 tabla y misma clave de sesión que el Core, o se escribiría en un historial que el agente
