@@ -246,6 +246,10 @@ const ordenDeCampos = {
   appointments: [
     ['id', 'full'],
     ['status', 'half'],
+    // Quién atiende va arriba, junto al estado: al abrir una cita es de lo
+    // primero que se quiere ver, y si no aparece en esta lista el script
+    // reordena todo lo demás y lo deja caído en medio del formulario.
+    ['recursos', 'half'],
     ['title', 'full'],
     ['notes', 'full'],
     ['contact_id', 'full'],
