@@ -209,7 +209,11 @@ const presets = [
     layout: 'tabular',
     layout_query: {
       tabular: {
-        fields: ['updated_at', 'canal', 'contact_id', 'session_key', 'modo'],
+        // Primero DE QUIÉN es, que es lo que busca el ojo al abrir la bandeja.
+        // session_key va el último y no se quita: en WhatsApp es el teléfono, y
+        // es lo único que identifica el hilo de alguien que todavía no está en
+        // Contactos -- o sea, un cliente nuevo, que es el caso que más importa.
+        fields: ['contact_id', 'canal', 'modo', 'updated_at', 'session_key'],
         sort: ['-updated_at'],
       },
     },

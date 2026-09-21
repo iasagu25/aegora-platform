@@ -292,6 +292,15 @@ const ordenDeCampos = {
 
 const displaysDeCampo = [
   {
+    // En una bandeja, "hace 5 min" dice más que "21 de septiembre de 2026 12:20"
+    // y ocupa un tercio. El orden de la lista ya es por esta columna.
+    collection: 'conversation_sessions',
+    field: 'updated_at',
+    display: 'datetime',
+    display_options: { format: 'short', relative: true, suffix: true },
+  },
+
+  {
     collection: 'appointments',
     field: 'status',
     display: 'labels',
