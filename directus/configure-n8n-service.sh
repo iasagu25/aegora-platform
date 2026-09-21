@@ -21,6 +21,7 @@ IFS=$'\n\t'
 #          +-- tasks           create/read/update · all fields
 #          +-- appointments    create/read/update · all fields
 #          +-- conversation_sessions  create/read/update/delete
+#          +-- conversation_messages  create/read/update
 #          +-- solo lectura: services, resources, service_resources,
 #              availability_rules, availability_exceptions, calendars,
 #              locations, knowledge, employees
@@ -340,6 +341,7 @@ Permissions:
   appointments    create / read / update · all fields
 
   conversation_sessions  create / read / update / delete
+  conversation_messages  create / read / update
 
   solo lectura (config de booking, KB y personal):
   services · resources · service_resources · availability_rules
@@ -438,6 +440,12 @@ const permissionModel = {
   // necesita -- el bloque de saneo de abajo borra las acciones no listadas de una colección
   // que sí esté declarada. `delete` lo usa SESSION · Cleanup para purgar sesiones viejas.
   conversation_sessions: ['create', 'read', 'update', 'delete'],
+  // Los mensajes de cada conversación, que es lo que el gestor lee y responde.
+  // Entry escribe el turno entrante y el saliente; `update` es para marcar el
+  // envío de un mensaje que escribe una persona (pendiente -> enviado/fallido).
+  // Sin `delete`: una conversación no se borra suelta, se va con su sesión
+  // (la FK es ON DELETE CASCADE) cuando SESSION · Cleanup purga la sesión.
+  conversation_messages: ['create', 'read', 'update'],
 };
 
 async function rawRequest(method, path, body = undefined, token = adminToken) {
