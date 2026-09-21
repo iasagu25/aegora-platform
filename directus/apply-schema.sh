@@ -277,6 +277,12 @@ FALTA, y no lo hago yo:
   sudo ${PLATFORM_ROOT}/directus/configure-directus-views.sh --tenant ${TENANT_ID} --apply
   sudo ${PLATFORM_ROOT}/directus/configure-directus-ui.sh    --tenant ${TENANT_ID} --apply
   sudo ${PLATFORM_ROOT}/directus/configure-spanish-ui.sh     --tenant ${TENANT_ID} --apply
+  docker restart ${DIRECTUS_CONTAINER}
+
+El reinicio NO es opcional: Directus tiene el esquema en memoria. Un campo nuevo
+queda escrito en la base y sencillamente no aparece en el panel -- sin error, sin
+nada raro que mirar. Los campos relacionales son los peores: la columna existe,
+la relación existe, y la pantalla está vacía.
 
 base.yaml lleva dentro la forma "cruda" del esquema, así que aplicarlo pisa
 la capa de interfaz que gestiona Aegora: los displays propios se quedan a
