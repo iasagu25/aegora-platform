@@ -75,6 +75,42 @@ después en uno real, pero para `dev` da igual: nunca va a serlo.
 > `Code · Verificar firma` ANTES de dar por bueno el cambio: con la exigencia
 > activada, un secreto equivocado deja WhatsApp mudo sin error visible.
 
+## Cuando Meta ve el mensaje y a n8n no llega nada
+
+Síntoma: la URL se verifica, `messages` está suscrito, el panel de Meta enseña la
+carga útil del mensaje entrante... y en n8n no hay ni una ejecución. Nuestro
+extremo responde (`curl -X POST` al webhook devuelve 200), así que el problema
+está del lado de Meta.
+
+Hay **dos niveles de suscripción** y solo uno se configura en la pantalla del
+webhook: el de la *app* (la URL y los campos) y el del **WABA**, que tiene que
+estar suscrito a esa app. Con números de prueba el segundo no siempre se crea
+solo, y su ausencia produce exactamente este síntoma.
+
+Comprobarlo:
+
+    sudo bash -c 'set -a; . /opt/aegora/tenants/<t>/secrets/whatsapp.env; set +a;
+      curl -s "https://graph.facebook.com/v21.0/${WHATSAPP_WABA_ID}/subscribed_apps" \
+        -H "Authorization: Bearer ${WHATSAPP_TOKEN}"'
+
+Si responde `(#200) You do not have permission to access this field`, el problema
+es el TOKEN, no la suscripción -- ni siquiera se puede leer. Se ve de un vistazo:
+
+    curl -s "https://graph.facebook.com/v21.0/debug_token?input_token=${WHATSAPP_TOKEN}&access_token=${WHATSAPP_TOKEN}"
+
+Qué mirar en la respuesta:
+- `scopes` tiene que incluir **`whatsapp_business_management`**. Con solo
+  `whatsapp_business_messaging` se puede ENVIAR pero no tocar suscripciones, y es
+  lo que falta cuando se genera el token deprisa.
+- `granular_scopes` sin `target_ids` delata que **el WABA no está asignado** al
+  usuario del sistema -- que es la causa de fondo, no un detalle.
+- `expires_at` distinto de `0` es un token temporal: el tenant se rompe solo en
+  24 h sin que nadie haya tocado nada.
+
+Y al regenerar el token hay que cambiarlo en **dos sitios**: `secrets/whatsapp.env`
+y la credencial `WhatsApp` del n8n de ese tenant, que ningún script toca. Cambiar
+solo el fichero deja el adapter enviando con el token viejo.
+
 ## Cómo funciona
 
 - Dos triggers de Webhook en el mismo path `whatsapp`, uno por método: n8n 2.31
