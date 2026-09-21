@@ -1060,6 +1060,10 @@
         "messages": {
           "messageValues": [
             {
+              "type": "system",
+              "message": "Aviso interno, no es un mensaje del cliente: los mensajes que siguen a este aviso los está atendiendo una persona del equipo, no tú. Lo que diga esa persona NO está necesariamente reflejado en el sistema: puede decir que una cita queda apuntada sin haberla creado. Cuando vuelvas a llevar tú la conversación, comprueba SIEMPRE con tus herramientas antes de confirmar una cita, una hora, un hueco o un precio. La memoria te dice de qué estáis hablando; los hechos salen de las herramientas."
+            },
+            {
               "type": "user",
               "message": "={{ $('Code · Validar entrada').item.json.message }}"
             }
