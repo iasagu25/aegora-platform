@@ -33,8 +33,12 @@ IFS=$'\n\t'
 # N8N_ENCRYPTION_KEY deja el tenant inservible y sus credenciales ilegibles;
 # eso no puede pasar por un descuido de plantilla.
 #
-# NO reinicia contenedores: dice cuáles habría que reiniciar y se para ahí.
-# Reiniciar es una decisión con horario, no un efecto secundario.
+# NO toca contenedores: dice cuáles hay que recrear y se para ahí.
+# Cortar el servicio es una decisión con horario, no un efecto secundario.
+#
+# Y son RECREAR, no reiniciar: `docker restart` reutiliza el contenedor que ya
+# existe, y su entorno se fijó cuando se creó. Un `.env` nuevo en disco no le
+# llega nunca. Compose lee `env_file` al CREAR, así que hace falta `up -d`.
 #
 # Sin --apply solo enseña el diff.
 # =============================================================================
@@ -74,7 +78,8 @@ Uso:
 Sin --apply: enseña el diff de lo que cambiaría y no toca nada.
 Con --apply: escribe, guardando copia de cada fichero que sustituye.
 
-No reinicia contenedores: al final dice cuáles lo necesitan.
+No toca contenedores: al final dice cuáles hay que recrear (`up -d`, no
+`restart`: un restart no relee el .env).
 USAGE
 }
 
@@ -267,7 +272,7 @@ comprobar_cobertura() {
 }
 
 CAMBIOS=()
-REINICIAR=()
+RECREAR=()
 
 procesar() {
   local nombre="$1"
@@ -311,8 +316,10 @@ procesar() {
   fi
 
   CAMBIOS+=("$nombre")
+  # Se recrea por directorio de compose, no por contenedor: el que relee el
+  # .env es Compose al crear el contenedor, y su proyecto es ese directorio.
   if [[ -n "$contenedor" ]]; then
-    REINICIAR+=("$contenedor")
+    RECREAR+=("$(dirname "$destino")|${contenedor}")
   fi
 
   printf '\n--- %s\n' "$destino"
@@ -405,16 +412,21 @@ if [[ "$APPLY" != true ]]; then
   exit 0
 fi
 
-if [[ ${#REINICIAR[@]} -gt 0 ]]; then
-  mapfile -t UNICOS < <(printf '%s\n' "${REINICIAR[@]}" | sort -u)
-  cat <<FINAL
+if [[ ${#RECREAR[@]} -gt 0 ]]; then
+  mapfile -t UNICOS < <(printf '%s\n' "${RECREAR[@]}" | sort -u)
+  printf '\n  HAY QUE RECREAR ESTOS CONTENEDORES, y no lo hago yo:\n\n'
+  for entrada in "${UNICOS[@]}"; do
+    printf '    docker compose -f %s/compose.yml up -d --force-recreate   # %s\n' \
+      "${entrada%%|*}" "${entrada##*|}"
+  done
+  cat <<'FINAL'
 
-  HAY QUE REINICIAR, y no lo hago yo:
+  NO vale `docker restart`: reutiliza el contenedor existente, cuyo entorno se
+  fijó al crearlo. El .env nuevo se queda en disco sin que nadie lo lea, y todo
+  parece correcto. Compose lee `env_file` al CREAR el contenedor.
 
-    docker restart ${UNICOS[*]}
-
-  Un reinicio corta el servicio del cliente. Cuándo hacerlo es una decisión
-  con horario, no un efecto secundario de haber tocado un fichero.
+  Recrear corta el servicio del cliente unos segundos. Cuándo hacerlo es una
+  decisión con horario, no un efecto secundario de haber tocado un fichero.
 
 FINAL
 fi

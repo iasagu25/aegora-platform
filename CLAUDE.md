@@ -868,8 +868,18 @@ Tres decisiones que lo hacen usable y seguro:
   en la memoria de quien lo ejecutó. El primer uso real en `demo` fue exactamente eso —
   `N8N_WEBHOOK_URL` (que n8n ignoraba: su variable es `WEBHOOK_URL`) y `BOOKING_API_BASE_URL`
   (que no aparece en el repo y que `$env` no podría leer de todos modos).
-- **No reinicia contenedores**: dice cuáles lo necesitan y para ahí. Un reinicio corta el
-  servicio del cliente; cuándo hacerlo es una decisión con horario.
+- **No toca contenedores**: dice cuáles hay que recrear y para ahí. Cortar el servicio del
+  cliente es una decisión con horario.
+  **Y es recrear, no reiniciar** (`docker compose up -d --force-recreate`, no `docker
+  restart`). El script decía `restart` y eso lo convertía en un no-op silencioso: Compose
+  lee `env_file` **al crear** el contenedor, así que un `restart` reutiliza el entorno
+  viejo y el `.env` nuevo se queda en disco sin que nadie lo lea. Se vio en `demo` tras el
+  primer `--apply` de verdad: `WEBHOOK_URL` seguía vacía y `N8N_WEBHOOK_URL` seguía puesta,
+  exactamente como antes de aplicar. Se comprueba mirando el entorno del contenedor, no el
+  fichero:
+  `docker exec demo-n8n sh -c 'echo $WEBHOOK_URL'`.
+  Los `docker restart` del resto de scripts (Directus tras permisos, n8n tras publicar) sí
+  son correctos: ahí lo que se refresca es estado del proceso, no el entorno.
 
 El **manifiesto de backup tiene su propio control**: si el nuevo respaldaría menos que el
 actual —una base, una ruta o un fichero que desaparecen— aborta. Es la misma idea que la
