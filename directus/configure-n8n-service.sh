@@ -242,6 +242,23 @@ SECRET_FILE="${TENANT_SECRETS_DIR}/${SECRET_FILENAME}"
 # reparte permisos. Los demás scripts ya usaban este token.
 PROVISIONING_SECRET="${TENANT_SECRETS_DIR}/directus-provisioning.env"
 
+if [[ ! -r "$PROVISIONING_SECRET" ]]; then
+  if [[ $EUID -eq 0 ]]; then
+    fail "No existe ${PROVISIONING_SECRET}
+Créalo antes con: directus/provision-directus-access.sh --tenant ${TENANT} --apply"
+  fi
+  fail "No se puede leer ${PROVISIONING_SECRET}
+O no existe, o es cuestión de permisos (los secretos del tenant son de root).
+Prueba con sudo."
+fi
+
+set -a
+# shellcheck disable=SC1090
+source "$PROVISIONING_SECRET"
+set +a
+
+: "${DIRECTUS_PROVISIONING_TOKEN:?Falta DIRECTUS_PROVISIONING_TOKEN en ${PROVISIONING_SECRET}}"
+
 require_file "$TENANT_CONFIG"
 
 set -a
@@ -394,26 +411,6 @@ if [[ -f "$SECRET_FILE" ]]; then
   set -a
   # shellcheck disable=SC1090
   source "$SECRET_FILE"
-  set +a
-fi
-
-if [[ ! -r "$PROVISIONING_SECRET" ]]; then
-  if [[ $EUID -eq 0 ]]; then
-    fail "No existe ${PROVISIONING_SECRET}
-Créalo antes con: directus/provision-directus-access.sh --tenant ${TENANT} --apply"
-  fi
-  fail "No se puede leer ${PROVISIONING_SECRET}
-O no existe, o es cuestión de permisos (los secretos del tenant son de root).
-Prueba con sudo."
-fi
-set -a
-# shellcheck disable=SC1090
-source "$PROVISIONING_SECRET"
-set +a
-: "${DIRECTUS_PROVISIONING_TOKEN:?Falta DIRECTUS_PROVISIONING_TOKEN en ${PROVISIONING_SECRET}}"
-
-# El `if` de abajo cierra el bloque original que cargaba SECRET_FILE.
-if false; then
   set +a
 
   : "${DIRECTUS_N8N_TOKEN:?Falta DIRECTUS_N8N_TOKEN en ${SECRET_FILE}}"
