@@ -493,8 +493,16 @@ nombre de su contenedor, así que se renderiza al desplegar, igual que
   `__DIRECTUS_BASE_URL__`, `__BOOKING_BASE_URL__`, `__PRIVACY_POLICY_URL__`.
   Sintaxis `__X__` a propósito: no choca con los ~65 `${...}` de los template
   literals de los Code nodes ni con las expresiones `{{ }}` de n8n.
-- `n8n/render-workflows.sh --tenant X [--apply]` — Git → tenant, importa por
-  CLI y **publica** (sustituye a importar 41 JSON a mano por la UI).
+- `n8n/render-workflows.sh --tenant X [--only TEXTO] [--apply]` — Git → tenant,
+  importa por CLI y **publica** (sustituye a importar 41 JSON a mano por la UI).
+  `--only` acota por subcadena del nombre de fichero (`--only Entry,WHATSAPP`),
+  que es lo normal al iterar sobre un workflow: importar y republicar los 41 más
+  el reinicio son minutos por un cambio de un fichero. Renderiza igualmente el
+  conjunto entero —los controles de secretos y de residuo del tenant valen
+  porque miran todos— y solo importa y publica lo elegido. Da por hecho que los
+  sub-workflows de los que dependa ya están publicados en ese tenant, así que la
+  primera pasada de un tenant nuevo va sin `--only`. El reinicio del contenedor
+  sigue siendo obligatorio, también para uno solo.
 - `n8n/export-workflows.sh --tenant X` — tenant → forma de Git. **No escribe en
   el checkout del VPS** (que se resetea duro): deja el resultado aparte para
   traérselo por `scp`, como `snapshot-schema.sh`.

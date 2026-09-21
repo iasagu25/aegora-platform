@@ -32,6 +32,8 @@ readonly PLATFORM_ROOT="/opt/aegora/platform"
 TENANT=""
 APPLY=false
 OUT=""
+# Selección parcial: subcadenas del nombre de fichero. Vacío = todos.
+ONLY=()
 
 log() { printf '[%s] %s\n' "$(date --iso-8601=seconds)" "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
@@ -39,10 +41,19 @@ fail() { log "ERROR: $*" >&2; exit 1; }
 usage() {
   cat <<'USAGE'
 Uso:
-  render-workflows.sh --tenant TENANT [--out DIR] [--apply]
+  render-workflows.sh --tenant TENANT [--only TEXTO] [--out DIR] [--apply]
 
 Sin --apply:  renderiza, enseña el plan y deja los ficheros para inspección.
 Con --apply:  además los importa en el n8n del tenant.
+
+  --only TEXTO   Solo los workflows cuyo NOMBRE DE FICHERO contenga TEXTO.
+                 Se puede repetir o separar por comas: --only Entry,WHATSAPP
+                 Renderiza igualmente los 41 (los controles de secretos y de
+                 residuos miran el conjunto entero, no la selección) pero solo
+                 importa y publica los elegidos.
+                 OJO: da por hecho que sus sub-workflows YA están publicados en
+                 ese tenant. En uno recién creado, la primera pasada va sin
+                 --only o el publish fallará por dependencias.
 
 Por defecto renderiza en /tmp/aegora-workflows-<tenant>.
 USAGE
@@ -52,6 +63,13 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --tenant) [[ $# -ge 2 ]] || fail "Falta valor para --tenant."; TENANT="$2"; shift 2 ;;
     --out)    [[ $# -ge 2 ]] || fail "Falta valor para --out.";    OUT="$2";    shift 2 ;;
+    --only)   [[ $# -ge 2 ]] || fail "Falta valor para --only."
+              IFS=',' read -r -a _trozos <<<"$2"
+              for _t in "${_trozos[@]}"; do
+                _t="${_t#"${_t%%[![:space:]]*}"}"; _t="${_t%"${_t##*[![:space:]]}"}"
+                [[ -n "$_t" ]] && ONLY+=("$_t")
+              done
+              shift 2 ;;
     --apply)  APPLY=true; shift ;;
     --help|-h) usage; exit 0 ;;
     *) fail "Opción desconocida: $1" ;;
@@ -173,6 +191,34 @@ export AEGORA_CREDENTIALS
 
 TOTAL="$(find "$SRC" -maxdepth 1 -name '*.json' | wc -l | tr -d ' ')"
 
+# Qué ficheros entran. Con --only se comprueba AQUÍ, antes de tocar nada: un
+# patrón que no casa con ninguno es casi siempre una errata, y descubrirlo
+# después de importar cero workflows no ayuda.
+coincide() {
+  local nombre="$1" pat
+  [[ ${#ONLY[@]} -eq 0 ]] && return 0
+  for pat in "${ONLY[@]}"; do
+    [[ "$nombre" == *"$pat"* ]] && return 0
+  done
+  return 1
+}
+
+SELECCION=()
+while IFS= read -r f; do
+  coincide "$(basename "$f")" && SELECCION+=("$(basename "$f")")
+done < <(find "$SRC" -maxdepth 1 -name '*.json' | sort)
+
+if [[ ${#ONLY[@]} -gt 0 ]]; then
+  [[ ${#SELECCION[@]} -gt 0 ]] ||
+    fail "--only ${ONLY[*]} no casa con ningún workflow de ${SRC}.
+Los nombres son los del repo, p.ej. AGENT-Lucia-Entry.json o WHATSAPP-Adapter.json."
+  ALCANCE="${#SELECCION[@]} de ${TOTAL}:
+  $(printf '%s\n  ' "${SELECCION[@]}" | sed 's/[[:space:]]*$//')
+  (el resto NO se importa ni se publica: se da por hecho que ya están)"
+else
+  ALCANCE="${TOTAL} (todos)"
+fi
+
 cat <<PLAN
 
 ============================================================
@@ -183,7 +229,8 @@ Tenant:
   ${TENANT_ID}   (${N8N_CONTAINER})
 
 Workflows:
-  ${TOTAL} desde ${SRC}
+  ${ALCANCE}
+  desde ${SRC}
 
 Tokens que se resuelven:
   __TENANT_ID__           ${TENANT_ID}
@@ -198,8 +245,8 @@ Secretos de WhatsApp:
   ${WHATSAPP_ESTADO}
 
 Publicación:
-  se publican todos tras importar, en orden de dependencias (n8n no publica
-  un workflow cuyos sub-workflows no lo estén), menos: SESSION · Cleanup
+  se publican los seleccionados tras importar, en orden de dependencias (n8n
+  no publica un workflow cuyos sub-workflows no lo estén), menos: SESSION · Cleanup
   Después se REINICIA ${N8N_CONTAINER}: el CLI no afecta al proceso en marcha.
 
 Salida:
@@ -216,7 +263,22 @@ rm -rf "$OUT"
 mkdir -p "$OUT"
 # Lo renderizado lleva los secretos de WhatsApp en claro: no es un /tmp público.
 chmod 700 "$OUT"
+# Se renderiza SIEMPRE el conjunto entero aunque solo se vaya a importar parte:
+# los controles de workflow-tokens.py (secretos con forma de EAA…/sk-…, residuo
+# del id del tenant) valen precisamente porque miran todos los ficheros. Filtrar
+# antes sería dejar de mirar lo que no toca hoy.
 python3 "$TOKENS" render "$SRC" "$OUT"
+
+if [[ ${#ONLY[@]} -gt 0 ]]; then
+  descartados=0
+  while IFS= read -r f; do
+    if ! coincide "$(basename "$f")"; then
+      rm -f "$f"
+      descartados=$((descartados + 1))
+    fi
+  done < <(find "$OUT" -maxdepth 1 -name '*.json')
+  log "Selección --only: se quedan ${#SELECCION[@]}, se descartan ${descartados} renderizados."
+fi
 
 if [[ "$APPLY" != true ]]; then
   log "PLAN ONLY. Los ficheros renderizados están en ${OUT}; no se ha importado nada."
@@ -244,7 +306,7 @@ for flag in --separate --input; do
 ${IMPORT_HELP}"
 done
 
-log "Copiando ${TOTAL} workflows a ${N8N_CONTAINER}…"
+log "Copiando ${#SELECCION[@]} workflows a ${N8N_CONTAINER}…"
 docker exec "$N8N_CONTAINER" sh -c 'rm -rf /tmp/aegora-import && mkdir -p /tmp/aegora-import'
 docker cp "${OUT}/." "${N8N_CONTAINER}:/tmp/aegora-import/"
 
