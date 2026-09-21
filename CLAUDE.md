@@ -1058,34 +1058,40 @@ que renderizan `create-tenant.sh` y este script. Antes era un heredoc dentro de
 `create-tenant.sh` y convivía con una plantilla muerta que decía otra cosa — el origen de
 que `secrets/restic.env` no se respaldara. Una sola fuente, y la usan los dos.
 
-## Borrar un contacto: por qué el gestor NO puede (probado, 21/sep/2026)
-Se le dio el permiso razonando que el derecho de supresión del RGPD es obligación del
-**negocio** y que el esquema ya hacía lo correcto: `appointments`, `tasks` y
-`conversation_messages` ponen `contact_id` a NULL y `contact_phones` va en CASCADE, así
-que se va el dato personal y el registro de negocio sobrevive anonimizado -- que es justo
-lo que pide una supresión.
+## Borrar un contacto cancela sus citas futuras (21/sep/2026)
+El derecho de supresión del RGPD obliga al **negocio**, así que el gestor tiene que poder
+borrar un contacto sin llamarnos. El primer intento de darle el permiso se revirtió el
+mismo día: las claves ajenas ponen `appointments.contact_id` a NULL, y eso es correcto
+para una cita pasada -- se va el dato personal, queda el registro -- pero en una cita
+FUTURA deja **un hueco reservado para nadie**, en la agenda del gestor, sin saber de quién
+era ni a quién avisar. Y en silencio: un borrado, tres citas huérfanas, y nada que lo diga.
 
-**El razonamiento era bueno solo para el pasado.** A la primera prueba en `dev`: borrar un
-contacto dejó **tres citas futuras sin dueño**. Un hueco guardado para nadie, en la agenda
-del gestor, sin forma de saber de quién era ni a quién avisar. Y **en silencio**: se borra
-un contacto y se crean tres citas fantasma sin que nada lo diga.
+Segundo efecto encadenado: la `idempotency_key` de una reserva es
+`session_key + start_at`, **sin el contacto**, así que una cita huérfana seguía casando
+con la siguiente petición del mismo teléfono y el Booking API la devolvía como idempotente
+-- Lucía confirmaba *"tu cita ya está reservada"* de una cita que no era de nadie. **Eso
+sigue sin arreglar y es del Booking API**: una cita sin dueño no debería casar con la
+petición de nadie. Merece una línea en el contrato cuando se toque ese repo.
 
-Segundo efecto, encadenado: la `idempotency_key` de una reserva es
-`session_key + start_at`, **sin el contacto**. Una cita huérfana sigue casando con la
-siguiente petición del mismo teléfono, así que el Booking API la devuelve como idempotente
-y Lucía confirma *"tu cita ya está reservada"* — de una cita que no es de nadie.
+El arreglo: **un trigger `BEFORE DELETE` sobre `contacts`**
+(`directus/sql/contacts-erasure.sql`) que cancela sus citas futuras -- lo que dicen a la
+vez la operativa y la ley: si dejas de tratar sus datos, dejas de guardarle una hora.
 
-El arreglo correcto no es un permiso: borrar un contacto tiene que **cancelar antes sus
-citas futuras** (que es lo que dice también el RGPD: si dejas de tratar sus datos, dejas
-de guardarle una hora). Eso no se puede expresar en un permiso porque esta edición de
-Directus no admite filtros en los permisos, así que hace falta un **Flow sobre
-`contacts.items.delete`** — y los flows no entran en `schema snapshot`, así que son
-provisioning nuevo. Hasta entonces una supresión pasa por Aegora: es un evento raro y
-planificado, y un clic equivocado no lo es.
+**Por qué un trigger y no un Flow de Directus**, que fue la primera idea: es un
+**invariante del dato**, no un automatismo de la aplicación. Un Flow solo se dispara si el
+borrado pasa por la API -- no desde `psql` ni desde un script de mantenimiento --, hay que
+escribirle provisioning propio (los flows NO entran en `schema snapshot`) y es otra
+superficie que mantener. El trigger es atómico con el borrado, viaja dentro del `pg_dump`
+(un tenant restaurado lo conserva) y **ya había sitio para él**: `apply-schema.sh` aplica
+`directus/sql/` de forma idempotente y lo valida en `BEGIN … ROLLBACK` en el dry-run.
 
-Lo que sí quedó de aquel intento y es bueno: **`conversation_sessions.contact_id` es ya
-una M2O de verdad** (antes un uuid suelto sin clave ajena, que además habría enseñado el
-UUID en la columna Contacto de la bandeja en cuanto hubiera datos reales).
+De paso, `apply-schema.sh` aplica ahora **todos** los `.sql` del directorio en orden
+alfabético, no un fichero nombrado a mano: el segundo habría obligado a tocar el script o,
+peor, a meter un trigger dentro de `booking-indexes.sql`.
+
+Lo otro que quedó del primer intento y es bueno: **`conversation_sessions.contact_id` es
+ya una M2O de verdad** (antes un uuid suelto sin clave ajena, que además habría enseñado
+el UUID en la columna Contacto de la bandeja en cuanto hubiera datos reales).
 
 ## Cómo mueve el gestor una cita — decidido, sin construir (16/sep/2026)
 **No se le da un selector de huecos. Se le da un botón que arranca la conversación.**

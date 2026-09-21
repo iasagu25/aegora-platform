@@ -5,7 +5,11 @@ IFS=$'\n\t'
 readonly PLATFORM_ROOT="/opt/aegora/platform"
 readonly TENANTS_ROOT="/opt/aegora/tenants"
 readonly SCHEMA_FILE="${PLATFORM_ROOT}/directus/schema/base.yaml"
-readonly SQL_INDEXES_FILE="${PLATFORM_ROOT}/directus/sql/booking-indexes.sql"
+readonly SQL_DIR="${PLATFORM_ROOT}/directus/sql"
+# Se aplican TODOS los .sql del directorio, en orden alfabético. Antes era un
+# fichero nombrado a mano, y añadir el segundo habría pedido tocar el script otra
+# vez -- o, peor, meter algo que no son índices dentro de `booking-indexes.sql`.
+SQL_FILES=()
 readonly POSTGRES_CONTAINER="aegora-postgres"
 
 TENANT=""
@@ -47,13 +51,13 @@ Uso:
 
 Sin --apply:
   valida el tenant, ejecuta Directus schema apply --dry-run y valida
-  directus/sql/booking-indexes.sql contra la BD del tenant dentro de
+  todos los .sql de directus/sql/ contra la BD del tenant dentro de
   una transacción que se revierte (BEGIN ... ROLLBACK).
 
 Con --apply:
   aplica directus/schema/base.yaml al tenant, verifica el estado base,
-  y aplica directus/sql/booking-indexes.sql (índices/constraints
-  idempotentes) dentro de BEGIN ... COMMIT.
+  y aplica todos los .sql de directus/sql/ (índices, constraints y
+  triggers, todos idempotentes) dentro de BEGIN ... COMMIT.
 
   NO restaura la configuración UI administrada por Aegora: base.yaml la
   pisa y hay que volver a ponerla con los dos configure-* que se indican
@@ -74,7 +78,7 @@ container_health() {
   docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}not-configured{{end}}' "$1" 2>/dev/null
 }
 
-# Ejecuta SQL_INDEXES_FILE contra la BD del tenant envuelto en una
+# Ejecuta los .sql del directorio contra la BD del tenant envueltos en una
 # transacción. $1 = COMMIT (persistir) | ROLLBACK (validar sin persistir).
 # El control de transacción se inyecta aquí, no en el .sql.
 run_index_sql() {
@@ -83,7 +87,7 @@ run_index_sql() {
   {
     printf "BEGIN;\n"
     printf "SET lock_timeout = '5s';\n"
-    cat "$SQL_INDEXES_FILE"
+    cat "${SQL_FILES[@]}"
     printf "%s;\n" "$closer"
   } | PGPASSWORD="$DB_PASSWORD" docker exec -i -e PGPASSWORD \
         "$POSTGRES_CONTAINER" \
@@ -121,7 +125,9 @@ done
 
 require_command docker
 require_file "$SCHEMA_FILE"
-require_file "$SQL_INDEXES_FILE"
+[[ -d "$SQL_DIR" ]] || fail "Falta el directorio requerido: ${SQL_DIR}"
+while IFS= read -r f; do SQL_FILES+=("$f"); done < <(find "$SQL_DIR" -maxdepth 1 -name '*.sql' | sort)
+[[ ${#SQL_FILES[@]} -gt 0 ]] || fail "No hay ningún .sql en ${SQL_DIR}"
 
 TENANT_ROOT="${TENANTS_ROOT}/${TENANT}"
 TENANT_CONFIG="${TENANT_ROOT}/config/tenant.env"
@@ -196,7 +202,7 @@ Schema:
   ${SCHEMA_FILE}
 
 SQL:
-  ${SQL_INDEXES_FILE}
+$(printf '  %s\n' "${SQL_FILES[@]}")
   -> ${POSTGRES_CONTAINER} / db=${DB_DATABASE} user=${DB_USER}
 
 Modo:
@@ -267,7 +273,7 @@ Schema:
   ${SCHEMA_FILE}
 
 SQL:
-  ${SQL_INDEXES_FILE}
+$(printf '  %s\n' "${SQL_FILES[@]}")
 
 Estado:
   OK
