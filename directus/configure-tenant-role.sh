@@ -175,8 +175,13 @@ Biblioteca de archivos:
   directus_files         create / read / update   (sin borrar)
   directus_folders       read
 
+Conversaciones de Lucía:
+  conversation_sessions  read   (abrirla enseña su hilo de mensajes)
+  conversation_messages  read   (solo lectura hasta que exista el envío:
+                                 una fila creada a mano no se manda todavía)
+
 Sin permiso (invisibles para el gestor):
-  conversation_sessions · languages
+  languages
 
 Notas:
   - Borrar solo donde no destruye historial: tareas y reglas de horario.
@@ -246,6 +251,20 @@ const permissionModel = {
   service_resources: { create: ALL, read: ALL, update: ALL, delete: ALL },
   appointment_resources: { read: ALL },
   calendars: { read: ALL },
+
+  // --- conversaciones de Lucía ---------------------------------------------
+  // De momento SOLO lectura, y es a propósito. El gestor puede leer el hilo
+  // entero (abrir una conversación enseña sus mensajes por el O2M), pero
+  // todavía no hay nada que ENVÍE lo que escriba: una fila creada a mano se
+  // quedaría en 'pendiente' para siempre. Dar de alta el permiso de escritura
+  // antes que el mecanismo de envío es poner un botón que no hace nada.
+  // Cuando exista el relevo, esto pasa a:
+  //   conversation_sessions: { read, update }   (update = cambiar 'modo')
+  //   conversation_messages: { read, create }   (create = contestar)
+  // y nunca update/delete sobre los mensajes: un historial que se puede editar
+  // deja de ser un historial de lo que pasó.
+  conversation_sessions: { read: ALL },
+  conversation_messages: { read: ALL },
 
   // --- intercambio de ficheros con Aegora -----------------------------------
   // Para pasarse documentación durante la implantación y luego con los cambios.
