@@ -35,24 +35,31 @@
     <div v-else-if="mensajes === null" class="aviso">Cargando el hilo…</div>
     <div v-else-if="mensajes.length === 0" class="aviso">Todavía no hay mensajes.</div>
     <div v-else ref="hilo" class="hilo">
-      <div
-        v-for="mensaje in mensajes"
-        :key="mensaje.id"
-        class="linea"
-        :class="`linea--${lado(mensaje)}`"
-      >
-        <div class="burbuja" :class="`burbuja--${mensaje.autor || 'lucia'}`">
-          <div class="quien">
-            {{ etiquetaAutor(mensaje.autor) }}
-            <span class="cuando">{{ hora(mensaje.created_at) }}</span>
-          </div>
-          <div class="texto">{{ mensaje.texto }}</div>
-          <div v-if="estadoVisible(mensaje)" class="estado" :class="`estado--${mensaje.estado_envio}`">
-            {{ etiquetaEstado(mensaje.estado_envio) }}
-            <template v-if="mensaje.error"> · {{ mensaje.error }}</template>
+      <template v-for="fila in lineas" :key="fila.clave">
+        <div v-if="fila.tipo === 'dia'" class="dia">
+          <span>{{ fila.etiqueta }}</span>
+        </div>
+
+        <div
+          v-else
+          class="linea"
+          :class="[`linea--${lado(fila.mensaje)}`, { 'linea--seguida': fila.seguida }]"
+        >
+          <div class="burbuja" :class="`burbuja--${fila.mensaje.autor || 'lucia'}`">
+            <div v-if="!fila.seguida" class="quien">{{ etiquetaAutor(fila.mensaje.autor) }}</div>
+            <div class="texto">{{ fila.mensaje.texto }}</div>
+            <div class="pie">
+              <span class="cuando">{{ hora(fila.mensaje.created_at) }}</span>
+              <span
+                v-if="estadoVisible(fila.mensaje)"
+                class="estado"
+                :class="`estado--${fila.mensaje.estado_envio}`"
+              >{{ etiquetaEstado(fila.mensaje.estado_envio) }}</span>
+            </div>
+            <div v-if="fila.mensaje.error" class="fallo">{{ fila.mensaje.error }}</div>
           </div>
         </div>
-      </div>
+      </template>
     </div>
 
     <!-- Respuesta -->
@@ -238,6 +245,45 @@ export default {
       if (hilo.value) hilo.value.scrollTop = hilo.value.scrollHeight;
     }
 
+    // Se agrupan los mensajes seguidos del mismo autor y se intercalan separadores
+    // de día. Es lo que hace que una lista de filas se lea como una conversación:
+    // sin ellos, treinta burbujas con su etiqueta encima son una tabla con bordes
+    // redondeados.
+    const lineas = computed(() => {
+      const filas = [];
+      let autorPrevio = null;
+      let diaPrevio = null;
+      for (const mensaje of mensajes.value || []) {
+        const dia = (mensaje.created_at || '').slice(0, 10);
+        if (dia && dia !== diaPrevio) {
+          filas.push({ tipo: 'dia', clave: `d-${dia}`, etiqueta: etiquetaDia(mensaje.created_at) });
+          diaPrevio = dia;
+          autorPrevio = null;
+        }
+        filas.push({
+          tipo: 'mensaje',
+          clave: mensaje.id,
+          mensaje,
+          seguida: mensaje.autor === autorPrevio,
+        });
+        autorPrevio = mensaje.autor;
+      }
+      return filas;
+    });
+
+    function etiquetaDia(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      const hoy = new Date();
+      const ayer = new Date(hoy.getTime() - 86400000);
+      const mismo = (a, b) => a.toDateString() === b.toDateString();
+      if (mismo(d, hoy)) return 'Hoy';
+      if (mismo(d, ayer)) return 'Ayer';
+      try {
+        return d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+      } catch { return iso.slice(0, 10); }
+    }
+
     const lado = (m) => (m.direccion === 'entrante' ? 'izquierda' : 'derecha');
     const etiquetaAutor = (a) =>
       a === 'cliente' ? 'Cliente' : a === 'humano' ? 'Tú' : 'Lucía';
@@ -252,8 +298,8 @@ export default {
     const hora = (iso) => {
       if (!iso) return '';
       try {
-        return new Date(iso).toLocaleString('es-ES', {
-          day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+        return new Date(iso).toLocaleTimeString('es-ES', {
+          hour: '2-digit', minute: '2-digit',
         });
       } catch { return iso; }
     };
@@ -282,7 +328,7 @@ export default {
     watch(contactoId, () => cargarCitas());
 
     return {
-      mensajes, citas, borrador, cargando, enviando, error, hilo,
+      mensajes, lineas, citas, borrador, cargando, enviando, error, hilo,
       sinGuardar, canal, enRelevo, contactoId, ventana, motivoBloqueo,
       enviar, recargar, lado, etiquetaAutor, etiquetaEstado, estadoVisible,
       nombreServicio, hora, fechaLarga,
@@ -351,44 +397,120 @@ export default {
   color: var(--theme--foreground);
 }
 
+/* El hilo tiene lienzo propio. Sin esto es la misma superficie que el resto del
+   formulario y las burbujas no se despegan del fondo -- que es justo lo que se
+   nota en oscuro, donde todo acaba siendo el mismo negro.
+   Los tintes salen de color-mix sobre las variables del tema y NO de colores
+   fijos: así valen igual en claro y en oscuro, y siguen la marca del tenant si
+   algún día cambia. Cada regla lleva antes su versión plana, que es lo que se
+   aplica si el navegador no entiende color-mix. */
 .hilo {
   max-height: 460px;
   overflow-y: auto;
-  padding: 12px;
+  padding: 16px 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  background: var(--theme--background-subdued);
+  background:
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--theme--primary) 7%, var(--theme--background-subdued)),
+      color-mix(in srgb, var(--theme--primary) 3%, var(--theme--background-subdued))
+    );
+}
+
+.dia { display: flex; justify-content: center; margin: 4px 0 0; }
+.dia span {
+  font-size: 11px;
+  padding: 2px 10px;
+  border-radius: 10px;
+  color: var(--theme--foreground-subdued);
+  background: var(--theme--background);
+  background: color-mix(in srgb, var(--theme--foreground) 8%, transparent);
 }
 
 .linea { display: flex; }
 .linea--izquierda { justify-content: flex-start; }
 .linea--derecha { justify-content: flex-end; }
+/* Mensajes seguidos del mismo autor: se juntan y pierden la etiqueta, como en
+   cualquier chat. Es lo que evita que treinta burbujas parezcan una tabla. */
+.linea--seguida { margin-top: -6px; }
 
 .burbuja {
-  max-width: 78%;
-  padding: 8px 10px;
-  border-radius: var(--theme--border-radius);
-  background: var(--theme--background-subdued);
+  max-width: 76%;
+  padding: 8px 12px;
+  /* La esquina recortada apunta a quien habla: es lo que hace que se lea como
+     conversación sin dibujar ninguna cola. */
+  border-radius: 14px;
   border: 1px solid var(--theme--border-color-subdued);
+  background: var(--theme--background);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 10%);
 }
-.burbuja--lucia { border-color: var(--theme--border-color-subdued); }
-.burbuja--humano { border-color: var(--theme--primary); }
+.linea--izquierda .burbuja { border-bottom-left-radius: 4px; }
+.linea--derecha .burbuja { border-bottom-right-radius: 4px; }
+
+/* Tres voces: el cliente en superficie limpia, Lucía con un tinte suave y la
+   persona del negocio con el mismo tono más marcado. Misma familia de color a
+   propósito -- las dos últimas son el mismo negocio para el cliente. */
+.burbuja--cliente { background: var(--theme--background); }
+
+.burbuja--lucia {
+  background: var(--theme--background-subdued);
+  background: color-mix(in srgb, var(--theme--primary) 9%, var(--theme--background));
+  border-color: color-mix(in srgb, var(--theme--primary) 20%, transparent);
+}
+
+.burbuja--humano {
+  background: var(--theme--background-subdued);
+  background: color-mix(in srgb, var(--theme--primary) 19%, var(--theme--background));
+  border-color: color-mix(in srgb, var(--theme--primary) 42%, transparent);
+}
 
 .quien {
-  display: flex;
-  gap: 8px;
-  justify-content: space-between;
   font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-bottom: 3px;
   color: var(--theme--foreground-subdued);
-  margin-bottom: 2px;
+}
+.burbuja--humano .quien { color: var(--theme--primary); }
+
+.texto {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.45;
+  color: var(--theme--foreground);
 }
 
-.texto { white-space: pre-wrap; word-break: break-word; color: var(--theme--foreground); }
+.pie {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: flex-end;
+  margin-top: 3px;
+  font-size: 10.5px;
+  color: var(--theme--foreground-subdued);
+}
 
-.estado { margin-top: 4px; font-size: 11px; color: var(--theme--foreground-subdued); }
-.estado--fallido { color: var(--theme--danger); }
+.estado--pendiente, .estado--enviando { font-style: italic; }
+.estado--fallido { color: var(--theme--danger); font-weight: 600; }
 
-.responder { border-top: 1px solid var(--theme--border-color-subdued); padding: 10px 12px; }
+.fallo {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--theme--border-color-subdued);
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--theme--danger);
+}
+
+.responder {
+  border-top: 1px solid var(--theme--border-color-subdued);
+  padding: 10px 12px;
+  background: var(--theme--background-subdued);
+  background: color-mix(in srgb, var(--theme--primary) 3%, var(--theme--background-subdued));
+}
 
 .caja {
   width: 100%;
