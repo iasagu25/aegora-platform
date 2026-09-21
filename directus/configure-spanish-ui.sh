@@ -355,7 +355,6 @@ const collectionTranslations = {
     singular: 'Cita',
     plural: 'Citas',
     translation: 'Citas',
-    recursos: 'Atendida por',
   },
 
   services: {
@@ -501,6 +500,7 @@ const fieldTranslations = {
     start_at: 'Inicio',
     end_at: 'Fin',
     status: 'Estado',
+    recursos: 'Atendida por',
     notes: 'Notas',
     source: 'Origen',
     external_provider: 'Proveedor externo',
