@@ -4484,7 +4484,10 @@ fields:
       group: null
       hidden: false
       interface: select-dropdown
-      note: En 'humano' Lucía deja de responder en este hilo. Es el relevo.
+      note: >-
+        En 'humano' Lucía deja de responder en este hilo y contesta una persona.
+        Solo tiene efecto en WhatsApp: en webchat no hay forma de enviarle nada a
+        un navegador cerrado, así que callarla dejaría al cliente en un chat muerto.
       options:
         choices:
           - text: Lucía responde
