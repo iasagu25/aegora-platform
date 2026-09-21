@@ -154,8 +154,8 @@ Role / Policy:
   ${ROLE_NAME}   (app_access: sí · admin_access: no)
 
 Uso diario:
-  contacts               create / read / update
-  contact_phones         create / read / update   (se editan dentro del contacto)
+  contacts               create / read / update / delete   (**)
+  contact_phones         create / read / update / delete   (se editan dentro del contacto)
   tasks                  create / read / update / delete
   knowledge              create / read / update
   appointments           read / update   (*)
@@ -187,6 +187,12 @@ Sin permiso (invisibles para el gestor):
 
 Notas:
   - Borrar solo donde no destruye historial: tareas y reglas de horario.
+  (**) Borrar un contacto es el derecho de supresión del RGPD, que es una
+       obligación del negocio: sin este permiso no puede cumplirla sin nosotros.
+       No destruye histórico -- citas, tareas y mensajes ponen contact_id a NULL
+       y sobreviven anonimizados, que es justo lo que pide una supresión. Los
+       teléfonos sí se van con la persona (CASCADE): son suyos.
+
   (*) Se quería update solo del campo 'status', para que mover o cancelar pasara
       siempre por el Booking API (el que valida solapes y buffers). Esta edición
       de Directus NO permite permisos por campo, así que el update es completo.
@@ -223,8 +229,16 @@ const roleName = process.env.AEGORA_ROLE_NAME;
 const ALL = ['*'];
 const permissionModel = {
   // --- uso diario -----------------------------------------------------------
-  contacts: { create: ALL, read: ALL, update: ALL },
-  contact_phones: { create: ALL, read: ALL, update: ALL },
+  // Con delete, y no por comodidad: el derecho de supresión del RGPD es una
+  // obligación del NEGOCIO, y sin este permiso no puede cumplirla sin llamarnos.
+  // Es seguro porque el esquema ya hace lo correcto: appointments, tasks y
+  // conversation_messages ponen contact_id a NULL, así que se va el dato
+  // personal y el registro de negocio sobrevive anonimizado -- que es
+  // exactamente lo que pide una supresión. Los teléfonos van en CASCADE porque
+  // son de la persona, no del negocio.
+  contacts: { create: ALL, read: ALL, update: ALL, delete: ALL },
+  // Un teléfono mal tecleado no es histórico de nada: se quita y ya.
+  contact_phones: { create: ALL, read: ALL, update: ALL, delete: ALL },
   tasks: { create: ALL, read: ALL, update: ALL, delete: ALL },
   knowledge: { create: ALL, read: ALL, update: ALL },
   // Aquí queríamos update SOLO del campo 'status', pero esta edición de Directus
