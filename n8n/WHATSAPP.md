@@ -93,6 +93,13 @@ Comprobarlo:
       curl -s "https://graph.facebook.com/v21.0/${WHATSAPP_WABA_ID}/subscribed_apps" \
         -H "Authorization: Bearer ${WHATSAPP_TOKEN}"'
 
+**La respuesta enseña la trampa**: si lista `WA DevX Webhook Events 1P App` y no
+la tuya, el WABA está suscrito al visor de webhooks del propio Meta y a nadie
+más. Eso es lo que hace que el panel te enseñe la carga útil del mensaje
+mientras n8n no recibe nada, y lo que hace creer que "Meta lo ve, luego lo está
+enviando". Se arregla con un POST al mismo endpoint, que suscribe la app del
+token.
+
 Si responde `(#200) You do not have permission to access this field`, el problema
 es el TOKEN, no la suscripción -- ni siquiera se puede leer. Se ve de un vistazo:
 
