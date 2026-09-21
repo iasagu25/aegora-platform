@@ -542,6 +542,14 @@ Core, dentro de `n8n_<tenant>`, en formato interno y en otra base de datos.
   lo recibe nadie tal cual: el aviso de privacidad va como mensaje propio (CTA-url en
   WhatsApp, pintado por el widget en webchat) y `core_reply` es la respuesta. Guardar
   el combinado le enseñaba al gestor un mensaje que el cliente nunca vio así.
+- **El `contact_id` de la sesión se rellena solo.** El Core v2 devolvía `contact_id: null`
+  fijo, así que la sesión se quedaba sin contacto **siempre** -- no solo cuando se creaba
+  durante la conversación, también con un cliente que ya existía. Tres consecuencias que
+  parecían independientes y eran la misma: columna Contacto vacía en la bandeja,
+  `conversation_messages.contact_id` siempre nulo, y **el panel de "citas de este contacto"
+  de la interfaz sin activarse nunca** -- justo lo que existe para que el gestor no prometa
+  una cita que no ha creado. Ahora `22` devuelve el contacto que resolvió o creó, la tool
+  lo pasa y `Code · Salida v2` lo recoge igual que `telefono_usado`. No lo ve el modelo.
 - **Entry solo LEE `modo`.** Si lo escribiera, cada turno devolvería la sesión a `auto`
   y un relevo duraría un mensaje.
 - **El relevo es de WhatsApp.** En webchat no hay forma de empujarle nada a un
