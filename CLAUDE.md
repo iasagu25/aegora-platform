@@ -521,10 +521,33 @@ es como se manda cuatro veces lo mismo. Y va con `saveDataSuccessExecution: none
 2.880 ejecuciones diarias se comería el límite de 10.000 del pruning en tres días,
 desalojando las de conversaciones.
 
-**Pendiente y conocido: Lucía vuelve ciega.** Los turnos que escribe el gestor no pasan
-por el Core, así que al devolver el mando ella sigue como si nadie hubiera hablado. Es
-otra vez el patrón de siempre (un hecho que solo conoce la capa determinista no llega a
-la memoria del LLM); la diferencia es que aquí el hecho lo dijo una persona.
+**Los turnos del relevo entran en la memoria del Core** (`Chat Memory Manager`, misma
+tabla y misma clave de sesión que el Core, o se escribiría en un historial que el agente
+no lee). Entry anota el mensaje del cliente al entrar en la rama de relevo y el enviador
+anota la respuesta del gestor cuando el envío sale de verdad: en tiempo real, así el
+orden cronológico sale solo y no hay que detectar la transición ni ponerse al día.
+
+La respuesta del gestor se guarda como mensaje `ai` **con el texto tal cual y sin marca
+dentro**. La memoria tiene que contener lo que el cliente recibió; meter una anotación
+nuestra ahí es el mismo error que guardar el texto combinado de v1, y el modelo se lo
+repetiría al cliente.
+
+**Para qué sirve esa memoria y para qué NO.** Sirve para la continuidad -- quién es, de
+qué se está hablando, qué ya ha dicho. **No** para hechos: citas, huecos y precios salen
+siempre de una herramienta (regla 2 de `lucia-v2.md`). Probado en `dev`: tras un relevo,
+Lucía no vuelve a pedir el nombre ni el día y llama a `consultar_disponibilidad` para lo
+demás. Si contestara una hora de memoria sería un FALLO, no un acierto: estaría
+confirmando una cita que puede no existir.
+
+**Agujero abierto que la memoria no tapa: el gestor puede decir "ya está apuntada" sin
+apuntarla.** Es texto libre de una persona y el sistema no se entera. No es problema del
+agente sino de la interfaz: **la bandeja tiene que enseñar las citas del contacto al lado
+del hilo** (la sesión ya tiene `contact_id`), para que el gestor vea si existe o la cree
+mientras contesta. Va con la extensión de Directus.
+
+Queda avisar a Lucía de que ahí habló otra persona, y el aviso correcto **no** es "lo que
+se dijera vale" sino *"no está necesariamente reflejado en el sistema: comprueba con tus
+herramientas antes de confirmar nada"*.
 
 **Dos trampas que costaron la tarde y volverán:**
 - **Una lista explícita de `fields` convierte una columna nueva en un valor por defecto,
