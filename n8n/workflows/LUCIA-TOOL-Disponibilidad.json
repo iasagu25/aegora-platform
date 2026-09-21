@@ -19,6 +19,9 @@
               "name": "servicio"
             },
             {
+              "name": "profesional"
+            },
+            {
               "name": "directus_base_url"
             },
             {
@@ -41,7 +44,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// El agente ya ha resuelto \"el viernes\" / \"esta semana\" a fechas concretas: aquí solo se\n// valida. La tool DEVUELVE el día que ha entendido (fecha_label) para que el agente lo cite\n// y el usuario pueda corregirlo si se equivocó.\n//\n// `fecha_hasta` convierte la consulta en un rango. Sin ella, un \"¿qué hay esta semana?\"\n// obligaba al agente a llamar día por día: nueve llamadas y nueve turnos de modelo para una\n// pregunta que es la más común que hay.\nconst MAX_DIAS = 14;\n\nconst i = $json ?? {};\nconst clean = v => (v === undefined || v === null) ? '' : String(v).trim();\nconst esFecha = s => /^\\d{4}-\\d{2}-\\d{2}$/.test(s);\n\nlet desde = clean(i.fecha);\nlet hasta = clean(i.fecha_hasta) || desde;\nconst franja = clean(i.franja).toLowerCase();\n\nif (!esFecha(desde) || !esFecha(hasta)) {\n  return [{ json: { _error: true, ok: false, motivo: 'fecha_invalida',\n    detalle: 'Necesito las fechas en formato YYYY-MM-DD.' } }];\n}\n// Si vienen del revés, es obvio lo que quería decir.\nif (hasta < desde) { const t = desde; desde = hasta; hasta = t; }\n\nconst tz = clean(i.tenant_timezone) || 'Europe/Madrid';\nconst d0 = DateTime.fromISO(desde, { zone: tz });\nconst d1 = DateTime.fromISO(hasta, { zone: tz });\nif (!d0.isValid || !d1.isValid) {\n  return [{ json: { _error: true, ok: false, motivo: 'fecha_invalida' } }];\n}\n\nconst dias = [];\nfor (let d = d0; d <= d1 && dias.length < MAX_DIAS; d = d.plus({ days: 1 })) {\n  dias.push(d.toFormat('yyyy-LL-dd'));\n}\nconst recortado = d1.diff(d0, 'days').days + 1 > MAX_DIAS;\n\nreturn [{ json: {\n  _error: false,\n  dias,\n  recortado,\n  desde: dias[0],\n  hasta: dias[dias.length - 1],\n  franja: ['manana', 'mediodia', 'tarde', 'noche'].includes(franja) ? franja : '',\n  servicio: clean(i.servicio),\n  directus_base_url: clean(i.directus_base_url),\n  booking_base_url: clean(i.booking_base_url),\n  tenant_timezone: tz,\n} }];"
+        "jsCode": "// El agente ya ha resuelto \"el viernes\" / \"esta semana\" a fechas concretas: aquí solo se\n// valida. La tool DEVUELVE el día que ha entendido (fecha_label) para que el agente lo cite\n// y el usuario pueda corregirlo si se equivocó.\n//\n// `fecha_hasta` convierte la consulta en un rango. Sin ella, un \"¿qué hay esta semana?\"\n// obligaba al agente a llamar día por día: nueve llamadas y nueve turnos de modelo para una\n// pregunta que es la más común que hay.\nconst MAX_DIAS = 14;\n\nconst i = $json ?? {};\nconst clean = v => (v === undefined || v === null) ? '' : String(v).trim();\nconst esFecha = s => /^\\d{4}-\\d{2}-\\d{2}$/.test(s);\n\nlet desde = clean(i.fecha);\nlet hasta = clean(i.fecha_hasta) || desde;\nconst franja = clean(i.franja).toLowerCase();\n\nif (!esFecha(desde) || !esFecha(hasta)) {\n  return [{ json: { _error: true, ok: false, motivo: 'fecha_invalida',\n    detalle: 'Necesito las fechas en formato YYYY-MM-DD.' } }];\n}\n// Si vienen del revés, es obvio lo que quería decir.\nif (hasta < desde) { const t = desde; desde = hasta; hasta = t; }\n\nconst tz = clean(i.tenant_timezone) || 'Europe/Madrid';\nconst d0 = DateTime.fromISO(desde, { zone: tz });\nconst d1 = DateTime.fromISO(hasta, { zone: tz });\nif (!d0.isValid || !d1.isValid) {\n  return [{ json: { _error: true, ok: false, motivo: 'fecha_invalida' } }];\n}\n\nconst dias = [];\nfor (let d = d0; d <= d1 && dias.length < MAX_DIAS; d = d.plus({ days: 1 })) {\n  dias.push(d.toFormat('yyyy-LL-dd'));\n}\nconst recortado = d1.diff(d0, 'days').days + 1 > MAX_DIAS;\n\nreturn [{ json: {\n  _error: false,\n  dias,\n  recortado,\n  desde: dias[0],\n  hasta: dias[dias.length - 1],\n  franja: ['manana', 'mediodia', 'tarde', 'noche'].includes(franja) ? franja : '',\n  servicio: clean(i.servicio),\n  // Con quién quiere la cita. Vacío = cualquiera del pool.\n  profesional: clean(i.profesional),\n  directus_base_url: clean(i.directus_base_url),\n  booking_base_url: clean(i.booking_base_url),\n  tenant_timezone: tz,\n} }];"
       },
       "id": "d-0002",
       "name": "Code · Entrada",
@@ -197,7 +200,7 @@
             "timezone": "={{ $('Code · Entrada').first().json.tenant_timezone }}",
             "booking_base_url": "={{ $('Code · Entrada').first().json.booking_base_url }}",
             "location_id": "",
-            "resource_id": "",
+            "resource_id": "={{ $('Execute · 27 Resolve Professional').first().json.resource_id || '' }}",
             "exclude_appointment_id": ""
           },
           "matchingColumns": [],
@@ -340,6 +343,83 @@
         1060,
         -200
       ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraCoreResolveProfessional",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "profesional": "={{ $('Code · Entrada').item.json.profesional || '' }}",
+            "service_id": "={{ $('Execute · 26 Resolve Service').first().json.service_id }}",
+            "directus_base_url": "={{ $('Code · Entrada').item.json.directus_base_url }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "27c00001-0000-4000-8000-000000000021",
+      "name": "Execute · 27 Resolve Professional",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        900,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "dp-prof-1",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "27c00002-0000-4000-8000-000000000022",
+      "name": "¿Profesional vale?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// El profesional que ha pedido el cliente no sirve para este servicio. Se\n// devuelve el motivo Y `quienes` lo llevan: decir \"no puede ser\" sin decir quién\n// sí obliga al cliente a adivinar, que es justo lo que hacía antes -- anotaba una\n// tarea prometiendo que Arturo atendería un alta de autónomo que Arturo no hace.\nconst r = $json ?? {};\nreturn [{ json: {\n  ok: false,\n  motivo: r.motivo || 'profesional_desconocido',\n  profesional: r.nombre || null,\n  opciones: r.opciones || null,\n  quienes: r.quienes || [],\n} }];"
+      },
+      "id": "27c00003-0000-4000-8000-000000000023",
+      "name": "Code · Profesional no vale",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        -340
+      ]
     }
   ],
   "connections": {
@@ -398,7 +478,7 @@
       "main": [
         [
           {
-            "node": "Code · Expandir días",
+            "node": "Execute · 27 Resolve Professional",
             "type": "main",
             "index": 0
           }
@@ -428,6 +508,35 @@
         [
           {
             "node": "Execute · Availability",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · 27 Resolve Professional": {
+      "main": [
+        [
+          {
+            "node": "¿Profesional vale?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Profesional vale?": {
+      "main": [
+        [
+          {
+            "node": "Code · Expandir días",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Profesional no vale",
             "type": "main",
             "index": 0
           }

@@ -1,0 +1,148 @@
+{
+  "id": "aegoraCoreResolveProfessional",
+  "name": "27 · CORE · Resolve Professional",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "profesional"
+            },
+            {
+              "name": "service_id"
+            },
+            {
+              "name": "directus_base_url"
+            }
+          ]
+        }
+      },
+      "id": "27a00001-0000-4000-8000-000000000001",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.directus_base_url }}/items/service_resources",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ 'filter[service_id][_eq]': $json.service_id, fields: 'resource_id.id,resource_id.name,resource_id.active,resource_id.employee_id.first_name,resource_id.employee_id.last_name', limit: 50 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "27a00002-0000-4000-8000-000000000002",
+      "name": "HTTP · Pool del servicio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('When Executed by Another Workflow').first().json.directus_base_url }}/items/employees",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ fields: 'id,first_name,last_name', limit: 100 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "27a00003-0000-4000-8000-000000000003",
+      "name": "HTTP · Plantilla",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        440,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Resuelve \"Arturo\" a la persona concreta que puede dar ESE servicio.\n//\n// La clave del diseño: se pregunta primero por el POOL del servicio, así que\n// cuando el nombre no encaja se puede decir quién SÍ lo lleva en vez de un \"no\n// puedo\" que obliga al cliente a adivinar. Ese era el fallo real: Lucía anotaba\n// una tarea prometiendo que Arturo atendería un alta de autónomo que Arturo no\n// hace.\n//\n// El LLM nunca ve un UUID: entra un nombre y sale un `resource_id` que solo\n// viaja entre workflows.\nconst inp = $('When Executed by Another Workflow').first().json;\nconst consulta = (inp.profesional || '').toString().trim();\n\nconst cuerpo = (r) => {\n  const b = (r && (r.body ?? r)) || {};\n  return Array.isArray(b.data) ? b.data : [];\n};\nconst pool = cuerpo($('HTTP · Pool del servicio').first().json);\nconst plantilla = cuerpo($json);\n\n// Sin acentos y en minúscula: \"Ledesma\" y \"ledesma\" son la misma persona, y\n// nadie escribe \"Benavídez\" con tilde por WhatsApp.\nconst plano = (s) => (s || '').toString().normalize('NFD')\n  .replace(/[̀-ͯ]/g, '').toLowerCase().trim();\n\nconst personas = pool.map((fila) => {\n  const rec = fila.resource_id || {};\n  const emp = rec.employee_id || {};\n  const nombre = [emp.first_name, emp.last_name].filter(Boolean).join(' ').trim();\n  return {\n    resource_id: rec.id || null,\n    nombre: nombre || rec.name || null,\n    nombre_corto: emp.first_name || rec.name || null,\n  };\n}).filter((p) => p.resource_id);\n\nconst quienes = personas.map((p) => p.nombre_corto).filter(Boolean);\n\nif (!consulta) {\n  // Sin nombre no hay nada que resolver: el pool completo, como hasta ahora.\n  return [{ json: { ok: true, resource_id: null, nombre: null, quienes } }];\n}\n\nconst q = plano(consulta);\nconst casa = (p) => {\n  const completo = plano(p.nombre);\n  const corto = plano(p.nombre_corto);\n  return completo === q || corto === q || completo.split(' ').includes(q) || completo.includes(q);\n};\n\nconst candidatos = personas.filter(casa);\n\nif (candidatos.length === 1) {\n  return [{ json: { ok: true, resource_id: candidatos[0].resource_id,\n                    nombre: candidatos[0].nombre_corto, quienes } }];\n}\nif (candidatos.length > 1) {\n  return [{ json: { ok: false, motivo: 'varios_profesionales',\n                    opciones: candidatos.map((p) => p.nombre), quienes } }];\n}\n\n// No está en el pool. ¿Existe siquiera? Distinguir importa: \"Arturo no lleva\n// altas de autónomo\" y \"no tengo a ningún Arturo\" son dos conversaciones muy\n// distintas, y dar la segunda cuando toca la primera queda fatal.\nconst enPlantilla = plantilla.filter((e) => {\n  const completo = plano([e.first_name, e.last_name].filter(Boolean).join(' '));\n  return completo === q || completo.split(' ').includes(q) || completo.includes(q);\n});\n\nif (enPlantilla.length > 0) {\n  return [{ json: { ok: false, motivo: 'profesional_no_presta_servicio',\n                    nombre: enPlantilla[0].first_name || consulta, quienes } }];\n}\nreturn [{ json: { ok: false, motivo: 'profesional_desconocido',\n                  nombre: consulta, quienes } }];"
+      },
+      "id": "27a00004-0000-4000-8000-000000000004",
+      "name": "Code · Resolver",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Pool del servicio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Pool del servicio": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Plantilla",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Plantilla": {
+      "main": [
+        [
+          {
+            "node": "Code · Resolver",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
