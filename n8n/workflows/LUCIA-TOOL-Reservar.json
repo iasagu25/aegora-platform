@@ -19,6 +19,9 @@
               "name": "nombre"
             },
             {
+              "name": "empresa"
+            },
+            {
               "name": "telefono"
             },
             {
@@ -50,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// telefono y session_key NO los rellena el modelo: los inyecta el agente desde la sesión del\n// canal. El LLM nunca manipula la identidad del contacto (en WhatsApp ya la conocemos).\nconst i = $json ?? {};\nconst clean = v => (v === undefined || v === null) ? '' : String(v).trim();\nconst fecha = clean(i.fecha);\nconst hora = clean(i.hora);\nif (!/^\\d{4}-\\d{2}-\\d{2}$/.test(fecha) || !/^\\d{2}:\\d{2}$/.test(hora)) {\n  return [{ json: { _error: true, ok: false, motivo: 'fecha_u_hora_invalida',\n    detalle: 'Necesito fecha YYYY-MM-DD y hora HH:mm.' } }];\n}\nconst tz = clean(i.tenant_timezone) || 'Europe/Madrid';\nconst start = DateTime.fromISO(fecha + 'T' + hora, { zone: tz });\nif (!start.isValid) {\n  return [{ json: { _error: true, ok: false, motivo: 'fecha_u_hora_invalida',\n    detalle: start.invalidReason || 'No es una fecha/hora real.' } }];\n}\nconst session_key = clean(i.session_key) || 'lucia';\nreturn [{ json: {\n  _error: false,\n  fecha, hora, tenant_timezone: tz,\n  start_at: start.toISO(),\n  fecha_label: start.setLocale('es').toFormat(\"cccc d 'de' LLLL\"),\n  servicio: clean(i.servicio),\n  nombre: clean(i.nombre),\n  // El teléfono del canal manda; el que diga el cliente solo vale si no hay canal\n  // (webchat). En WhatsApp el modelo no puede suplantar la identidad real.\n  telefono: clean(i.telefono) || clean(i.telefono_dicho),\n  directus_base_url: clean(i.directus_base_url),\n  booking_base_url: clean(i.booking_base_url),\n  // Reintentar la misma reserva no duplica: el Booking API la resuelve por idempotencia.\n  idempotency_key: session_key + '-' + start.toISO(),\n} }];"
+        "jsCode": "// telefono y session_key NO los rellena el modelo: los inyecta el agente desde la sesión del\n// canal. El LLM nunca manipula la identidad del contacto (en WhatsApp ya la conocemos).\nconst i = $json ?? {};\nconst clean = v => (v === undefined || v === null) ? '' : String(v).trim();\nconst fecha = clean(i.fecha);\nconst hora = clean(i.hora);\nif (!/^\\d{4}-\\d{2}-\\d{2}$/.test(fecha) || !/^\\d{2}:\\d{2}$/.test(hora)) {\n  return [{ json: { _error: true, ok: false, motivo: 'fecha_u_hora_invalida',\n    detalle: 'Necesito fecha YYYY-MM-DD y hora HH:mm.' } }];\n}\nconst tz = clean(i.tenant_timezone) || 'Europe/Madrid';\nconst start = DateTime.fromISO(fecha + 'T' + hora, { zone: tz });\nif (!start.isValid) {\n  return [{ json: { _error: true, ok: false, motivo: 'fecha_u_hora_invalida',\n    detalle: start.invalidReason || 'No es una fecha/hora real.' } }];\n}\nconst session_key = clean(i.session_key) || 'lucia';\nreturn [{ json: {\n  _error: false,\n  fecha, hora, tenant_timezone: tz,\n  start_at: start.toISO(),\n  fecha_label: start.setLocale('es').toFormat(\"cccc d 'de' LLLL\"),\n  servicio: clean(i.servicio),\n  nombre: clean(i.nombre),\n  // La empresa del cliente. `pedir_empresa` es ajuste del tenant: en una gestoría\n  // a la gente se la conoce por su empresa y una ficha sin ella no sirve; en una\n  // peluquería no aporta nada. Se pregunta, pero no bloquea: un particular que\n  // viene a la renta no tiene empresa y su cita es igual de válida.\n  empresa: clean(i.empresa),\n  pedir_empresa: String(i.pedir_empresa || '').trim() === 'true',\n  // El teléfono del canal manda; el que diga el cliente solo vale si no hay canal\n  // (webchat). En WhatsApp el modelo no puede suplantar la identidad real.\n  telefono: clean(i.telefono) || clean(i.telefono_dicho),\n  directus_base_url: clean(i.directus_base_url),\n  booking_base_url: clean(i.booking_base_url),\n  // Reintentar la misma reserva no duplica: el Booking API la resuelve por idempotencia.\n  idempotency_key: session_key + '-' + start.toISO(),\n} }];"
       },
       "id": "r-0002",
       "name": "Code · Entrada",
@@ -211,7 +214,9 @@
             "title": "",
             "notes": "",
             "source": "ai",
-            "idempotency_key": "={{ $('Code · Entrada').item.json.idempotency_key }}"
+            "idempotency_key": "={{ $('Code · Entrada').item.json.idempotency_key }}",
+            "empresa": "={{ $('Code · Entrada').item.json.empresa || '' }}",
+            "pedir_empresa": "={{ $('Code · Entrada').item.json.pedir_empresa ? 'true' : 'false' }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -342,7 +347,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Se traduce la respuesta del tool 22 a motivos cerrados. El agente decide qué decir; lo que\n// NO puede es afirmar nada que no venga de aquí.\n// $json ya no es la respuesta de 22: en medio va la consulta de quién atiende.\nconst r = $('Execute · 22 Appointment Create').item.json ?? {};\nconst inp = $('Code · Entrada').item.json;\n\n// Quién va a atender la cita. El Booking API devuelve `primary_resource_id` y\n// hasta ahora se tiraba aquí, así que Lucía confirmaba una cita sin poder decir\n// con quién es -- que en una gestoría es la mitad del dato.\n// Si la consulta falla o el recurso no es una persona, se queda a null y el\n// prompt dice explícitamente que entonces no se lo invente.\nlet atiende = null;\ntry {\n  const q = $json ?? {};\n  const fila = ((q.body && q.body.data) || q.data || [])[0];\n  if (fila) {\n    const emp = fila.employee_id;\n    atiende = (emp && emp.first_name) ? emp.first_name : (fila.name || null);\n  }\n} catch (e) {\n  atiende = null;\n}\nconst svc = $('Execute · 26 Resolve Service').item.json;\nconst cita = { fecha: inp.fecha, fecha_label: inp.fecha_label, hora: inp.hora,\n               servicio: svc.service_name || null };\n\nif (r.ok === true) {\n  const yaEstaba = (r.message || '').includes('idempotente');\n  return [{ json: { ok: true, motivo: yaEstaba ? 'ya_estaba_reservada' : 'reservada',\n    cita: { ...cita, atiende },\n    telefono_usado: inp.telefono } }];\n}\n\nconst st = r.status || 'error';\nif (st === 'slot_taken' || st === 'slot_conflict') {\n  return [{ json: { ok: false, motivo: 'hueco_no_disponible', cita } }];\n}\nif (st === 'not_found') {\n  // 22 pide teléfono y/o nombre cuando el contacto no existe y hay que darlo de alta.\n  const falta = [];\n  if (!inp.telefono) falta.push('telefono');\n  if (!inp.nombre) falta.push('nombre');\n  return [{ json: { ok: false, motivo: 'falta_identidad',\n    falta: falta.length ? falta : ['nombre'] } }];\n}\nif (st === 'ambiguous' || st === 'multiple') {\n  return [{ json: { ok: false, motivo: 'contacto_ambiguo' } }];\n}\nif (st === 'validation_error') {\n  return [{ json: { ok: false, motivo: 'faltan_datos',\n    detalle: ((r.data && r.data.errors) || []).join(' ') } }];\n}\nreturn [{ json: { ok: false, motivo: 'error_reserva', detalle: r.message || null } }];"
+        "jsCode": "// Se traduce la respuesta del tool 22 a motivos cerrados. El agente decide qué decir; lo que\n// NO puede es afirmar nada que no venga de aquí.\n// $json ya no es la respuesta de 22: en medio va la consulta de quién atiende.\nconst r = $('Execute · 22 Appointment Create').item.json ?? {};\nconst inp = $('Code · Entrada').item.json;\n\n// Quién va a atender la cita. El Booking API devuelve `primary_resource_id` y\n// hasta ahora se tiraba aquí, así que Lucía confirmaba una cita sin poder decir\n// con quién es -- que en una gestoría es la mitad del dato.\n// Si la consulta falla o el recurso no es una persona, se queda a null y el\n// prompt dice explícitamente que entonces no se lo invente.\nlet atiende = null;\ntry {\n  const q = $json ?? {};\n  const fila = ((q.body && q.body.data) || q.data || [])[0];\n  if (fila) {\n    const emp = fila.employee_id;\n    atiende = (emp && emp.first_name) ? emp.first_name : (fila.name || null);\n  }\n} catch (e) {\n  atiende = null;\n}\nconst svc = $('Execute · 26 Resolve Service').item.json;\nconst cita = { fecha: inp.fecha, fecha_label: inp.fecha_label, hora: inp.hora,\n               servicio: svc.service_name || null };\n\nif (r.ok === true) {\n  const yaEstaba = (r.message || '').includes('idempotente');\n  return [{ json: { ok: true, motivo: yaEstaba ? 'ya_estaba_reservada' : 'reservada',\n    cita: { ...cita, atiende },\n    telefono_usado: inp.telefono } }];\n}\n\nconst st = r.status || 'error';\nif (st === 'slot_taken' || st === 'slot_conflict') {\n  return [{ json: { ok: false, motivo: 'hueco_no_disponible', cita } }];\n}\nif (st === 'not_found') {\n  // 22 pide teléfono y/o nombre cuando el contacto no existe y hay que darlo de alta.\n  const falta = [];\n  if (!inp.telefono) falta.push('telefono');\n  if (!inp.nombre) falta.push('nombre');\n  // Se pide junto al nombre y no en otro turno: son el mismo hueco de identidad,\n  // y partirlo en dos preguntas se hace pesado.\n  if (inp.pedir_empresa && !inp.empresa) falta.push('empresa');\n  return [{ json: { ok: false, motivo: 'falta_identidad',\n    falta: falta.length ? falta : ['nombre'] } }];\n}\nif (st === 'ambiguous' || st === 'multiple') {\n  return [{ json: { ok: false, motivo: 'contacto_ambiguo' } }];\n}\nif (st === 'validation_error') {\n  return [{ json: { ok: false, motivo: 'faltan_datos',\n    detalle: ((r.data && r.data.errors) || []).join(' ') } }];\n}\nreturn [{ json: { ok: false, motivo: 'error_reserva', detalle: r.message || null } }];"
       },
       "id": "r-0007",
       "name": "Code · Salida",
@@ -611,6 +616,31 @@
           "name": "Directus"
         }
       }
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "rv1",
+              "name": "pedir_empresa",
+              "type": "string",
+              "value": "__CONTACTO_PEDIR_EMPRESA__"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-e5f6-4708-9a1b-2c3d4e5f6071",
+      "name": "Config (editar por tenant)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -40,
+        0
+      ]
     }
   ],
   "connections": {
@@ -618,7 +648,7 @@
       "main": [
         [
           {
-            "node": "Code · Entrada",
+            "node": "Config (editar por tenant)",
             "type": "main",
             "index": 0
           }
@@ -757,6 +787,17 @@
         [
           {
             "node": "Code · Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "Code · Entrada",
             "type": "main",
             "index": 0
           }

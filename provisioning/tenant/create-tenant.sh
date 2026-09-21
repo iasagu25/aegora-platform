@@ -805,6 +805,13 @@ write_env "$TENANT_ENV" "TENANT_ID" "$TENANT_ID"
 write_env "$TENANT_ENV" "TENANT_NAME" "$TENANT_NAME"
 write_env "$TENANT_ENV" "ENVIRONMENT" "production"
 
+# Ajustes de comportamiento del agente, por tenant. Se escriben siempre, con su
+# valor por defecto, para que el fichero DIGA qué se puede tocar: un ajuste que
+# solo existe cuando alguien lo añade a mano no lo descubre nadie.
+# `pedir_empresa`: en una gestoría a los clientes se los conoce por su empresa y
+# una ficha sin ella no sirve de mucho; en una peluquería sobra.
+write_env "$TENANT_ENV" "CONTACTO_PEDIR_EMPRESA" "false"
+
 write_env "$TENANT_ENV" "BASE_DOMAIN" "$BASE_DOMAIN"
 
 write_env "$TENANT_ENV" "DIRECTUS_VERSION" "$DIRECTUS_VERSION"

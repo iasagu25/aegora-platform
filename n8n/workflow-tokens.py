@@ -79,6 +79,20 @@ SECRET_FIELDS = {
     "app_secret": ("REPLACE_APP_SECRET", "WHATSAPP_APP_SECRET"),
 }
 
+# Ajustes de comportamiento que cambian por tenant. Viven en un campo de un nodo
+# Set, igual que los secretos de WhatsApp, y por la misma razón: su valor es un
+# booleano y un token con valor `true` NO se puede revertir por valor -- al
+# normalizar se convertirían en el token todos los `true` del JSON. El nombre del
+# campo, en cambio, es unívoco.
+#
+# Llevan valor por defecto porque, al revés que un secreto, aquí no vale dejar el
+# placeholder puesto: la cadena "__CONTACTO_PEDIR_EMPRESA__" es "verdadera" para
+# cualquier comprobación laxa, así que un tenant sin configurar acabaría pidiendo
+# la empresa a todo el mundo.
+AJUSTES_TENANT = {
+    "pedir_empresa": ("__CONTACTO_PEDIR_EMPRESA__", "CONTACTO_PEDIR_EMPRESA", "false"),
+}
+
 # Formas que delatan un secreto aunque el campo no esté en la lista de arriba.
 # La lista nombrada tapa lo que sabemos; esto es la red por debajo.
 SECRET_SHAPES = (
@@ -163,6 +177,11 @@ def render(text: str, tenant: Tenant) -> str:
         if valor:
             text = text.replace(placeholder, valor)
 
+    # Ajustes de tenant: estos SIEMPRE se resuelven, con su valor por defecto si
+    # el tenant no dice nada. Dejar el token puesto sería peor que no tenerlo.
+    for placeholder, var, defecto in AJUSTES_TENANT.values():
+        text = text.replace(placeholder, os.environ.get(var, "").strip() or defecto)
+
     # Ids de credencial, por nombre. El que llama pasa AEGORA_CREDENTIALS con lo
     # que tenga el n8n del tenant: {"Directus": "CFY5…", …}.
     for nombre, cred_id in credenciales_del_entorno().items():
@@ -241,8 +260,10 @@ def normalize_text(text: str, tenant: Tenant) -> str:
 
 
 def restore_secrets(text: str) -> str:
-    """Devuelve a su placeholder los secretos que trae un export."""
-    for field, (placeholder, _var) in SECRET_FIELDS.items():
+    """Devuelve a su placeholder los secretos y los ajustes que trae un export."""
+    campos = {f: p for f, (p, _v) in SECRET_FIELDS.items()}
+    campos.update({f: p for f, (p, _v, _d) in AJUSTES_TENANT.items()})
+    for field, placeholder in campos.items():
         # Los campos de un nodo Set van como {"name": "<campo>", ..., "value": "<valor>"}.
         text = re.sub(
             rf'("name": "{re.escape(field)}",(?:\s*"[a-zA-Z]+": "[^"]*",)*\s*"value": )"[^"]*"',

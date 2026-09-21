@@ -38,6 +38,12 @@
             },
             {
               "name": "idempotency_key"
+            },
+            {
+              "name": "empresa"
+            },
+            {
+              "name": "pedir_empresa"
             }
           ]
         }
@@ -140,7 +146,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $json ?? {};\nconst clean = v => (v === undefined || v === null) ? null : (String(v).trim() || null);\nconst uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\n\n// Contacto\nconst contactId = clean(input.contact_id);\nconst phone = clean(input.phone);\nconst email = clean(input.email)?.toLowerCase() ?? null;\nconst query = clean(input.query);\n\n// Cita (contrato Booking API: service_id + start_at; el API calcula end_at)\nconst serviceId = clean(input.service_id);\nconst startAt = clean(input.start_at);\nconst primaryResourceId = clean(input.primary_resource_id);\nconst title = clean(input.title);\nconst notes = clean(input.notes);\nconst source = clean(input.source) ?? 'ai';\nconst idempotencyKey = clean(input.idempotency_key);\n\nconst errors = [];\nif (!contactId && !phone && !email && !query) {\n  errors.push('Es obligatorio indicar contact_id, phone, email o query para identificar al contacto.');\n}\nif (!serviceId) errors.push('El servicio (service_id) es obligatorio.');\nelse if (!uuid.test(serviceId)) errors.push('service_id no es un UUID válido.');\nif (!startAt) errors.push('La fecha/hora de inicio es obligatoria.');\nelse if (Number.isNaN(Date.parse(startAt))) errors.push('La fecha/hora de inicio no es válida.');\nif (primaryResourceId && !uuid.test(primaryResourceId)) errors.push('primary_resource_id no es un UUID válido.');\n\nreturn [{\n  json: {\n    valid: errors.length === 0,\n    validation_errors: errors,\n\n    contact_id: contactId,\n    phone,\n    email,\n    query,\n\n    service_id: serviceId,\n    start_at: startAt,\n    primary_resource_id: primaryResourceId,\n    title,\n    notes,\n    source,\n    idempotency_key: idempotencyKey,\n  },\n}];"
+        "jsCode": "const input = $json ?? {};\nconst clean = v => (v === undefined || v === null) ? null : (String(v).trim() || null);\nconst uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\n\n// Contacto\nconst contactId = clean(input.contact_id);\nconst phone = clean(input.phone);\nconst email = clean(input.email)?.toLowerCase() ?? null;\nconst query = clean(input.query);\n\n// Cita (contrato Booking API: service_id + start_at; el API calcula end_at)\nconst serviceId = clean(input.service_id);\nconst startAt = clean(input.start_at);\nconst primaryResourceId = clean(input.primary_resource_id);\nconst title = clean(input.title);\nconst notes = clean(input.notes);\nconst source = clean(input.source) ?? 'ai';\nconst idempotencyKey = clean(input.idempotency_key);\n\nconst errors = [];\nif (!contactId && !phone && !email && !query) {\n  errors.push('Es obligatorio indicar contact_id, phone, email o query para identificar al contacto.');\n}\nif (!serviceId) errors.push('El servicio (service_id) es obligatorio.');\nelse if (!uuid.test(serviceId)) errors.push('service_id no es un UUID válido.');\nif (!startAt) errors.push('La fecha/hora de inicio es obligatoria.');\nelse if (Number.isNaN(Date.parse(startAt))) errors.push('La fecha/hora de inicio no es válida.');\nif (primaryResourceId && !uuid.test(primaryResourceId)) errors.push('primary_resource_id no es un UUID válido.');\n\n// La empresa del contacto. `pedir_empresa` es un ajuste del tenant: en una\n// gestoría las personas se conocen por su empresa y darlas de alta sin ella deja\n// la ficha inservible; en una peluquería no aporta nada. Si se pide y no está, el\n// alta NO se intenta -- se devuelve not_found y quien llama pregunta.\nconst _empresa = clean(input.empresa);\nconst _pedir_empresa = String(input.pedir_empresa ?? '').trim() === 'true';\n// Cadena no vacía cuando la identidad está completa: el nodo IF de después\n// combina con AND y no sabe hacer \"o no se pide, o se tiene\".\nconst _identidad_completa = (!_pedir_empresa || _empresa) ? 'si' : '';\n\nreturn [{\n  json: {\n    valid: errors.length === 0,\n    validation_errors: errors,\n\n    contact_id: contactId,\n    phone,\n    email,\n    query,\n    empresa: _empresa,\n    pedir_empresa: _pedir_empresa,\n    identidad_completa: _identidad_completa,\n\n    service_id: serviceId,\n    start_at: startAt,\n    primary_resource_id: primaryResourceId,\n    title,\n    notes,\n    source,\n    idempotency_key: idempotencyKey,\n  },\n}];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -460,6 +466,16 @@
                 "operation": "notEmpty",
                 "singleValue": true
               }
+            },
+            {
+              "id": "22-0003-empresa",
+              "leftValue": "={{ $('Code · Normalize Input').item.json.identidad_completa }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -489,7 +505,7 @@
             "phone": "={{ $('Code · Normalize Input').item.json.phone }}",
             "first_name": "={{ $json.first_name }}",
             "last_name": "={{ $json.last_name }}",
-            "company": "",
+            "company": "={{ $('Code · Normalize Input').item.json.empresa || '' }}",
             "email": "={{ $('Code · Normalize Input').item.json.email }}",
             "phone_label": "",
             "can_whatsapp": "",

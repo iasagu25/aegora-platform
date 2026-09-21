@@ -238,6 +238,9 @@ Tokens que se resuelven:
   __BOOKING_BASE_URL__    ${BOOKING_BASE_URL}
   __PRIVACY_POLICY_URL__  ${PRIVACY_POLICY_URL}
 
+Ajustes del tenant (de tenant.env; el valor por defecto si no está):
+  CONTACTO_PEDIR_EMPRESA  ${CONTACTO_PEDIR_EMPRESA:-false}
+
 Credenciales en su n8n:
   ${CREDS_ESTADO}
 

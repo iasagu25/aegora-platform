@@ -285,12 +285,40 @@ Estado: **v2 es el Core por defecto** (`core_version: v2` en el `Config` de Entr
 validarlo por webchat en toda la superficie de v1: reservar, conflicto de hueco con
 alternativas, listar citas, cancelar con confirmación (y un "no" que no toca nada),
 reprogramar, horario y dirección desde la KB, e identidad por teléfono en un canal que no
-lo trae. 7 tools (`n8n/workflows/LUCIA-TOOL-*.json`) + prompt (`n8n/prompts/lucia-v2.md`,
-del que el nodo lee el `systemMessage` al construir el JSON, para que no puedan divergir).
+lo trae. 7 tools (`n8n/workflows/LUCIA-TOOL-*.json`) + prompt (`n8n/prompts/lucia-v2.md`).
+**El `.md` manda y el JSON es artefacto**: `python3 n8n/build-prompt.py --write` lo mete en
+el `systemMessage` del nodo, y sin `--write` solo avisa si divergen. Antes eran dos copias
+de 10.000 caracteres que coincidían por disciplina, y separarse no da ningún error --
+simplemente el agente se comporta distinto y no hay nada que mirar.
 
 **v1 sigue importable y sin tocar**: `core_version: v1` en el `Config` de Entry lo devuelve
 al router determinista. No borrarlo todavía — es la red de seguridad hasta que v2 acumule
 rodaje por WhatsApp, no solo por webchat.
+
+#### Ajustes de comportamiento por tenant (`CONTACTO_PEDIR_EMPRESA`, 21/sep/2026)
+Lo que una gestoría necesita y una peluquería no: **la empresa del cliente**. En una
+gestoría a las personas se las conoce por su empresa y una ficha sin ella no sirve; en
+otros negocios preguntarla es ruido. Así que es configuración del tenant, no del código:
+`CONTACTO_PEDIR_EMPRESA` en `tenant.env`, que `create-tenant.sh` escribe siempre con su
+valor por defecto -- **un ajuste que solo existe cuando alguien lo añade a mano no lo
+descubre nadie**.
+
+**No hizo falta tocar el router ni inventar una rama**: el prompt ya dice "pide solo lo
+que venga en `falta`", así que basta con que `reservar_cita` meta `empresa` en esa lista.
+Es el mecanismo de `falta_identidad` haciendo su trabajo, y es la prueba de que v2 se
+extiende por las tools y no por el prompt.
+
+Dos decisiones de trato: se pide **junto al nombre y en el mismo mensaje** (son el mismo
+hueco, quién eres; partirlo en dos turnos cansa) y **no bloquea la reserva** -- un
+particular que viene a la renta no tiene empresa y su cita vale igual.
+
+**Un ajuste booleano NO puede ser un token normal.** `normalize` sustituye por valor, así
+que un token que vale `true` convertiría en token todos los `true` del JSON al exportar.
+Va en `AJUSTES_TENANT` de `workflow-tokens.py`, que se resuelve por **nombre de campo** de
+un nodo Set -- el mismo mecanismo que los secretos de WhatsApp y por la misma razón. Y a
+diferencia de un secreto, siempre se resuelve con un valor por defecto: dejar puesto el
+literal `__CONTACTO_PEDIR_EMPRESA__` sería "verdadero" para cualquier comprobación laxa y
+un tenant sin configurar acabaría pidiendo la empresa a todo el mundo.
 
 #### Patrón clave: lo que el LLM no puede saber, va en `conversation_sessions.state`
 Repetidamente ha aparecido el mismo fallo: un hecho que **solo conoce la capa
