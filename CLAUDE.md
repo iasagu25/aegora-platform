@@ -1048,6 +1048,35 @@ que renderizan `create-tenant.sh` y este script. Antes era un heredoc dentro de
 `create-tenant.sh` y convivía con una plantilla muerta que decía otra cosa — el origen de
 que `secrets/restic.env` no se respaldara. Una sola fuente, y la usan los dos.
 
+## Borrar un contacto: por qué el gestor NO puede (probado, 21/sep/2026)
+Se le dio el permiso razonando que el derecho de supresión del RGPD es obligación del
+**negocio** y que el esquema ya hacía lo correcto: `appointments`, `tasks` y
+`conversation_messages` ponen `contact_id` a NULL y `contact_phones` va en CASCADE, así
+que se va el dato personal y el registro de negocio sobrevive anonimizado -- que es justo
+lo que pide una supresión.
+
+**El razonamiento era bueno solo para el pasado.** A la primera prueba en `dev`: borrar un
+contacto dejó **tres citas futuras sin dueño**. Un hueco guardado para nadie, en la agenda
+del gestor, sin forma de saber de quién era ni a quién avisar. Y **en silencio**: se borra
+un contacto y se crean tres citas fantasma sin que nada lo diga.
+
+Segundo efecto, encadenado: la `idempotency_key` de una reserva es
+`session_key + start_at`, **sin el contacto**. Una cita huérfana sigue casando con la
+siguiente petición del mismo teléfono, así que el Booking API la devuelve como idempotente
+y Lucía confirma *"tu cita ya está reservada"* — de una cita que no es de nadie.
+
+El arreglo correcto no es un permiso: borrar un contacto tiene que **cancelar antes sus
+citas futuras** (que es lo que dice también el RGPD: si dejas de tratar sus datos, dejas
+de guardarle una hora). Eso no se puede expresar en un permiso porque esta edición de
+Directus no admite filtros en los permisos, así que hace falta un **Flow sobre
+`contacts.items.delete`** — y los flows no entran en `schema snapshot`, así que son
+provisioning nuevo. Hasta entonces una supresión pasa por Aegora: es un evento raro y
+planificado, y un clic equivocado no lo es.
+
+Lo que sí quedó de aquel intento y es bueno: **`conversation_sessions.contact_id` es ya
+una M2O de verdad** (antes un uuid suelto sin clave ajena, que además habría enseñado el
+UUID en la columna Contacto de la bandeja en cuanto hubiera datos reales).
+
 ## Cómo mueve el gestor una cita — decidido, sin construir (16/sep/2026)
 **No se le da un selector de huecos. Se le da un botón que arranca la conversación.**
 

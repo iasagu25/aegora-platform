@@ -154,7 +154,7 @@ Role / Policy:
   ${ROLE_NAME}   (app_access: sí · admin_access: no)
 
 Uso diario:
-  contacts               create / read / update / delete   (**)
+  contacts               create / read / update   (**)
   contact_phones         create / read / update / delete   (se editan dentro del contacto)
   tasks                  create / read / update / delete
   knowledge              create / read / update
@@ -187,11 +187,12 @@ Sin permiso (invisibles para el gestor):
 
 Notas:
   - Borrar solo donde no destruye historial: tareas y reglas de horario.
-  (**) Borrar un contacto es el derecho de supresión del RGPD, que es una
-       obligación del negocio: sin este permiso no puede cumplirla sin nosotros.
-       No destruye histórico -- citas, tareas y mensajes ponen contact_id a NULL
-       y sobreviven anonimizados, que es justo lo que pide una supresión. Los
-       teléfonos sí se van con la persona (CASCADE): son suyos.
+  (**) SIN borrar, a propósito y tras probarlo. Borrar un contacto pone a NULL
+       el contact_id de sus citas: para una cita pasada es correcto (se va el
+       dato personal, queda el registro), pero una cita FUTURA se queda sin
+       dueño -- un hueco guardado para nadie, y sin ningún aviso. Una supresión
+       de RGPD tiene que cancelar antes las citas futuras, y eso necesita un
+       Flow de Directus, no un permiso. Mientras tanto pasa por Aegora.
 
   (*) Se quería update solo del campo 'status', para que mover o cancelar pasara
       siempre por el Booking API (el que valida solapes y buffers). Esta edición
@@ -229,14 +230,24 @@ const roleName = process.env.AEGORA_ROLE_NAME;
 const ALL = ['*'];
 const permissionModel = {
   // --- uso diario -----------------------------------------------------------
-  // Con delete, y no por comodidad: el derecho de supresión del RGPD es una
-  // obligación del NEGOCIO, y sin este permiso no puede cumplirla sin llamarnos.
-  // Es seguro porque el esquema ya hace lo correcto: appointments, tasks y
-  // conversation_messages ponen contact_id a NULL, así que se va el dato
-  // personal y el registro de negocio sobrevive anonimizado -- que es
-  // exactamente lo que pide una supresión. Los teléfonos van en CASCADE porque
-  // son de la persona, no del negocio.
-  contacts: { create: ALL, read: ALL, update: ALL, delete: ALL },
+  // SIN delete, y se intentó. El razonamiento era bueno a medias: el derecho de
+  // supresión del RGPD es obligación del negocio, y `SET NULL` conserva el
+  // registro anonimizado, que es justo lo que pide una supresión.
+  //
+  // Lo que se pasó por alto es qué significa eso en una cita FUTURA: un hueco
+  // reservado para nadie, en la agenda, sin forma de saber de quién era ni a
+  // quién avisar. Y en silencio -- el gestor borra un contacto y deja tres citas
+  // fantasma sin que nada se lo diga. Pasó en `dev` a la primera (21/sep/2026).
+  //
+  // Y el RGPD dice lo mismo que la operativa: si dejas de tratar sus datos, le
+  // dejas de guardar una hora. Borrar un contacto tiene que CANCELAR sus citas
+  // futuras, y eso no se puede expresar con un permiso: esta edición de Directus
+  // no admite filtros en los permisos (ver el quirk en CLAUDE.md). Hace falta un
+  // Flow de Directus sobre `contacts.items.delete`, que es provisioning nuevo.
+  //
+  // Hasta entonces, una supresión pasa por nosotros. Es un evento raro y
+  // planificado; un clic equivocado no lo es.
+  contacts: { create: ALL, read: ALL, update: ALL },
   // Un teléfono mal tecleado no es histórico de nada: se quita y ya.
   contact_phones: { create: ALL, read: ALL, update: ALL, delete: ALL },
   tasks: { create: ALL, read: ALL, update: ALL, delete: ALL },
