@@ -176,9 +176,11 @@ Biblioteca de archivos:
   directus_folders       read
 
 Conversaciones de Lucía:
-  conversation_sessions  read   (abrirla enseña su hilo de mensajes)
-  conversation_messages  read   (solo lectura hasta que exista el envío:
-                                 una fila creada a mano no se manda todavía)
+  conversation_sessions  read / update   (update = coger el hilo con 'modo')
+  conversation_messages  read / create   (create = contestar; crear el mensaje
+                                          ES enviarlo, lo recoge el enviador)
+                                         sin update ni delete: el historial no
+                                         se reescribe.
 
 Sin permiso (invisibles para el gestor):
   languages
@@ -253,18 +255,17 @@ const permissionModel = {
   calendars: { read: ALL },
 
   // --- conversaciones de Lucía ---------------------------------------------
-  // De momento SOLO lectura, y es a propósito. El gestor puede leer el hilo
-  // entero (abrir una conversación enseña sus mensajes por el O2M), pero
-  // todavía no hay nada que ENVÍE lo que escriba: una fila creada a mano se
-  // quedaría en 'pendiente' para siempre. Dar de alta el permiso de escritura
-  // antes que el mecanismo de envío es poner un botón que no hace nada.
-  // Cuando exista el relevo, esto pasa a:
-  //   conversation_sessions: { read, update }   (update = cambiar 'modo')
-  //   conversation_messages: { read, create }   (create = contestar)
-  // y nunca update/delete sobre los mensajes: un historial que se puede editar
-  // deja de ser un historial de lo que pasó.
-  conversation_sessions: { read: ALL },
-  conversation_messages: { read: ALL },
+  // update sobre la sesión es para cambiar `modo` y coger el hilo. Arrastra
+  // poder tocar `state` (el JSON interno de la máquina) porque esta edición de
+  // Directus no tiene permisos por campo: se pone readonly en la interfaz, que
+  // es un guardarraíl y no una barrera -- igual que con la hora de una cita.
+  conversation_sessions: { read: ALL, update: ALL },
+  // create = contestar. Crear el mensaje ES enviarlo: HUMANO · Enviar pendientes
+  // recoge los 'pendiente' cada 30 s.
+  // SIN update y SIN delete, a propósito: un historial que se puede editar deja
+  // de ser un historial de lo que pasó. Si un envío falla, la fila se queda
+  // 'fallido' con el motivo y se manda otro -- no se reescribe el pasado.
+  conversation_messages: { read: ALL, create: ALL },
 
   // --- intercambio de ficheros con Aegora -----------------------------------
   // Para pasarse documentación durante la implantación y luego con los cambios.

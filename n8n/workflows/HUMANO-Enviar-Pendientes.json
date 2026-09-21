@@ -1,0 +1,394 @@
+{
+  "id": "aegoraHumanoEnviar",
+  "name": "HUMANO · Enviar pendientes",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds",
+              "secondsInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "0a1d6e35-8c47-4b92-a0f3-51e7d2c96481",
+      "name": "Cada 30 segundos",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -40,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "h1",
+              "name": "tenant",
+              "type": "string",
+              "value": "__TENANT_ID__"
+            },
+            {
+              "id": "h2",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "__DIRECTUS_BASE_URL__"
+            },
+            {
+              "id": "h3",
+              "name": "phone_number_id",
+              "type": "string",
+              "value": "REPLACE_PHONE_NUMBER_ID"
+            },
+            {
+              "id": "h4",
+              "name": "graph_version",
+              "type": "string",
+              "value": "v21.0"
+            },
+            {
+              "id": "h5",
+              "name": "lote",
+              "type": "number",
+              "value": 25
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1b2e7f46-9d58-4ca3-b104-62f8e3da5792",
+      "name": "Config (editar por tenant)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        180,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $json.directus_base_url }}/items/conversation_messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ query: { filter: { estado_envio: { _eq: 'pendiente' }, direccion: { _eq: 'saliente' } }, sort: ['created_at'], limit: $json.lote }, data: { estado_envio: 'enviando' } }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "2c3f8a57-0e69-4db4-c215-73a9f4eb6803",
+      "name": "HTTP · Reservar pendientes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        400,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config (editar por tenant)').item.json.directus_base_url }}/items/conversation_messages?filter[id][_in]={{ (($json.body && $json.body.data) || []).map(x => x.id).join(',') || '00000000-0000-0000-0000-000000000000' }}&fields=id,texto,canal,session_id.session_key,session_id.ventana_hasta&sort=created_at&limit=100",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "3d409168-1f7a-4ec5-d326-84b005fc7914",
+      "name": "HTTP · Leer reservadas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        620,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Decide qué se puede enviar y qué no, y por qué. El \"por qué\" acaba en el campo\n// `error` de la fila, en cristiano: quien escribe el mensaje es un gestor, no\n// alguien que vaya a leer un log.\nconst cfg = $('Config (editar por tenant)').item.json;\nconst r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 300 || (body && body.errors)) {\n  throw new Error('Directus /items/conversation_messages ' + code + ': ' + JSON.stringify(body.errors || body));\n}\nconst filas = Array.isArray(body.data) ? body.data : [];\nconst base_url = `https://graph.facebook.com/${cfg.graph_version || 'v21.0'}/${cfg.phone_number_id}/messages`;\nconst ahora = Date.now();\n\n// Mismo dialecto que el adapter: el gestor escribe en una caja de texto normal y\n// puede pegar markdown sin saberlo.\nconst aWhatsApp = (t) => (t || '').toString()\n  .replace(/`{3}([\\s\\S]*?)`{3}/g, '$1')\n  .replace(/^#{1,6}\\s*(.+)$/gm, '*$1*')\n  .replace(/\\*\\*\\*(.+?)\\*\\*\\*/g, '*$1*')\n  .replace(/\\*\\*(.+?)\\*\\*/g, '*$1*')\n  .replace(/__(.+?)__/g, '_$1_')\n  .replace(/`(.+?)`/g, '$1')\n  .replace(/\\[([^\\]]+)\\]\\((https?:\\/\\/[^)\\s]+)\\)/g, '$1: $2')\n  .replace(/^[ \\t]*[*+][ \\t]+/gm, '- ')\n  .trim();\n\nconst salida = [];\nfor (const f of filas) {\n  const ses = f.session_id || {};\n  const key = (ses.session_key || '').toString();\n  const texto = aWhatsApp(f.texto);\n  const comun = { _id: f.id, _enviar: false, _error: null, directus_base_url: cfg.directus_base_url };\n\n  if (!texto) {\n    salida.push({ json: { ...comun, _error: 'El mensaje está vacío.' } });\n    continue;\n  }\n  // Hoy solo se sabe enviar por WhatsApp. En webchat no hay a dónde empujar un\n  // mensaje si el cliente cerró la pestaña, así que se falla claro en vez de\n  // dejar la fila en 'pendiente' para siempre esperando algo que no va a pasar.\n  if (f.canal !== 'whatsapp' || !key.startsWith('whatsapp:')) {\n    salida.push({ json: { ...comun,\n      _error: `El canal \"${f.canal || 'desconocido'}\" no admite enviar un mensaje más tarde. Solo WhatsApp.` } });\n    continue;\n  }\n  // La ventana de 24h de Meta vale también para la persona que escribe: pasada,\n  // solo entra una plantilla aprobada. Sin esta comprobación el envío falla en\n  // Graph con un error que no dice nada y el gestor no entiende por qué.\n  const hasta = ses.ventana_hasta ? Date.parse(ses.ventana_hasta) : NaN;\n  if (!Number.isFinite(hasta) || hasta <= ahora) {\n    salida.push({ json: { ...comun,\n      _error: 'La ventana de 24h de WhatsApp está cerrada: el cliente no escribe desde hace más de un día. '\n            + 'Hasta que vuelva a escribir, solo se le puede mandar una plantilla aprobada por Meta.' } });\n    continue;\n  }\n\n  salida.push({ json: { ...comun,\n    _enviar: true,\n    _url: base_url,\n    _body: {\n      messaging_product: 'whatsapp', recipient_type: 'individual',\n      to: key.replace(/^whatsapp:/, ''),\n      type: 'text', text: { preview_url: false, body: texto },\n    },\n  } });\n}\nreturn salida;"
+      },
+      "id": "4e51a279-208b-4fd6-e437-95c116ad8a25",
+      "name": "Code · Preparar envíos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5f62b38a-319c-40e7-f548-a6d227be9b36",
+              "leftValue": "={{ $json._enviar }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6073c49b-420d-41f8-0659-b7e338caa047",
+      "name": "¿Se puede enviar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1060,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json._url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json._body) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          },
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1200
+            }
+          }
+        }
+      },
+      "id": "7184d5ac-531e-4209-1760-c8f449db1158",
+      "name": "HTTP · WhatsApp sendText",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1280,
+        -120
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_WHATSAPP__",
+          "name": "WhatsApp"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Traduce la respuesta de Graph a la fila. Un envío que falla NO se reintenta\n// solo: se deja 'fallido' con el motivo y lo decide una persona. Reintentar a\n// ciegas contra WhatsApp es la forma de mandar cuatro veces lo mismo.\nconst p = $('Code · Preparar envíos').item.json;\nconst r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 200 && code < 300 && body && Array.isArray(body.messages) && body.messages[0]) {\n  return [{ json: { _id: p._id, directus_base_url: p.directus_base_url,\n    _patch: { estado_envio: 'enviado', canal_message_id: body.messages[0].id || null, error: null } } }];\n}\nconst detalle = (body && body.error && body.error.message)\n  ? body.error.message\n  : JSON.stringify(body).slice(0, 400);\nreturn [{ json: { _id: p._id, directus_base_url: p.directus_base_url,\n  _patch: { estado_envio: 'fallido', error: `WhatsApp rechazó el envío (${code}): ${detalle}` } } }];"
+      },
+      "id": "8295e6bd-642f-431a-2871-d9055aec2269",
+      "name": "Code · Resultado envío",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// No se ha llamado a WhatsApp: el motivo ya venía decidido.\nconst p = $json ?? {};\nreturn [{ json: { _id: p._id, directus_base_url: p.directus_base_url,\n  _patch: { estado_envio: 'fallido', error: p._error || 'No se pudo enviar.' } } }];"
+      },
+      "id": "93a6f7ce-753a-442b-3982-ea166bfd337a",
+      "name": "Code · Resultado sin enviar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $json.directus_base_url }}/items/conversation_messages/{{ $json._id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json._patch) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "a4b708df-864b-4520-4a93-fb277bd4448b",
+      "name": "HTTP · Marcar mensaje",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1720,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cada 30 segundos": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Reservar pendientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Reservar pendientes": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Leer reservadas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Leer reservadas": {
+      "main": [
+        [
+          {
+            "node": "Code · Preparar envíos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Preparar envíos": {
+      "main": [
+        [
+          {
+            "node": "¿Se puede enviar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Se puede enviar?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · WhatsApp sendText",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Resultado sin enviar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · WhatsApp sendText": {
+      "main": [
+        [
+          {
+            "node": "Code · Resultado envío",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Resultado envío": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Marcar mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Resultado sin enviar": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Marcar mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

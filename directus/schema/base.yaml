@@ -3846,7 +3846,7 @@ fields:
       name: direccion
       table: conversation_messages
       data_type: character varying
-      default_value: null
+      default_value: saliente
       max_length: 255
       numeric_precision: null
       numeric_scale: null
@@ -3897,7 +3897,7 @@ fields:
       name: autor
       table: conversation_messages
       data_type: character varying
-      default_value: null
+      default_value: humano
       max_length: 255
       numeric_precision: null
       numeric_scale: null
@@ -3964,13 +3964,19 @@ fields:
       group: null
       hidden: false
       interface: select-dropdown
-      note: Un saliente creado como 'pendiente' es lo que dispara el envío real.
+      note: >-
+        Un saliente creado como 'pendiente' es lo que dispara el envío real.
+        'enviando' lo pone el enviador al reservarse la fila antes de llamar a
+        WhatsApp: sin esa reserva, dos pasadas del temporizador que se solapan
+        mandan el mismo mensaje dos veces a una persona real.
       options:
         choices:
           - text: Recibido
             value: recibido
           - text: Pendiente de enviar
             value: pendiente
+          - text: Enviando
+            value: enviando
           - text: Enviado
             value: enviado
           - text: Fallido
@@ -3990,7 +3996,7 @@ fields:
       name: estado_envio
       table: conversation_messages
       data_type: character varying
-      default_value: recibido
+      default_value: pendiente
       max_length: 255
       numeric_precision: null
       numeric_scale: null
