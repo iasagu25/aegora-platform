@@ -234,6 +234,13 @@ TENANT_ROOT="${TENANTS_ROOT}/${TENANT}"
 TENANT_CONFIG="${TENANT_ROOT}/config/tenant.env"
 TENANT_SECRETS_DIR="${TENANT_ROOT}/secrets"
 SECRET_FILE="${TENANT_SECRETS_DIR}/${SECRET_FILENAME}"
+# Token del usuario técnico de provisioning (rol Administrator). Sustituye al
+# login con ADMIN_EMAIL/ADMIN_PASSWORD del contenedor: Directus usa esas
+# variables SOLO al arrancar por primera vez, así que en cuanto alguien cambia la
+# contraseña del admin el fichero y el usuario divergen -- y no se nota hasta que
+# un script intenta entrar. Pasó en `demo` el 21/sep/2026, justo en el script que
+# reparte permisos. Los demás scripts ya usaban este token.
+PROVISIONING_SECRET="${TENANT_SECRETS_DIR}/directus-provisioning.env"
 
 require_file "$TENANT_CONFIG"
 
@@ -273,20 +280,27 @@ ACTUAL_DIRECTUS_VERSION="$(
 [[ "$ACTUAL_DIRECTUS_VERSION" == "$DECLARED_DIRECTUS_VERSION" ]] ||
   fail "Versión Directus inconsistente. Declarada=${DECLARED_DIRECTUS_VERSION}, contenedor=${ACTUAL_DIRECTUS_VERSION}"
 
-ADMIN_STATE="$(
+# Se comprueba que el token ABRE, no que exista un fichero: uno revocado o de
+# otro tenant da un 401 aquí y no a mitad de repartir permisos.
+TOKEN_STATE="$(
   docker exec \
+    -e DIRECTUS_PROVISIONING_TOKEN="$DIRECTUS_PROVISIONING_TOKEN" \
     "$DIRECTUS_CONTAINER" \
-    sh -c '
-      if [ -n "${ADMIN_EMAIL:-}" ] && [ -n "${ADMIN_PASSWORD:-}" ]; then
-        printf "loaded"
-      else
-        printf "missing"
-      fi
+    node -e '
+      fetch("http://127.0.0.1:8055/users/me?fields=email", {
+        headers: { Authorization: "Bearer " + process.env.DIRECTUS_PROVISIONING_TOKEN },
+      })
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status))))
+        .then((b) => process.stdout.write(b?.data?.email || "sin-email"))
+        .catch((e) => process.stdout.write("ERROR: " + e.message));
     '
 )"
 
-[[ "$ADMIN_STATE" == "loaded" ]] ||
-  fail "ADMIN_EMAIL/ADMIN_PASSWORD no están disponibles dentro de ${DIRECTUS_CONTAINER}."
+[[ "$TOKEN_STATE" != ERROR:* ]] ||
+  fail "El token de provisioning no abre contra ${DIRECTUS_CONTAINER}: ${TOKEN_STATE}
+Regenéralo con: directus/provision-directus-access.sh --tenant ${TENANT} --apply"
+
+log "Acceso de provisioning verificado: ${TOKEN_STATE}"
 
 DB_HOST="$(get_container_env "$DIRECTUS_CONTAINER" "DB_HOST")"
 DB_DATABASE="$(get_container_env "$DIRECTUS_CONTAINER" "DB_DATABASE")"
@@ -381,6 +395,26 @@ if [[ -f "$SECRET_FILE" ]]; then
   # shellcheck disable=SC1090
   source "$SECRET_FILE"
   set +a
+fi
+
+if [[ ! -r "$PROVISIONING_SECRET" ]]; then
+  if [[ $EUID -eq 0 ]]; then
+    fail "No existe ${PROVISIONING_SECRET}
+Créalo antes con: directus/provision-directus-access.sh --tenant ${TENANT} --apply"
+  fi
+  fail "No se puede leer ${PROVISIONING_SECRET}
+O no existe, o es cuestión de permisos (los secretos del tenant son de root).
+Prueba con sudo."
+fi
+set -a
+# shellcheck disable=SC1090
+source "$PROVISIONING_SECRET"
+set +a
+: "${DIRECTUS_PROVISIONING_TOKEN:?Falta DIRECTUS_PROVISIONING_TOKEN en ${PROVISIONING_SECRET}}"
+
+# El `if` de abajo cierra el bloque original que cargaba SECRET_FILE.
+if false; then
+  set +a
 
   : "${DIRECTUS_N8N_TOKEN:?Falta DIRECTUS_N8N_TOKEN en ${SECRET_FILE}}"
   SERVICE_TOKEN="$DIRECTUS_N8N_TOKEN"
@@ -400,6 +434,7 @@ log "Configurando policy, permisos, role y usuario técnico por API."
 API_OUTPUT="$(
   docker exec \
     -i \
+    -e DIRECTUS_PROVISIONING_TOKEN="$DIRECTUS_PROVISIONING_TOKEN" \
     -e AEGORA_N8N_SERVICE_EMAIL="$SERVICE_EMAIL" \
     -e AEGORA_N8N_POLICY_NAME="$POLICY_NAME" \
     -e AEGORA_N8N_ROLE_NAME="$ROLE_NAME" \
@@ -412,7 +447,10 @@ const serviceEmail = process.env.AEGORA_N8N_SERVICE_EMAIL;
 const policyName = process.env.AEGORA_N8N_POLICY_NAME;
 const roleName = process.env.AEGORA_N8N_ROLE_NAME;
 
-let adminToken = null;
+// Token del usuario técnico de provisioning. Ya no se hace login: una contraseña
+// de .env que nadie vuelve a comprobar es una bomba de relojería, y este script
+// es el que reparte los permisos.
+let adminToken = process.env.DIRECTUS_PROVISIONING_TOKEN;
 
 const permissionModel = {
   contacts: ['create', 'read', 'update'],
@@ -485,24 +523,9 @@ async function request(method, path, body = undefined, token = adminToken) {
   return payload;
 }
 
-async function loginAdmin() {
-  const { response, payload } = await rawRequest(
-    'POST',
-    '/auth/login',
-    {
-      email: process.env.ADMIN_EMAIL,
-      password: process.env.ADMIN_PASSWORD,
-      mode: 'json',
-    },
-    null
-  );
-
-  if (!response.ok) throw new Error(`Login admin fallido: HTTP ${response.status}`);
-
-  adminToken = payload?.data?.access_token;
-  if (!adminToken) throw new Error('Directus no devolvió access_token admin.');
-
-  console.log('Autenticación admin: OK');
+async function comprobarAcceso() {
+  const yo = await request('GET', '/users/me?fields=id,email,role.name');
+  console.log(`Acceso como ${yo?.data?.email ?? '(desconocido)'} (${yo?.data?.role?.name ?? 'sin rol'}).`);
 }
 
 async function findOne(path) {
@@ -653,7 +676,7 @@ async function ensureUser() {
 }
 
 async function main() {
-  await loginAdmin();
+  await comprobarAcceso();
 
   const policy = await ensurePolicy();
   if (!policy?.id) throw new Error('No se pudo resolver el ID de la policy.');
@@ -754,6 +777,7 @@ log "Asignando static token, activando usuario y verificando permisos efectivos.
 
 docker exec \
   -i \
+  -e DIRECTUS_PROVISIONING_TOKEN="$DIRECTUS_PROVISIONING_TOKEN" \
   -e AEGORA_N8N_SERVICE_EMAIL="$SERVICE_EMAIL" \
   -e AEGORA_N8N_SERVICE_TOKEN="$SERVICE_TOKEN" \
   -e AEGORA_N8N_EXPECTED_ROLE_ID="$ROLE_ID" \
@@ -773,7 +797,10 @@ const expectedPermissions = {
   appointments: ['create', 'read', 'update'],
 };
 
-let adminToken = null;
+// Token del usuario técnico de provisioning. Ya no se hace login: una contraseña
+// de .env que nadie vuelve a comprobar es una bomba de relojería, y este script
+// es el que reparte los permisos.
+let adminToken = process.env.DIRECTUS_PROVISIONING_TOKEN;
 
 async function rawRequest(method, path, body = undefined, token = adminToken) {
   const headers = { Accept: 'application/json' };
@@ -813,22 +840,6 @@ async function request(method, path, body = undefined, token = adminToken) {
 }
 
 async function main() {
-  const login = await rawRequest(
-    'POST',
-    '/auth/login',
-    {
-      email: process.env.ADMIN_EMAIL,
-      password: process.env.ADMIN_PASSWORD,
-      mode: 'json',
-    },
-    null
-  );
-
-  if (!login.response.ok) {
-    throw new Error(`Login admin fallido: HTTP ${login.response.status}`);
-  }
-
-  adminToken = login.payload?.data?.access_token;
 
   const users = await request(
     'GET',

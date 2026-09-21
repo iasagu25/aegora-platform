@@ -82,6 +82,18 @@ documentado sigue siendo cierto.
   que hay que listar todas las que necesite. Tras aplicar, reiniciar el contenedor Directus
   (caché de permisos).
 
+### Los scripts entran con el token de provisioning, NUNCA con el admin
+`configure-n8n-service.sh` era el único que se autenticaba con
+`ADMIN_EMAIL`/`ADMIN_PASSWORD` del contenedor, y falló en `demo` con un 401 justo al
+repartir permisos. **Directus usa esas variables SOLO al arrancar por primera vez**: en
+cuanto alguien cambia la contraseña del admin (o se vuelve a renderizar el `.env`), el
+fichero y el usuario real divergen y **nadie se entera hasta que un script intenta
+entrar**. Se realinean con `node /directus/cli.js users passwd --email X --password Y`.
+
+Todos usan ya `secrets/directus-provisioning.env`, cuyo usuario tiene rol Administrator.
+Y el script **comprueba que el token ABRE**, no que el fichero exista: uno revocado o de
+otro tenant da un 401 al empezar y no a mitad de repartir permisos.
+
 ### Layout `Aegora Tasks` (extensión) — orden fijo, decidido
 `directus/extensions/directus-extension-aegora-tasks-layout` no expone panel de opciones
 (los tres slots devuelven `null`), así que **no hay selector de orden y es a propósito**:
