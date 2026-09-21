@@ -94,6 +94,18 @@ Todos usan ya `secrets/directus-provisioning.env`, cuyo usuario tiene rol Admini
 Y el script **comprueba que el token ABRE**, no que el fichero exista: uno revocado o de
 otro tenant da un 401 al empezar y no a mitad de repartir permisos.
 
+### El `display_template` de una colección NO basta para que se vea un nombre
+Un `display_template` en `contacts` solo entra en juego si **el campo que la referencia
+tiene un `display` configurado**. Sin él, Directus pinta el valor crudo: un UUID donde
+debería ir el nombre de una persona. Hay que decirlo **campo a campo** -- están en
+`displaysDeCampo` de `configure-directus-views.sh` (`related-values` con su plantilla),
+y la plantilla se define una sola vez en ese fichero porque la usan dos sitios que tienen
+que decir lo mismo.
+
+Costó tres intentos creer que el problema era otro: primero pareció que faltaba la
+plantilla de la colección, después que faltaban los presets. El síntoma es idéntico en
+los tres casos, y lo que lo distingue es mirar la pestaña **Mostrar** del campo.
+
 ### Layout `Aegora Tasks` (extensión) — orden fijo, decidido
 `directus/extensions/directus-extension-aegora-tasks-layout` no expone panel de opciones
 (los tres slots devuelven `null`), así que **no hay selector de orden y es a propósito**:

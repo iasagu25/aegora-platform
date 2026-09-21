@@ -219,14 +219,16 @@ const orden = {
 // Cómo se nombra un registro cuando se le referencia desde otro sitio. Sin esto
 // Directus pinta el UUID: el responsable de una tarea salía como
 // "3778d1f3-2778-4..." en vez de por su nombre.
+// Cómo se escribe un contacto cuando se le nombra. Una sola definición porque se
+// usa en DOS sitios que tienen que decir lo mismo: el display_template de la
+// colección y el display `related-values` de cada campo que la referencia.
+// La empresa va dentro porque en una gestoría a la gente se la conoce por ella.
+// OJO: sin empresa queda un " · " colgando -- Directus no hace condicionales en
+// una plantilla, y es preferible a no ver de qué empresa es nadie.
+const PLANTILLA_CONTACTO = '{{first_name}} {{last_name}} · {{company}}';
+
 const comoSeLlaman = {
-  // Sin esto un contacto sale como UUID en cualquier sitio que lo referencie: la
-  // columna Contacto de la bandeja, el selector de una cita, una tarea...
-  // La empresa va dentro porque en una gestoría a la gente se la conoce por ella.
-  // OJO: si un contacto no tiene empresa queda un " · " colgando al final --
-  // Directus no sabe hacer condicionales en una plantilla. Es feo y es preferible
-  // a no ver de qué empresa es nadie.
-  contacts: '{{first_name}} {{last_name}} · {{company}}',
+  contacts: PLANTILLA_CONTACTO,
   // session_key ya lleva el canal delante ("webchat:xxxx"), así que se basta
   // solo. No se mete el contacto: cuando es null, la plantilla deja un " · "
   // suelto y parece que algo se ha roto. El contacto va como columna.
@@ -305,6 +307,18 @@ const ordenDeCampos = {
 };
 
 const displaysDeCampo = [
+  // El display_template de una colección NO basta: si el campo que la referencia
+  // no tiene display, Directus pinta el valor crudo -- el UUID. Hay que decirlo
+  // campo a campo, y es exactamente lo que faltaba para que la bandeja enseñara
+  // "82dd8445-c51f-..." donde debía decir el nombre de una persona.
+  ...['conversation_sessions', 'conversation_messages', 'appointments', 'tasks'].map(
+    (collection) => ({
+      collection,
+      field: 'contact_id',
+      display: 'related-values',
+      display_options: { template: PLANTILLA_CONTACTO },
+    })
+  ),
   {
     // En una bandeja, "hace 5 min" dice más que "21 de septiembre de 2026 12:20"
     // y ocupa un tercio. El orden de la lista ya es por esta columna.
