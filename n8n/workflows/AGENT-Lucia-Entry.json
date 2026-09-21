@@ -697,12 +697,12 @@
     },
     {
       "parameters": {
-        "jsCode": "const f = $('Code · Fusionar resultado').isExecuted ? $('Code · Fusionar resultado').item.json : $('Code · Salida rate limit').item.json;\nconst r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 300 || (body && body.errors)) {\n  console.log('Entry: fallo al guardar conversation_sessions ' + code + ': ' + JSON.stringify(body.errors || body));\n}\nreturn [{ json: {\n  ok: f.ok, intent: f.intent, reply: f.reply_to_user, needs_user_reply: f.needs_user_reply,\n  core_reply: f.core_reply ?? f.reply_to_user, privacy_prompt: f.privacy_prompt || null,\n  session_key: f.session_key, canal: f.canal, to: f.reply_to || {},\n} }];"
+        "jsCode": "const f = $('Code · Fusionar resultado').isExecuted ? $('Code · Fusionar resultado').item.json : $('Code · Salida rate limit').item.json;\n// El estado del guardado de sesión ya no llega en $json: lo recoge Preparar mensajes,\n// que es quien lee ahora la respuesta del PATCH/POST.\nconst p = $('Code · Preparar mensajes').item.json;\nconst s = (p && p._sesion) || {};\nif ((s.status ?? 0) >= 300 || s.errores) {\n  console.log('Entry: fallo al guardar conversation_sessions ' + (s.status ?? 0) + ': ' + (s.errores || ''));\n}\n// Y el de los mensajes, que es informativo: no registrarlos no rompe la conversación.\nif ($('HTTP · Guardar mensajes').isExecuted) {\n  const m = $('HTTP · Guardar mensajes').item.json ?? {};\n  const mc = m.statusCode ?? 0;\n  if (mc >= 300 || (m.body && m.body.errors)) {\n    console.log('Entry: fallo al guardar conversation_messages ' + mc + ': ' + JSON.stringify((m.body && m.body.errors) || m.body || {}));\n  }\n}\nreturn [{ json: {\n  ok: f.ok, intent: f.intent, reply: f.reply_to_user, needs_user_reply: f.needs_user_reply,\n  core_reply: f.core_reply ?? f.reply_to_user, privacy_prompt: f.privacy_prompt || null,\n  session_key: f.session_key, canal: f.canal, to: f.reply_to || {},\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2200,
+        2740,
         0
       ],
       "id": "entry-0013",
@@ -925,6 +925,86 @@
         1320,
         -200
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Deja constancia del turno en conversation_messages: lo que escribió el cliente y\n// lo que contestó Lucía. Es lo que el gestor lee, y la base sobre la que se monta\n// el relevo humano.\n//\n// REGLA: esto NUNCA puede tumbar una conversación. Si algo aquí falla o falta, se\n// registra menos y ya está -- el cliente recibe su respuesta igual. Por eso no hay\n// throw en todo el nodo y por eso el HTTP de después lleva neverError.\nconst inp = $('Code · Validar entrada').item.json;\nconst huboCore = $('Code · Fusionar resultado').isExecuted;\nconst f = huboCore\n  ? $('Code · Fusionar resultado').item.json\n  : $('Code · Salida rate limit').item.json;\n\n// Respuesta del guardado de sesión (fullResponse), que hasta ahora leía Salida Entry.\nconst r = $json ?? {};\nconst sesion = {\n  status: r.statusCode ?? 0,\n  errores: (r.body && r.body.errors) ? JSON.stringify(r.body.errors) : null,\n};\n\n// El id de la sesión: en un PATCH ya lo teníamos; en un POST solo lo sabemos ahora.\nconst session_id =\n  (f && f._session_id) ||\n  (r.body && r.body.data && r.body.data.id) ||\n  null;\n\nconst canal = inp.canal || f.canal || null;\nconst contact_id = (f && f.save && f.save.contact_id) || null;\n\nconst entrante = (inp.message || '').toString().trim();\n// El texto que de verdad sale por el canal, aviso de privacidad incluido: es lo que\n// el gestor tiene que poder leer para entender la conversación que está viendo.\nconst saliente = (f && f.reply_to_user ? f.reply_to_user : '').toString().trim();\n\nconst filas = [];\n\n// Sin sesión no hay a qué colgar el mensaje (session_id es NOT NULL en la práctica:\n// es la columna que agrupa el hilo). Se prefiere no registrar a registrar suelto.\nif (session_id) {\n  if (entrante) {\n    filas.push({\n      session_id, contact_id, canal,\n      direccion: 'entrante',\n      autor: 'cliente',\n      texto: entrante,\n      estado_envio: 'recibido',\n      canal_message_id: inp.client_message_id || null,\n    });\n  }\n  if (saliente) {\n    filas.push({\n      session_id, contact_id, canal,\n      direccion: 'saliente',\n      // 'lucia' aunque venga del aviso de rate limit: lo ha emitido el sistema, no\n      // una persona. 'humano' queda reservado para lo que escribe el gestor.\n      autor: 'lucia',\n      texto: saliente,\n      estado_envio: 'enviado',\n      canal_message_id: null,\n    });\n  }\n}\n\nreturn [{ json: {\n  directus_base_url: inp.directus_base_url,\n  _sesion: sesion,\n  _hay_mensajes: filas.length > 0,\n  filas,\n} }];"
+      },
+      "id": "b1f0a7c2-9d34-4e58-a6b1-2c7e5f0a91d3",
+      "name": "Code · Preparar mensajes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2140,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7a1c4e90-3b62-4d17-8f45-0e9a6c2b8d51",
+              "leftValue": "={{ $json._hay_mensajes }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c4d8b3e1-6f07-4a29-9c53-1b8e0d7a4f26",
+      "name": "¿Hay mensajes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.directus_base_url }}/items/conversation_messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.filas) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "e2a95c17-40b8-4d63-b1f9-38c6e7042a8b",
+      "name": "HTTP · Guardar mensajes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2520,
+        -80
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
     }
   ],
   "connections": {
@@ -1056,7 +1136,7 @@
       "main": [
         [
           {
-            "node": "Code · Salida Entry",
+            "node": "Code · Preparar mensajes",
             "type": "main",
             "index": 0
           }
@@ -1067,7 +1147,7 @@
       "main": [
         [
           {
-            "node": "Code · Salida Entry",
+            "node": "Code · Preparar mensajes",
             "type": "main",
             "index": 0
           }
@@ -1120,6 +1200,46 @@
         [
           {
             "node": "Code · Fusionar resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Preparar mensajes": {
+      "main": [
+        [
+          {
+            "node": "¿Hay mensajes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay mensajes?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Guardar mensajes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Salida Entry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Guardar mensajes": {
+      "main": [
+        [
+          {
+            "node": "Code · Salida Entry",
             "type": "main",
             "index": 0
           }
