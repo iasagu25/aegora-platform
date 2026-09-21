@@ -1,0 +1,71 @@
+{
+  "_nota": [
+    "Catálogo de plantillas de WhatsApp de Aegora. Se crean en el WABA de CADA",
+    "tenant con n8n/whatsapp-templates.sh; el catálogo es de plataforma para que",
+    "todos los tenants tengan el mismo repertorio y el código pueda contar con él.",
+    "",
+    "El nombre del negocio NO va como variable: WhatsApp ya enseña el nombre del",
+    "remitente encima del mensaje. Meterlo dentro sería repetirlo.",
+    "",
+    "Sin botones en V1 a propósito. Un botón de respuesta rápida llega al webhook",
+    "como evento `button` y no como `text`, y el adapter hoy solo clasifica texto:",
+    "el cliente pulsaría 'Confirmar' y no pasaría nada. Cuando el adapter entienda",
+    "botones, se añaden aquí -- y entonces hay que volver a pasar aprobación.",
+    "",
+    "Categoría UTILITY en las tres: son consecuencia de una cita o de una petición",
+    "del propio cliente, no promoción. MARKETING tarda más y se rechaza más.",
+    "",
+    "Meta EXIGE `example` en toda plantilla con variables: sin él, rechazo directo."
+  ],
+
+  "plantillas": [
+    {
+      "cuando": "Recordatorio de una cita próxima. Lo mandará el aviso programado; la respuesta del cliente reabre la ventana de 24 h y a partir de ahí conversa Lucía con normalidad.",
+      "variables": ["nombre del cliente", "día en texto", "hora"],
+      "meta": {
+        "name": "aegora_recordatorio_cita",
+        "language": "es",
+        "category": "UTILITY",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Hola {{1}}, te recordamos tu cita del {{2}} a las {{3}}.\n\nSi necesitas cambiarla o cancelarla, responde a este mensaje y te ayudamos.",
+            "example": { "body_text": [["María", "jueves 25 de septiembre", "10:00"]] }
+          }
+        ]
+      }
+    },
+    {
+      "cuando": "El negocio no puede atender una cita y hay que renegociarla. Es el botón del gestor: la plantilla es el pistoletazo de salida y la conversación la lleva Lucía.",
+      "variables": ["nombre del cliente", "día en texto", "hora"],
+      "meta": {
+        "name": "aegora_cambio_cita",
+        "language": "es",
+        "category": "UTILITY",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Hola {{1}}, necesitamos cambiar tu cita del {{2}} a las {{3}}. Lo sentimos.\n\n¿Qué día y hora te vendrían bien? Respóndenos y lo reorganizamos.",
+            "example": { "body_text": [["María", "jueves 25 de septiembre", "10:00"]] }
+          }
+        ]
+      }
+    },
+    {
+      "cuando": "Retomar una conversación cuya ventana de 24 h se cerró: el cliente preguntó algo y hay que volver a él más tarde. Es lo que permite al gestor escribir a un hilo frío desde la bandeja.",
+      "variables": ["nombre del cliente", "sobre qué escribió"],
+      "meta": {
+        "name": "aegora_seguimiento",
+        "language": "es",
+        "category": "UTILITY",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Hola {{1}}, te escribimos sobre {{2}}.\n\nResponde a este mensaje y seguimos donde lo dejamos.",
+            "example": { "body_text": [["María", "tu consulta sobre horarios"]] }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -118,6 +118,43 @@ Y al regenerar el token hay que cambiarlo en **dos sitios**: `secrets/whatsapp.e
 y la credencial `WhatsApp` del n8n de ese tenant, que ningún script toca. Cambiar
 solo el fichero deja el adapter enviando con el token viejo.
 
+## Plantillas (fuera de la ventana de 24 h)
+
+Pasadas 24 h desde el último mensaje del cliente, **solo entra una plantilla
+aprobada por Meta** — y eso vale también para una persona escribiendo desde la
+bandeja, no solo para los avisos automáticos. Por eso la misma pieza sirve para
+los recordatorios y para que el gestor retome un hilo frío.
+
+Catálogo de plataforma en `n8n/whatsapp-templates.json`, y por tenant:
+
+    n8n/whatsapp-templates.sh --tenant X [--apply]
+
+Lo que hace y lo que no:
+- Crea las que faltan en el WABA del tenant. **Nunca edita ni borra una que ya
+  existe**: editar una aprobada la devuelve a revisión, así que un script que
+  "sincroniza" puede dejar al tenant sin recordatorios durante horas. Si el
+  catálogo y el WABA difieren, lo dice y se decide a mano.
+- Lista también las plantillas del tenant que no son nuestras, para no tocarlas.
+- Necesita un token con **`whatsapp_business_management`**: con solo
+  `..._messaging` se puede enviar pero ni listar ni crear.
+
+**Crear no es poder usar.** Quedan en `PENDING` y hay que volver a mirar. Por eso
+se lanza pronto, aunque lo que vaya a usarlas todavía no exista: la espera de
+Meta es tiempo de calendario, no de trabajo.
+
+**Una rechazada no se corrige editándola**: Meta se queda el nombre con el
+rechazo. Se cambia el texto Y el nombre en el catálogo, y se vuelve a enviar.
+
+Decisiones del catálogo:
+- **El nombre del negocio no es una variable**: WhatsApp ya enseña el del
+  remitente encima del mensaje.
+- **Sin botones en V1.** Un botón de respuesta rápida llega al webhook como
+  evento `button`, no como `text`, y el adapter hoy solo clasifica texto: el
+  cliente pulsaría "Confirmar" y no pasaría nada. Cuando el adapter los entienda
+  se añaden -- y habrá que volver a pasar aprobación.
+- **Categoría UTILITY** en las tres: son consecuencia de una cita o de una
+  petición del propio cliente. MARKETING tarda más y se rechaza más.
+
 ## Cómo funciona
 
 - Dos triggers de Webhook en el mismo path `whatsapp`, uno por método: n8n 2.31
