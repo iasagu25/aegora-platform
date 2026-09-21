@@ -329,7 +329,7 @@ Core clasifique el turno. La solución, aplicada ya varias veces, es persistirlo
 
 | campo en `state` | para qué | vida |
 |---|---|---|
-| `contact_phone` | identidad del hilo entre intenciones | indefinida |
+| `contact_phone` | identidad del hilo entre intenciones | indefinida | **(ver aviso abajo: en v2 solo funciona en WhatsApp)** |
 | `pending_service_id` | servicio ya resuelto de la reserva en curso | mientras `flujo_activo` |
 | `slot_service_query` + `slot_date` + `slot_time` + `slot_daypart` | los datos que el usuario ya ha ido dando (servicio/día/hora/franja) | mientras `flujo_activo` |
 | `pending_appointment_id` + `pending_appointment_service_id` | cita localizada en reschedule/cancel (evita re-listar cada turno) | mientras `flujo_activo` |
@@ -542,8 +542,21 @@ Core, dentro de `n8n_<tenant>`, en formato interno y en otra base de datos.
   lo recibe nadie tal cual: el aviso de privacidad va como mensaje propio (CTA-url en
   WhatsApp, pintado por el widget en webchat) y `core_reply` es la respuesta. Guardar
   el combinado le enseñaba al gestor un mensaje que el cliente nunca vio así.
-- **El `contact_id` de la sesión se rellena solo.** El Core v2 devolvía `contact_id: null`
-  fijo, así que la sesión se quedaba sin contacto **siempre** -- no solo cuando se creaba
+- **El `contact_id` de la sesión se rellena solo**, y lo hace **Entry llamando a
+  `17 · CORE · Resolve Context`** -- el mismo resolutor que usan las tools, así que no
+  pueden discrepar sobre quién es el contacto.
+  **Y aquí hay una lección que vale para todo el Core v2: dentro de un agente,
+  `$(tool).first().json` NO devuelve el JSON del sub-workflow.** El primer intento fue
+  hacer que las tools devolvieran `contact_id` y que `Code · Salida v2` lo recogiera como
+  recoge `telefono_usado` -- y se comprobó en la ejecución que llegan **los dos a `null`**.
+  Consecuencia que conviene saber: **`state.contact_phone` solo funciona en WhatsApp**,
+  donde el teléfono lo da el canal (`_known_phone`). En webchat el número lo teclea el
+  cliente, solo lo ve la tool, y por esa vía no vuelve: Lucía lo volverá a pedir en cada
+  intención nueva. El arreglo, cuando toque, no es tocar `Code · Salida v2` sino que **la
+  propia tool escriba en `conversation_sessions`** -- tiene el `session_key`, así que no
+  necesita el canal de vuelta.
+  El Core v2 devolvía además `contact_id: null` fijo, así que la sesión se quedaba sin
+  contacto **siempre** -- no solo cuando se creaba
   durante la conversación, también con un cliente que ya existía. Tres consecuencias que
   parecían independientes y eran la misma: columna Contacto vacía en la bandeja,
   `conversation_messages.contact_id` siempre nulo, y **el panel de "citas de este contacto"
