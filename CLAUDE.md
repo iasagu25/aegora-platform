@@ -420,6 +420,16 @@ en real): `batching` (`batchSize: 1`, `batchInterval: 1200`ms) en
 `HTTP · WhatsApp sendText` de `WHATSAPP-Adapter.json`, para dar margen al
 primer mensaje antes de mandar el segundo.
 
+**Insertar un nodo en una cadena cambia `$json` para todo lo que va detrás**, y el fallo
+sale lejos del cambio. Pasó **cuatro veces el 21/sep/2026**: el gestor de memoria delante
+de `Salida relevo humano`, el guardado de mensajes delante de `Salida Entry`, la consulta
+de quién atiende delante de `Code · Salida`, y el resolutor de profesional delante de
+`Expandir días` -- este último con un comentario en el propio nodo que avisaba de que
+`$json` era la salida del nodo anterior. **Un nodo que necesita la salida de OTRO nodo
+concreto se la pide por nombre (`$('Nombre').first().json`), no por `$json`.** Es una línea
+más y deja de importar quién vaya delante. Se audita rápido: buscar los nodos que usan
+`$json` a pelo y mirar quién es su predecesor.
+
 **Lección de la sesión de depuración** (vale para cualquier rama nueva): casi
 todos los bugs fueron de estos tipos, y conviene revisarlos antes de dar algo por
 bueno:

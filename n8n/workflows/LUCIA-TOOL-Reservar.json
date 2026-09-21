@@ -437,7 +437,7 @@
             "timezone": "={{ $('Code · Entrada').first().json.tenant_timezone }}",
             "booking_base_url": "={{ $('Code · Entrada').first().json.booking_base_url }}",
             "location_id": "",
-            "resource_id": "",
+            "resource_id": "={{ $('Execute · 27 Resolve Professional').first().json.resource_id || '' }}",
             "exclude_appointment_id": ""
           },
           "matchingColumns": [],
