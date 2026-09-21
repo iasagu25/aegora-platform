@@ -161,10 +161,14 @@ Estado de las citas, en color tanto en la lista como al editar:
 Cómo se nombra cada registro al referenciarlo (hoy salen UUIDs):
   employees -> {{first_name}} {{last_name}}
   services / resources / calendars / locations -> {{name}}
+  conversation_sessions -> {{session_key}}
+
+En el menú, conversaciones:
+  conversation_sessions   el hilo: se abre y se lee entero
+  conversation_messages   lista plana: qué ha entrado hoy en todos los hilos
 
 Fuera del menú (para todos, admin incluido):
   appointment_resources   la crea el Booking API; nadie la edita a mano
-  conversation_sessions   estado interno de la capa omnicanal
   contact_phones          ya oculta: se edita dentro del contacto
   languages               ya oculta: tabla de sistema
 
@@ -197,6 +201,10 @@ const orden = {
   tasks: 2,
   contacts: 3,
   knowledge: 4,
+  // El hilo primero y la lista plana después: se entra por la conversación, y
+  // los mensajes sueltos sirven para ver qué ha entrado hoy en todos los hilos.
+  conversation_sessions: 5,
+  conversation_messages: 6,
 
   services: 10,
   employees: 11,
@@ -212,6 +220,10 @@ const orden = {
 // Directus pinta el UUID: el responsable de una tarea salía como
 // "3778d1f3-2778-4..." en vez de por su nombre.
 const comoSeLlaman = {
+  // session_key ya lleva el canal delante ("webchat:xxxx"), así que se basta
+  // solo. No se mete el contacto: cuando es null, la plantilla deja un " · "
+  // suelto y parece que algo se ha roto. El contacto va como columna.
+  conversation_sessions: '{{session_key}}',
   employees: '{{first_name}} {{last_name}}',
   services: '{{name}}',
   resources: '{{name}}',
@@ -245,6 +257,36 @@ const ordenDeCampos = {
     ['created_at', 'half'],
     ['updated_at', 'half'],
     ['idempotency_key', 'full'],
+  ],
+
+  // Abrir una conversación es para LEERLA: el hilo va arriba del todo, justo
+  // debajo de con quién es. El estado interno de la máquina, al final.
+  conversation_sessions: [
+    ['canal', 'half'],
+    ['contact_id', 'half'],
+    ['mensajes', 'full'],
+    ['modo', 'half'],
+    ['ventana_hasta', 'half'],
+    ['session_key', 'full'],
+    ['flujo_activo', 'half'],
+    ['updated_at', 'half'],
+    ['created_at', 'half'],
+    ['state', 'full'],
+    ['id', 'full'],
+  ],
+
+  conversation_messages: [
+    ['created_at', 'half'],
+    ['autor', 'half'],
+    ['texto', 'full'],
+    ['direccion', 'half'],
+    ['canal', 'half'],
+    ['estado_envio', 'half'],
+    ['error', 'full'],
+    ['session_id', 'full'],
+    ['contact_id', 'full'],
+    ['canal_message_id', 'full'],
+    ['id', 'full'],
   ],
 };
 
@@ -284,8 +326,6 @@ const displaysDeCampo = [
 const ocultas = [
   // La crea el Booking API al reservar; nadie la edita a mano.
   'appointment_resources',
-  // Estado interno de la capa omnicanal.
-  'conversation_sessions',
   // Se editan dentro del contacto.
   'contact_phones',
   // Tabla de sistema.

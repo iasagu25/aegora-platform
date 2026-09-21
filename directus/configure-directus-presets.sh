@@ -202,6 +202,35 @@ const presets = [
     layout_options: { tabular: { spacing: 'compact' } },
     refresh_interval: null,
   },
+  // La bandeja: los hilos con actividad más reciente arriba. Es la pantalla a la
+  // que llega alguien que quiere ver qué está pasando, así que se refresca sola.
+  {
+    collection: 'conversation_sessions',
+    layout: 'tabular',
+    layout_query: {
+      tabular: {
+        fields: ['updated_at', 'canal', 'contact_id', 'session_key', 'modo'],
+        sort: ['-updated_at'],
+      },
+    },
+    layout_options: { tabular: { spacing: 'compact' } },
+    refresh_interval: 30,
+  },
+  // Los mensajes sueltos, lo último primero. Sin columna de texto esta pantalla
+  // no dice absolutamente nada: por defecto Directus elige las primeras columnas
+  // de la colección y el contenido del mensaje se queda fuera.
+  {
+    collection: 'conversation_messages',
+    layout: 'tabular',
+    layout_query: {
+      tabular: {
+        fields: ['created_at', 'autor', 'texto', 'canal', 'session_id'],
+        sort: ['-created_at'],
+      },
+    },
+    layout_options: { tabular: { spacing: 'compact' } },
+    refresh_interval: 30,
+  },
 ];
 
 async function api(method, path, body) {
