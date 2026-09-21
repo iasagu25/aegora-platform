@@ -164,8 +164,12 @@ NODE
 
 docker cp "${DIRECTUS_CONTAINER}:/tmp/aegora-snapshot-limpio.yaml" "$OUT" >/dev/null
 
-DENTRO="$(docker exec "$DIRECTUS_CONTAINER" wc -l < /tmp/aegora-snapshot-limpio.yaml 2>/dev/null ||
-          docker exec "$DIRECTUS_CONTAINER" sh -c 'wc -l < /tmp/aegora-snapshot-limpio.yaml')"
+# El '<' lo interpreta SIEMPRE el shell del host, nunca el del contenedor, así
+# que `docker exec ... wc -l < /tmp/fichero` busca el fichero AQUÍ y falla antes
+# de ejecutar nada. Había una primera rama escrita así: no podía funcionar nunca,
+# el `||` la tapaba, y lo único que aportaba era un "No such file or directory"
+# en mitad de una ejecución correcta. El redirect va dentro del `sh -c`.
+DENTRO="$(docker exec "$DIRECTUS_CONTAINER" sh -c 'wc -l < /tmp/aegora-snapshot-limpio.yaml')"
 FUERA="$(wc -l < "$OUT")"
 
 DENTRO="$(printf '%s' "$DENTRO" | tr -d ' \r')"
