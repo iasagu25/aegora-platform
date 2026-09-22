@@ -443,6 +443,12 @@ distintos aunque n8n los mande en orden. Mitigación aplicada (no confirmada
 en real): `batching` (`batchSize: 1`, `batchInterval: 1200`ms) en
 `HTTP · WhatsApp sendText` de `WHATSAPP-Adapter.json`, para dar margen al
 primer mensaje antes de mandar el segundo.
+**Y NO cuesta latencia** (medido 22/sep/2026, porque parecía que sí): el nodo lleva la
+guarda `itemIndex > 0` antes del `sleep`, así que con un solo mensaje no espera. Los datos
+lo confirman sin depender del código: adapter menos Entry da ~950 ms en los turnos de un
+mensaje y ~1320 en los de dos, y una espera antes del primero pondría TODOS por encima de
+1200. Ese ~1 s de base es firma + clasificación + el viaje a `graph.facebook.com`, y no
+hay nada que recortar ahí.
 
 **Insertar un nodo en una cadena cambia `$json` para todo lo que va detrás**, y el fallo
 sale lejos del cambio. Pasó **cuatro veces el 21/sep/2026**: el gestor de memoria delante
