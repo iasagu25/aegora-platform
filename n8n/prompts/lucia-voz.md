@@ -194,14 +194,59 @@ Va **sin hora del día** a propósito: "le atiende Lucía, la asistente virtual"
 sirve a las nueve y a las siete de la tarde, y un "buenos días" fijo estaría mal
 media jornada. Por eso el prompt ya no manda presentarse: lo haría dos veces.
 
-Las funciones, todas `POST` al despachador con la cabecera `X-Aegora-Token`, y
-**timeout 10 s, no los 120 por defecto**: dos minutos de silencio en una llamada
-no son un timeout, son una llamada perdida. Se empieza por las tres de solo
-lectura (`consultar_info`, `mis_citas`, `consultar_disponibilidad`); las que
-escriben van después de ver que las primeras responden a tiempo.
+Las funciones, **las siete**, todas `POST` al despachador con la cabecera
+`X-Aegora-Token` y **timeout 10 s, no los 120 por defecto**: dos minutos de
+silencio en una llamada no son un timeout, son una llamada perdida.
+
+Se intentó empezar solo por las tres de lectura y dejar las de escritura para
+después de comprobar tiempos. **Fue un error**, y está contado abajo: el prompt
+nombra las siete, así que las cuatro que faltaban no se comportaron como
+ausentes sino como rotas en silencio.
 
 Y **`Payload: args only` apagado**, que es lo que hace que la identidad funcione
 — ver `n8n/TOOLS-DISPATCHER.md`.
+
+## Un prompt que nombra una tool inexistente NO da error: miente (22/sep/2026)
+
+Primera prueba real por Test Audio, contra `dev`. `mis_citas` salió perfecta -- identidad
+resuelta desde la llamada, cita leída, dicha en voz natural. Y la reserva entró en bucle:
+
+> -- Para mañana, miércoles veintitrés, a las cuatro de la tarde, ¿correcto?
+> -- Correcto.
+> -- **Déjeme que lo mire un momento.** *(no llama a nada)*
+> -- Sigo con la reserva para mañana, miércoles veintitrés, a las cuatro de la tarde.
+
+Causa: en Retell solo estaban creadas las **tres tools de lectura**, y el prompt nombra
+siete. El modelo no tiene forma de saber que `reservar_cita` no existe: la anuncia, dice
+la frase de espera que le enseñamos, y sigue conversando como si la hubiera llamado.
+
+**Este es el peor modo de fallo que puede tener el sistema**, y es exactamente el que
+`lucia-v2.md` prohíbe en su regla 4 -- una cita solo existe si una tool devolvió `ok:true`.
+La diferencia es que por WhatsApp la tool está siempre cableada y la regla se cumple sola;
+en voz **el cableado vive en otra plataforma** y puede no coincidir con el prompt. No hay
+nada que falle, ni un log, ni un 4xx: solo un cliente que cuelga convencido de tener cita.
+
+De ahí sale la regla: **el prompt de voz y las funciones del agente se despliegan juntos.**
+Si se añade una tool al prompt, se crea en la plataforma en la misma sesión; si se quita de
+la plataforma, se quita del prompt. Y antes de dar por buena una configuración, **probar
+una llamada por cada tool que el prompt nombre**, no solo las que se acaban de tocar.
+
+Efecto secundario que conviene conocer, porque volverá: al no pasar nada, el cliente
+repite, y **en la repetición el reconocimiento de voz se equivoca más**. Aquí "sí,
+resérvala" se transcribió como *"Cierreserva"*, el modelo lo leyó como una cancelación y
+preguntó si anulaba la reserva. No es un fallo del ASR aislado: es lo que produce un turno
+que no avanza.
+
+### Detalles del formulario de Retell que cuestan tiempo
+
+- El menú "+ Add" de Functions **se abre hacia arriba** cuando no cabe debajo, así que la
+  posición del elemento no es predecible según crece la lista.
+- El menú **se cierra solo** entre una llamada y la siguiente: abrirlo y elegir tienen que
+  ir en la misma tanda de acciones.
+- Los campos del diálogo se localizan mejor por su etiqueta (`URL`, `Headers key`) que por
+  coordenadas: la caja de descripción crece con el texto y desplaza todo lo de abajo.
+- **`Format JSON` valida el esquema**: si reformatea, el JSON es correcto. Es la
+  comprobación barata antes de guardar.
 
 ## Pendiente cuando se monte
 

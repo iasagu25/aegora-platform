@@ -845,6 +845,17 @@ una tortura (**nada de correos por voz**: el resguardo va por WhatsApp al mismo 
 Lo que NO cambia: los contratos de las tools y los motivos de error son los mismos. Si se
 añade un motivo en `lucia-v2.md`, va también en el de voz.
 
+**El prompt y las funciones de la plataforma se despliegan JUNTOS.** Probado el
+22/sep/2026 y es el peor fallo posible: en Retell estaban creadas solo las tres tools de
+lectura, el prompt nombra las siete, y el modelo **anunció la reserva, dijo la frase de
+espera y no llamó a nada**. No hay error, ni log, ni 4xx -- solo un cliente que cuelga
+convencido de tener cita. Por WhatsApp esto no puede pasar (la tool está cableada en el
+mismo sitio que el prompt); en voz el cableado vive en otra plataforma y puede discrepar.
+Antes de dar por buena una configuración, **una llamada de prueba por cada tool que el
+prompt nombre**. Detalle que volverá: cuando un turno no avanza el cliente repite, y en la
+repetición el ASR se equivoca más -- aquí "sí, resérvala" se transcribió *"Cierreserva"* y
+el modelo lo leyó como cancelar.
+
 Y dos cosas que el prompt **promete y todavía no existen**: la transferencia a una persona
 (la hace la plataforma, hay que configurar el número antes de la primera llamada real o la
 promesa es falsa) y la confirmación por WhatsApp al cerrar la llamada (necesita una
