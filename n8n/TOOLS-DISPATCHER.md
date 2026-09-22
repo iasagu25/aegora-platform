@@ -46,6 +46,31 @@ el agujero que se cerró en el webhook de WhatsApp validando la firma.
 número y canal: una llamada y un WhatsApp del mismo cliente son conversaciones
 distintas pero **el mismo contacto**.
 
+### El dialecto de Retell (y por qué hubo que aceptarlo)
+
+En una *custom function* de Retell **no se puede plantillar el cuerpo**: solo se
+declara el esquema JSON de lo que rellena el modelo. Así que `identidad` no puede
+existir — si se pusiera como parámetro del esquema, la rellenaría el LLM, que es
+justo lo que el despachador existe para impedir.
+
+Lo que Retell envía es esto, y basta:
+
+```json
+{ "name": "consultar_info",
+  "args": { "pregunta": "horario del sábado" },
+  "call": { "from_number": "+34600111222", "call_id": "…" } }
+```
+
+`Code · Validar` acepta los dos dialectos: `tool` o `name`, y el teléfono de
+`identidad.telefono`, de `call.from_number` o —solo para webcalls, donde no hay
+número— de `call.retell_llm_dynamic_variables.telefono`, que **fija quien crea la
+llamada en el servidor, no el modelo**. `args` nunca es fuente de identidad,
+aunque el modelo cuele ahí un teléfono.
+
+Consecuencia práctica: **deja `Payload: args only` APAGADO** en cada función de
+Retell. Encendido manda solo los argumentos, se pierde el objeto `call` y toda
+llamada muere en `falta_identidad`.
+
 ## Qué acepta cada tool del modelo
 
 Lo demás (teléfono, sesión, URLs, zona horaria) lo pone el servidor y se ignora
