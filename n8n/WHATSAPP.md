@@ -145,7 +145,31 @@ Meta es tiempo de calendario, no de trabajo.
 **Una rechazada no se corrige editándola**: Meta se queda el nombre con el
 rechazo. Se cambia el texto Y el nombre en el catálogo, y se vuelve a enviar.
 
+**La categoría la decide el TEXTO, y Meta la revisa sola después de aprobar.**
+UTILITY significa *sobre una transacción concreta*: una cita, un pedido, una
+gestión que el cliente pidió. Si el mensaje no nombra ninguna, es MARKETING por
+definición y no hay redacción que lo arregle.
+
+Pasó el 21/sep/2026: `aegora_seguimiento` decía *"te escribimos sobre {{2}},
+responde y seguimos donde lo dejamos"* y Meta la movió a MARKETING. Con razón --
+retomar una conversación porque sí **es** re-engagement. Se retiró del catálogo y
+se sustituyó por `aegora_gestion_lista`, que ancla en algo que el cliente pidió.
+
+**Y el precio no es lo peor.** En España una de marketing cuesta ~5x, pero además
+está sujeta a límites de entrega por usuario y a que esa persona no haya excluido
+el marketing: un mensaje operativo mal categorizado **puede no llegar**.
+(Verificar en la documentación de Meta antes de planificar sobre esto: estas
+políticas cambian a menudo.)
+
+Regla al escribir una nueva: **si no puedes señalar con el dedo la cita, el pedido
+o la petición a la que se refiere, no es utility.** Y fuera cualquier cosa que
+suene a venta o a invitación, que es lo que dispara la reclasificación automática.
+
 Decisiones del catálogo:
+- **El `example` va en `example.body_text`**, no dentro de `text`: es una clave
+  hermana del componente cuyo nombre dice a cuál pertenece (`header_text` para
+  HEADER), y cada entrada del array interno es un valor para `{{1}}`, `{{2}}`…
+  Si estuviera mal puesto, la creación fallaría en vez de quedar en `PENDING`.
 - **El nombre del negocio no es una variable**: WhatsApp ya enseña el del
   remitente encima del mensaje.
 - **Sin botones en V1.** Un botón de respuesta rápida llega al webhook como
