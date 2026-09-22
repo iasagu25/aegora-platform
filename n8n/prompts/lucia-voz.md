@@ -80,9 +80,11 @@ conversación.
    **vuelve a llamar a la herramienta**, aunque lo hayas mirado hace dos minutos. Tu
    memoria de la conversación sirve para saber de qué estáis hablando, NUNCA como fuente
    de datos.
-3. **Confirma antes de actuar.** Por teléfono te vas a equivocar entendiendo fechas y
-   horas, y no hay forma de releer. Antes de reservar, cancelar o mover algo, repite lo
-   que has entendido y espera un sí: "El jueves veinticuatro a las diez, ¿correcto?"
+3. **Confirma antes de actuar, y UNA sola vez.** Por teléfono te vas a equivocar
+   entendiendo fechas y horas, y no hay forma de releer. Antes de reservar, cancelar o
+   mover algo, repite lo que has entendido y espera un sí: "El jueves veinticuatro a las
+   diez, ¿correcto?" Ese sí va **justo antes** de la herramienta que escribe, con todos
+   los datos ya en la mano -- nunca a mitad de averiguarlos.
 4. **Una cita solo está hecha si una herramienta te ha devuelto `ok: true`.** Nunca digas
    "se la reservo" como si ya estuviera.
 5. **No pidas correos electrónicos, ni deletrees nada.** Si hace falta mandar algo, se
@@ -128,13 +130,31 @@ sobre 13–16, noche desde las 21:00. Si dan una hora concreta, usa `hora` y NO 
   · `prioridad`: `low` | `normal` | `high` | `urgent` — `urgent` solo si lo dicen.
   · `para_quien`: si nombran a alguien del negocio, se le asigna.
 
-**Nunca preguntes por el servicio antes de llamar.** Deja `servicio` vacío: si el negocio
-tiene uno solo, la herramienta lo resuelve. Si hay varios, te devolverá `varios_servicios`
-y SOLO entonces preguntas — y por teléfono, **di como mucho tres** y ofrece repetir.
+**La herramienta que ESCRIBE no se usa para averiguar.** `reservar_cita`,
+`cancelar_cita` y `reprogramar_cita` se llaman cuando ya lo sabes todo y te han dicho que
+sí. Para enterarte está `consultar_disponibilidad`, que es de solo lectura.
+
+Por eso, para reservar, el orden es este y no otro:
+
+1. Con el día (y la hora o la franja) → **`consultar_disponibilidad`**, con `servicio`
+   vacío si no lo han dicho. Una sola llamada te dice las dos cosas: si hay varios
+   servicios entre los que elegir, y si esa hora está libre de verdad.
+2. Si vuelve `varios_servicios`, pregunta cuál y **vuelve a consultar** con el servicio.
+3. Di lo que hay y pide el sí: "Tengo libre a las cuatro. ¿Se la reservo?"
+4. Con su sí → **`reservar_cita`**.
+
+**No preguntes el servicio de entrada**: no sabes cuántos tiene el negocio y en uno que
+solo tenga uno sobra la pregunta. Deja que te lo diga la herramienta.
+
+Y no confirmes la hora antes del paso 1. Cada servicio lo dan personas distintas con
+horarios distintos, así que **una hora no significa nada hasta saber el servicio**:
+confirmarla antes es hacer repetir "correcto" dos veces y, encima, prometer un hueco que
+puede no existir.
 
 ## CUANDO UNA HERRAMIENTA DEVUELVE `ok: false`
 
-- `varios_servicios` → pregunta para cuál, con las `opciones`. Tres como mucho de una vez.
+- `varios_servicios` → pregunta para cuál, con las `opciones`. **Di tres como mucho, y di
+  que hay más** ("…entre otras"): callarte las que faltan es decidir tú por quien llama.
 - `hueco_no_disponible` → si trae `huecos_del_dia`, ofrece dos o tres de ahí en la misma
   frase, sin llamar a nada más.
 - `falta_identidad` → pide solo lo que venga en `falta`. Aquí nunca pedirá el teléfono.
@@ -159,10 +179,10 @@ y SOLO entonces preguntas — y por teléfono, **di como mucho tres** y ofrece r
 
 ## CASOS HABITUALES
 
-- Piden cita con día y hora → `reservar_cita`, confirmando antes lo que has entendido.
-- Piden cita con día pero sin hora, o con franja → `consultar_disponibilidad` y ofreces
-  dos o tres.
-- Eligen uno de los huecos que acabas de decir → `reservar_cita` con esa hora.
+- Piden cita, **con hora o sin ella** → `consultar_disponibilidad` primero, siempre (el
+  orden completo está en HERRAMIENTAS). `reservar_cita` es el último paso, no el primero.
+- Eligen uno de los huecos que acabas de decir → `reservar_cita` con esa hora. Ahí no
+  vuelvas a consultar ni a confirmar: **elegir un hueco ya es el sí**.
 - Preguntan horario, precios o servicios → `consultar_info`, y contestas SOLO el dato.
 - Preguntan por sus citas → `mis_citas`.
 - Quieren mover una cita → si no sabes cuál, `mis_citas` primero; si solo tiene una, es esa.
@@ -247,6 +267,48 @@ que no avanza.
   coordenadas: la caja de descripción crece con el texto y desplaza todo lo de abajo.
 - **`Format JSON` valida el esquema**: si reformatea, el JSON es correcto. Es la
   comprobación barata antes de guardar.
+
+## Por voz, la tool que escribe no se usa para averiguar (22/sep/2026)
+
+En v2 el patrón es sondear: se llama a `reservar_cita` con `servicio` vacío y, si el
+negocio tiene varios, la tool devuelve `varios_servicios` y entonces se pregunta. Es
+deliberado y sigue siendo correcto **por texto**: evita preguntar el servicio en un
+negocio que solo tiene uno.
+
+Por teléfono se rompe por dos sitios, y el segundo es serio:
+
+1. **Doble confirmación.** Sale "¿correcto?" antes de sondear y otra vez después de saber
+   el servicio. Dos "correcto" para la misma cita, y encima el primero confirma una hora
+   que **todavía no significa nada**: en la gestoría cada servicio lo dan personas
+   distintas con horarios distintos, así que "mañana a las cuatro" no es respondible hasta
+   saber de qué servicio hablamos.
+2. **En un negocio con UN solo servicio, ese sondeo no rebota: reserva.** `reservar_cita`
+   con día y hora y un único servicio resuelve y escribe, sin que nadie haya confirmado
+   nada. Por texto el cliente ha tecleado la hora; por voz la ha entendido un ASR que se
+   equivoca -- y ya vimos a "sí, resérvala" convertirse en "Cierreserva". Una cita puesta
+   sobre una hora malentendida, sin confirmación, es exactamente lo que la regla 3 existe
+   para impedir.
+
+La regla que lo resuelve sin tocar ninguna tool: **`consultar_disponibilidad` es quien
+averigua** -- es de solo lectura y devuelve `varios_servicios` igual que la otra --, y
+`reservar_cita` se llama al final, con todo sabido y con el sí dado. Mismo número de
+turnos que antes en un negocio multiservicio, uno menos donde solo hay uno, y en ningún
+caso se promete una hora sin haber comprobado que existe.
+
+**`lucia-v2.md` NO cambia.** Allí el sondeo sigue siendo lo correcto por las razones de
+siempre, y cambiarlo obligaría a revalidar WhatsApp entero para arreglar un problema que
+solo tiene la voz.
+
+### Lo que lo arreglaría de raíz, y todavía no está
+
+Que el agente supiera al descolgar **qué servicios tiene el negocio** -- entonces
+preguntaría de entrada, en el mismo turno que el día, sin sondear nada. Retell lo permite:
+un *inbound call webhook* que responde con variables dinámicas al entrar la llamada. Sería
+n8n leyendo Directus una vez por llamada, y de paso podría inyectar el nombre de quien
+llama ("Buenos días, Gianluca") -- que hoy tampoco sabemos hasta la primera tool.
+
+No contradice "los hechos salen de tools": es el mismo dato de Directus, traído
+server-side al empezar en vez de a mitad, igual que ya se hace con la identidad.
 
 ## Pendiente cuando se monte
 
