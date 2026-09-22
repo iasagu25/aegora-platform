@@ -226,6 +226,38 @@ ausentes sino como rotas en silencio.
 Y **`Payload: args only` apagado**, que es lo que hace que la identidad funcione
 — ver `n8n/TOOLS-DISPATCHER.md`.
 
+## La voz sonaba rara y NO era culpa de ElevenLabs (22/sep/2026)
+
+Primera escucha real: alargaba palabras y sonaba artificial. La conclusión fácil --"es que
+la voz es de ElevenLabs"-- es falsa. Lo que estaba puesto era el **modelo**:
+
+| modelo (etiqueta del propio Retell) | |
+|---|---|
+| `Auto (Elevenlabs Flash V2.5)` | multilingüe, *fastest*, high quality ← **el que pone Retell por defecto** |
+| `Elevenlabs Multilingual V2` | multilingüe, **slow**, high quality |
+| `Elevenlabs V3` | multilingüe, **slow**, highest quality |
+
+Flash es la familia que sacrifica prosodia para empezar a hablar antes, y el alargamiento
+de sílabas y el énfasis en el sitio equivocado son su defecto característico -- más audible
+en español. **La misma voz suena distinta con otro modelo**, así que la voz no es la
+variable a tocar. Los dos buenos llevan coste extra y están etiquetados *slow*: subir de
+modelo se paga en dinero y en el retardo antes de la primera sílaba, que es justo lo que
+llevamos meses recortando.
+
+Segundo sospechoso, gratis: `Voice Temperature` venía en **1.00** sobre un rango de 0 a 2,
+y el deslizador está rotulado **Calm ↔ Emotional** (pasos de 0,02). Cuanto más alto, más
+errática la entonación. Puesto en **0.60**, que es el experimento barato y reversible:
+si el alargamiento se va, era entonación y no modelo.
+
+Tercer sospechoso, y el que más conviene recordar: **el Test Audio del panel no es el
+canal real.** Va por WebRTC dentro de una pestaña del navegador, y un alargamiento
+uniforme también sale de falta de buffer o de jitter, no del TTS. Una llamada de verdad
+viaja por SIP y a 8 kHz.
+
+**De ahí la regla para el bake-off Retell vs ElevenLabs Agents: la calidad de voz se juzga
+sobre una llamada de teléfono, no sobre el navegador.** Comparar dos plataformas por su
+widget web mide sus widgets web.
+
 ## Un prompt que nombra una tool inexistente NO da error: miente (22/sep/2026)
 
 Primera prueba real por Test Audio, contra `dev`. `mis_citas` salió perfecta -- identidad
