@@ -1,0 +1,757 @@
+{
+  "id": "aegoraToolsDispatcher",
+  "name": "TOOLS · Despachador HTTP",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tool",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d0000001-0000-4000-8000-000000000001",
+      "name": "Webhook · POST /tool",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -220,
+        0
+      ],
+      "webhookId": "aegora-tool-dispatcher",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_TOOL_DISPATCHER__",
+          "name": "Tool Dispatcher"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "t1",
+              "name": "tenant",
+              "type": "string",
+              "value": "__TENANT_ID__"
+            },
+            {
+              "id": "t2",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "__DIRECTUS_BASE_URL__"
+            },
+            {
+              "id": "t3",
+              "name": "booking_base_url",
+              "type": "string",
+              "value": "__BOOKING_BASE_URL__"
+            },
+            {
+              "id": "t4",
+              "name": "tenant_timezone",
+              "type": "string",
+              "value": "Europe/Madrid"
+            },
+            {
+              "id": "t5",
+              "name": "canal",
+              "type": "string",
+              "value": "voz"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d0000002-0000-4000-8000-000000000002",
+      "name": "Config (editar por tenant)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Una sola puerta para las siete tools. Quien llama es una plataforma de voz\n// (Retell, ElevenLabs, la que sea), no el modelo: el modelo decide QUÉ tool y con\n// qué argumentos, pero DE PARTE DE QUIÉN lo decide el servidor.\n//\n// Esa es la misma regla que WhatsApp: el teléfono lo pone el canal y no se\n// pregunta nunca. Aquí llega en `identidad`, que la plataforma rellena desde los\n// metadatos de la llamada -- NO desde un parámetro que el LLM pueda inventar.\n// Si algún día se cablea al revés, cualquiera que llame puede operar sobre las\n// citas de otro.\nconst cfg = $('Config (editar por tenant)').item.json;\nconst body = ($json.body ?? $json) || {};\n\nconst TOOLS = [\n  'consultar_disponibilidad', 'reservar_cita', 'consultar_info', 'mis_citas',\n  'cancelar_cita', 'reprogramar_cita', 'anotar_tarea',\n];\n\nconst limpio = (v) => (v === undefined || v === null) ? null : (String(v).trim() || null);\n\nconst tool = limpio(body.tool);\nconst args = (body.args && typeof body.args === 'object') ? body.args : {};\nconst identidad = (body.identidad && typeof body.identidad === 'object') ? body.identidad : {};\n\n// E.164 sin '+', igual que lo entrega WhatsApp, para que un mismo cliente sea el\n// mismo contacto llame o escriba.\nconst telefono = (limpio(identidad.telefono) || '').replace(/[^\\d]/g, '') || null;\n\nlet error = null;\nif (!tool) error = 'falta_tool';\nelse if (!TOOLS.includes(tool)) error = 'herramienta_desconocida';\nelse if (!telefono) error = 'falta_identidad';\n\nreturn [{ json: {\n  _error: error,\n  tool: tool || '',\n  args,\n  telefono,\n  // Un hilo por número y canal, igual que en los adapters. Así una llamada y un\n  // WhatsApp del mismo cliente son conversaciones distintas pero el MISMO contacto.\n  session_key: limpio(identidad.session_key) || (`${cfg.canal || 'voz'}:${telefono}`),\n  canal: cfg.canal || 'voz',\n  directus_base_url: cfg.directus_base_url,\n  booking_base_url: cfg.booking_base_url,\n  tenant_timezone: cfg.tenant_timezone,\n} }];"
+      },
+      "id": "d0000003-0000-4000-8000-000000000003",
+      "name": "Code · Validar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "sw-0",
+                    "leftValue": "={{ $json._error ? '' : $json.tool }}",
+                    "rightValue": "consultar_disponibilidad",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "consultar_disponibilidad"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "sw-1",
+                    "leftValue": "={{ $json._error ? '' : $json.tool }}",
+                    "rightValue": "reservar_cita",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "reservar_cita"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "sw-2",
+                    "leftValue": "={{ $json._error ? '' : $json.tool }}",
+                    "rightValue": "consultar_info",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "consultar_info"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "sw-3",
+                    "leftValue": "={{ $json._error ? '' : $json.tool }}",
+                    "rightValue": "mis_citas",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "mis_citas"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "sw-4",
+                    "leftValue": "={{ $json._error ? '' : $json.tool }}",
+                    "rightValue": "cancelar_cita",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "cancelar_cita"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "sw-5",
+                    "leftValue": "={{ $json._error ? '' : $json.tool }}",
+                    "rightValue": "reprogramar_cita",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "reprogramar_cita"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "sw-6",
+                    "leftValue": "={{ $json._error ? '' : $json.tool }}",
+                    "rightValue": "anotar_tarea",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "anotar_tarea"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "error"
+        }
+      },
+      "id": "d0000004-0000-4000-8000-000000000004",
+      "name": "Switch · tool",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraLuciaToolDispo",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fecha": "={{ $json.args.fecha || '' }}",
+            "fecha_hasta": "={{ $json.args.fecha_hasta || '' }}",
+            "franja": "={{ $json.args.franja || '' }}",
+            "servicio": "={{ $json.args.servicio || '' }}",
+            "profesional": "={{ $json.args.profesional || '' }}",
+            "directus_base_url": "={{ $('Code · Validar').item.json.directus_base_url }}",
+            "booking_base_url": "={{ $('Code · Validar').item.json.booking_base_url }}",
+            "tenant_timezone": "={{ $('Code · Validar').item.json.tenant_timezone }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "d0000010-0000-4000-8000-000000000010",
+      "name": "Execute · consultar_disponibilidad",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        700,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraLuciaToolReservar",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fecha": "={{ $json.args.fecha || '' }}",
+            "hora": "={{ $json.args.hora || '' }}",
+            "servicio": "={{ $json.args.servicio || '' }}",
+            "profesional": "={{ $json.args.profesional || '' }}",
+            "nombre": "={{ $json.args.nombre || '' }}",
+            "empresa": "={{ $json.args.empresa || '' }}",
+            "telefono": "={{ $('Code · Validar').item.json.telefono }}",
+            "telefono_dicho": "",
+            "session_key": "={{ $('Code · Validar').item.json.session_key }}",
+            "directus_base_url": "={{ $('Code · Validar').item.json.directus_base_url }}",
+            "booking_base_url": "={{ $('Code · Validar').item.json.booking_base_url }}",
+            "tenant_timezone": "={{ $('Code · Validar').item.json.tenant_timezone }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "d0000011-0000-4000-8000-000000000011",
+      "name": "Execute · reservar_cita",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        700,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraLuciaToolInfo",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "pregunta": "={{ $json.args.pregunta || '' }}",
+            "directus_base_url": "={{ $('Code · Validar').item.json.directus_base_url }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "d0000012-0000-4000-8000-000000000012",
+      "name": "Execute · consultar_info",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        700,
+        -140
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraLuciaToolMisCitas",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "telefono": "={{ $('Code · Validar').item.json.telefono }}",
+            "telefono_dicho": "",
+            "tenant_timezone": "={{ $('Code · Validar').item.json.tenant_timezone }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "d0000013-0000-4000-8000-000000000013",
+      "name": "Execute · mis_citas",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        700,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraLuciaToolCancelar",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fecha": "={{ $json.args.fecha || '' }}",
+            "hora": "={{ $json.args.hora || '' }}",
+            "telefono": "={{ $('Code · Validar').item.json.telefono }}",
+            "telefono_dicho": "",
+            "tenant_timezone": "={{ $('Code · Validar').item.json.tenant_timezone }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "d0000014-0000-4000-8000-000000000014",
+      "name": "Execute · cancelar_cita",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        700,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraLuciaToolReprogramar",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fecha": "={{ $json.args.fecha || '' }}",
+            "hora": "={{ $json.args.hora || '' }}",
+            "fecha_nueva": "={{ $json.args.fecha_nueva || '' }}",
+            "hora_nueva": "={{ $json.args.hora_nueva || '' }}",
+            "telefono": "={{ $('Code · Validar').item.json.telefono }}",
+            "telefono_dicho": "",
+            "tenant_timezone": "={{ $('Code · Validar').item.json.tenant_timezone }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "d0000015-0000-4000-8000-000000000015",
+      "name": "Execute · reprogramar_cita",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        700,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraLuciaToolTarea",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "asunto": "={{ $json.args.asunto || '' }}",
+            "tipo": "={{ $json.args.tipo || '' }}",
+            "prioridad": "={{ $json.args.prioridad || '' }}",
+            "fecha_limite": "={{ $json.args.fecha_limite || '' }}",
+            "hora_limite": "={{ $json.args.hora_limite || '' }}",
+            "telefono": "={{ $('Code · Validar').item.json.telefono }}",
+            "telefono_dicho": "",
+            "tenant_timezone": "={{ $('Code · Validar').item.json.tenant_timezone }}",
+            "para_quien": "={{ $json.args.para_quien || '' }}",
+            "directus_base_url": "={{ $('Code · Validar').item.json.directus_base_url }}",
+            "detalle": "={{ $json.args.detalle || '' }}",
+            "mensaje_original": "={{ $json.args.mensaje_original || '' }}",
+            "canal": "={{ $('Code · Validar').item.json.canal }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "d0000016-0000-4000-8000-000000000016",
+      "name": "Execute · anotar_tarea",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        700,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lo que devuelve la tool se entrega TAL CUAL: sus contratos\n// (`{ok, motivo, opciones, falta, ...}`) ya están diseñados para que un LLM\n// decida qué decir. Reinterpretarlos aquí sería inventar una segunda verdad.\nreturn [{ json: $json ?? {} }];"
+      },
+      "id": "d0000020-0000-4000-8000-000000000020",
+      "name": "Code · Respuesta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Un fallo de la puerta, no de la tool. Se responde con la misma forma que una\n// tool para que la plataforma no necesite dos caminos de error.\nconst v = $('Code · Validar').item.json;\nconst textos = {\n  falta_tool: 'No se ha indicado qué herramienta llamar.',\n  herramienta_desconocida: `La herramienta \"${v.tool}\" no existe.`,\n  falta_identidad: 'Falta el teléfono de quien llama. Lo inyecta la plataforma desde los metadatos de la llamada, no el modelo.',\n};\nreturn [{ json: { ok: false, motivo: v._error, detalle: textos[v._error] || null } }];"
+      },
+      "id": "d0000021-0000-4000-8000-000000000021",
+      "name": "Code · Error de la puerta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "d0000022-0000-4000-8000-000000000022",
+      "name": "Responder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1180,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook · POST /tool": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "Code · Validar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Validar": {
+      "main": [
+        [
+          {
+            "node": "Switch · tool",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch · tool": {
+      "main": [
+        [
+          {
+            "node": "Execute · consultar_disponibilidad",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute · reservar_cita",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute · consultar_info",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute · mis_citas",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute · cancelar_cita",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute · reprogramar_cita",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute · anotar_tarea",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Error de la puerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Error de la puerta": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Respuesta": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · consultar_disponibilidad": {
+      "main": [
+        [
+          {
+            "node": "Code · Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · reservar_cita": {
+      "main": [
+        [
+          {
+            "node": "Code · Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · consultar_info": {
+      "main": [
+        [
+          {
+            "node": "Code · Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · mis_citas": {
+      "main": [
+        [
+          {
+            "node": "Code · Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · cancelar_cita": {
+      "main": [
+        [
+          {
+            "node": "Code · Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · reprogramar_cita": {
+      "main": [
+        [
+          {
+            "node": "Code · Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · anotar_tarea": {
+      "main": [
+        [
+          {
+            "node": "Code · Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

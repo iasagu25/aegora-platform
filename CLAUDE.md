@@ -804,6 +804,46 @@ su regla va en `workflow-tokens.py` — nunca se arregla a mano en el JSON.
 Los flags del CLI de n8n se comprueban contra `--help` del binario antes de
 usarlos, no contra la documentación.
 
+## Voz: la plataforma trae su LLM, nosotros ponemos las tools (22/sep/2026)
+**Un agente de voz NO puede llamar a Entry.** El turno del Core v2 son ~5,5 s medidos: en
+un chat se tolera, por teléfono el que llama cuelga. Así que en voz **la plataforma
+(Retell, ElevenLabs Agents…) trae su propio bucle LLM** con streaming y nuestras siete
+tools son sus *custom functions*. No es un apaño: es la arquitectura de v2 servida por
+HTTP en vez de por `Execute Workflow`.
+
+`n8n/workflows/TOOLS-Dispatcher.json` -> `POST /webhook/tool`. Contrato completo en
+`n8n/TOOLS-DISPATCHER.md`. Lo que importa recordar:
+
+- **`identidad.telefono` lo rellena la PLATAFORMA desde los metadatos de la llamada, nunca
+  el modelo.** Misma regla que WhatsApp. Si se cablea como un parámetro que el LLM pueda
+  escribir, cualquiera que llame opera sobre las citas de otro -- el mismo agujero que se
+  cerró validando la firma del webhook de WhatsApp.
+- Una credencial **Header Auth `Tool Dispatcher`** por tenant, a mano en la UI (token
+  `__CRED_TOOL_DISPATCHER__`). El webhook es público.
+- La respuesta de la tool se devuelve **tal cual**: sus contratos ya están hechos para que
+  un LLM decida qué decir.
+- `session_key` es `voz:<telefono>`: una llamada y un WhatsApp del mismo cliente son hilos
+  distintos pero **el mismo contacto**.
+
+**Tres capas, y solo una es cara de cambiar**: operador (bajo -- es un trunk SIP),
+plataforma de agente (**alto** -- prompt, tools y comportamiento), lógica de negocio (cero,
+ya está). De ahí el orden: **no empezar por el número**.
+
+Y **`<Say>` de Twilio con voces de ElevenLabs NO es una alternativa** a una plataforma de
+agente: `<Say>`+`<Gather>` es petición/respuesta, 1,5-3 s por turno y **sin barge-in**. Un
+agente de verdad usa media streams bidireccionales. Esa integración sirve para locuciones
+sueltas ("le paso con un compañero"), no para conversar.
+
+Pendiente antes de elegir plataforma: **webcall primero, sin teléfono** (los dos tienen SDK
+web y ya existe la web del webchat), que quita de en medio toda la capa regulatoria; y un
+bake-off Retell vs ElevenLabs con el mismo prompt y las tres tools de solo lectura, juzgado
+por calidad de voz en español y latencia desde España. Lo demás que hay que resolver sí o
+sí: aviso de que es una máquina (obligación de transparencia del Reglamento de IA, en vigor
+desde agosto -- verificar con fuente legal), transferencia a una persona desde el día uno,
+no pedir correos por voz (**confirmar por WhatsApp al mismo número**, que ya está montado),
+y el número: **una gestoría no cambia el teléfono impreso en su puerta**, así que desvío
+desde el suyo, no portabilidad.
+
 ## Tres tenants con alcances separados — decidido 18/sep/2026
 `demo` era a la vez escaparate y banco de pruebas, y eso significa que una demo a un
 cliente se puede romper porque estábamos tocando. Se separan:
