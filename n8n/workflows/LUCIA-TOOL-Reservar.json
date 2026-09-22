@@ -213,7 +213,7 @@
             "query": "={{ $('Code · Entrada').item.json.nombre }}",
             "service_id": "={{ $('Execute · 26 Resolve Service').first().json.service_id }}",
             "start_at": "={{ $('Code · Entrada').item.json.start_at }}",
-            "primary_resource_id": "={{ $('Execute · 27 Resolve Professional').first().json.resource_id || '' }}",
+            "primary_resource_id": "={{ $('Execute · 27 Resolve Professional').isExecuted ? ($('Execute · 27 Resolve Professional').first().json.resource_id || '') : '' }}",
             "title": "",
             "notes": "",
             "source": "ai",
@@ -437,7 +437,7 @@
             "timezone": "={{ $('Code · Entrada').first().json.tenant_timezone }}",
             "booking_base_url": "={{ $('Code · Entrada').first().json.booking_base_url }}",
             "location_id": "",
-            "resource_id": "={{ $('Execute · 27 Resolve Professional').first().json.resource_id || '' }}",
+            "resource_id": "={{ $('Execute · 27 Resolve Professional').isExecuted ? ($('Execute · 27 Resolve Professional').first().json.resource_id || '') : '' }}",
             "exclude_appointment_id": ""
           },
           "matchingColumns": [],
@@ -721,6 +721,40 @@
         1300,
         -340
       ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "rv-pidio-prof",
+              "leftValue": "={{ $('Code · Entrada').item.json.profesional || '' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "rv-pidio-0000-4000-8000-000000000051",
+      "name": "¿Pidió profesional?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        760,
+        -200
+      ]
     }
   ],
   "connections": {
@@ -779,7 +813,7 @@
       "main": [
         [
           {
-            "node": "Execute · 27 Resolve Professional",
+            "node": "¿Pidió profesional?",
             "type": "main",
             "index": 0
           }
@@ -907,6 +941,24 @@
         [
           {
             "node": "Code · Profesional no vale",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Pidió profesional?": {
+      "main": [
+        [
+          {
+            "node": "Execute · 27 Resolve Professional",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Tenemos nombre?",
             "type": "main",
             "index": 0
           }
