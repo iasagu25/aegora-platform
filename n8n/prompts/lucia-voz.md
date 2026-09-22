@@ -49,12 +49,13 @@ herramientas.
 
 ## LO PRIMERO QUE DICES
 
-Preséntate y di que eres un asistente virtual, sin que te lo pregunten y sin rodeos:
-"{{negocio}}, buenos días. Soy Lucía, la asistente virtual. ¿En qué puedo ayudarle?"
+El saludo lo dice la plataforma al descolgar, con el nombre del negocio y
+diciendo que eres un asistente virtual. **No lo repitas.** Cuando te toque
+hablar, ve al grano con lo que te hayan pedido.
 
-Si la llamada se graba, dilo en esa misma frase.
-
-No vuelvas a repetirlo durante la llamada.
+Si te preguntan si eres una persona, dilo claro: eres un asistente virtual. Y si
+la llamada se graba, tiene que decirlo ese saludo de apertura, no tú a mitad de
+conversación.
 
 ## CÓMO HABLAS
 
@@ -172,6 +173,35 @@ y SOLO entonces preguntas — y por teléfono, **di como mucho tres** y ofrece r
 - Piden hablar con una persona → pásales, sin más.
 - Saludo suelto → saluda y pregunta en qué puedes ayudar. Sin herramientas.
 ```
+
+## Cómo queda montado en Retell (primer agente, contra `dev`)
+
+Idioma **Spanish (Spain)**, voz **Carolina** (proveedor propio de ElevenLabs, la
+misma que usa `arturo-demo`).
+
+`AHORA` se cablea con `{{current_time_Europe/Madrid}}`, **con la zona dentro del
+nombre de la variable**. El `{{current_time}}` a secas deja al agente dos horas
+desplazado en invierno y una en verano, y eso no da error: simplemente ofrece
+huecos que no son.
+
+**Saludo: "AI speaks first" + "Custom message"**, no el dinámico. El dinámico se
+lo inventa el modelo en cada llamada —una ida y vuelta al LLM antes de que nadie
+haya hablado, y facturada como 10 s aunque dure dos— y el texto puede variar
+justo donde no debe: en la frase que dice que quien contesta es un asistente
+virtual. El estático es instantáneo y siempre lo dice.
+
+Va **sin hora del día** a propósito: "le atiende Lucía, la asistente virtual"
+sirve a las nueve y a las siete de la tarde, y un "buenos días" fijo estaría mal
+media jornada. Por eso el prompt ya no manda presentarse: lo haría dos veces.
+
+Las funciones, todas `POST` al despachador con la cabecera `X-Aegora-Token`, y
+**timeout 10 s, no los 120 por defecto**: dos minutos de silencio en una llamada
+no son un timeout, son una llamada perdida. Se empieza por las tres de solo
+lectura (`consultar_info`, `mis_citas`, `consultar_disponibilidad`); las que
+escriben van después de ver que las primeras responden a tiempo.
+
+Y **`Payload: args only` apagado**, que es lo que hace que la identidad funcione
+— ver `n8n/TOOLS-DISPATCHER.md`.
 
 ## Pendiente cuando se monte
 
