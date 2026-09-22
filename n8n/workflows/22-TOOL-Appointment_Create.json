@@ -72,7 +72,8 @@
             "contact_id": "={{ $json.contact_id }}",
             "phone": "={{ $json.phone }}",
             "email": "={{ $json.email }}",
-            "query": "={{ $json.query }}"
+            "query": "={{ $json.query }}",
+            "sin_contexto": "true"
           },
           "matchingColumns": [],
           "schema": [

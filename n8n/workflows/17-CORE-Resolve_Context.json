@@ -17,6 +17,9 @@
             },
             {
               "name": "query"
+            },
+            {
+              "name": "sin_contexto"
             }
           ]
         }
@@ -357,6 +360,85 @@
       ],
       "id": "wf17-disambig-phone",
       "name": "Code · Desambiguar por teléfono/email"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c17-directo",
+              "leftValue": "={{ String($('When Executed by Another Workflow').first().json.sin_contexto || '') }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "17a00001-0000-4000-8000-000000000061",
+      "name": "¿Sin contexto? (id dado)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        440,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c17-buscado",
+              "leftValue": "={{ String($('When Executed by Another Workflow').first().json.sin_contexto || '') }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "17a00002-0000-4000-8000-000000000062",
+      "name": "¿Sin contexto? (buscado)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        440,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// El id del contacto, sin traerse su contexto. Quien llega aquí pidió\n// `sin_contexto` porque solo necesita saber QUIÉN es.\n//\n// Las dos ramas exponen el id de forma distinta: si venía dado, está en la\n// entrada normalizada; si hubo que buscarlo, en el primer resultado ya\n// desambiguado.\nconst j = $json ?? {};\nconst id = j.contact_id\n  || (Array.isArray(j.results) && j.results[0] && j.results[0].id)\n  || null;\n\nif (!id) {\n  return [{ json: { ok: true, resolved: false, status: 'not_found',\n                    contact_id: null, context: null, count: 0, candidates: [] } }];\n}\n// Misma forma que `Code · Return Result`, con `context` a null a propósito:\n// aquí no se ha consultado, y devolver un objeto a medias sería peor.\nreturn [{ json: { ok: true, resolved: true, status: 'single', contact_id: id, context: null } }];"
+      },
+      "id": "17a00003-0000-4000-8000-000000000063",
+      "name": "Code · Solo id",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ]
     }
   ],
   "connections": {
@@ -386,7 +468,7 @@
       "main": [
         [
           {
-            "node": "Call '16 · CORE · Contact Context'1",
+            "node": "¿Sin contexto? (id dado)",
             "type": "main",
             "index": 0
           }
@@ -415,7 +497,7 @@
       "main": [
         [
           {
-            "node": "Call '16 · CORE · Contact Context'",
+            "node": "¿Sin contexto? (buscado)",
             "type": "main",
             "index": 0
           }
@@ -473,6 +555,42 @@
         [
           {
             "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Sin contexto? (id dado)": {
+      "main": [
+        [
+          {
+            "node": "Code · Solo id",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call '16 · CORE · Contact Context'1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Sin contexto? (buscado)": {
+      "main": [
+        [
+          {
+            "node": "Code · Solo id",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call '16 · CORE · Contact Context'",
             "type": "main",
             "index": 0
           }

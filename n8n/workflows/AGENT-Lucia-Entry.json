@@ -1115,7 +1115,8 @@
             "contact_id": "",
             "phone": "={{ $('Code · Validar entrada').item.json.from_phone || '' }}",
             "email": "",
-            "query": ""
+            "query": "",
+            "sin_contexto": "true"
           },
           "matchingColumns": [],
           "schema": [],

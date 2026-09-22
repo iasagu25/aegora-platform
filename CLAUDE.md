@@ -650,6 +650,43 @@ herramientas antes de confirmar nada"*.
   elige las primeras columnas y el texto del mensaje se quedaba fuera: una lista de
   mensajes sin mensajes. Las columnas se fijan en `configure-directus-presets.sh`.
 
+## Latencia: cada salto de sub-workflow cuesta ~100 ms (medido 22/sep/2026)
+Medido en `demo` con una reserva real, leyendo `execution_entity` (los tiempos **anidan**:
+un sub-workflow cuenta dentro de su padre, así que se restan, no se suman):
+
+| tramo | ms |
+|---|---|
+| Entry (turno entero) | 7573 |
+| └ Core v2 | 6466 |
+| &nbsp;&nbsp;└ **el LLM** (Core menos la tool) | **~4100** |
+| &nbsp;&nbsp;└ `LUCÍA · TOOL · Reservar` | 2325 |
+| &nbsp;&nbsp;&nbsp;&nbsp;└ `22` | 1521 |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ `17` | 988 (de los cuales `16` son 623) |
+| └ fontanería de Entry | ~1100 |
+
+**El dato que lo explica todo: `06`, `08` y `09` tardan 108-132 ms cada uno y solo hacen
+UNA consulta a Directus.** O sea que el peaje de un salto de sub-workflow es ~100 ms haga
+lo que haga. Con `EXECUTIONS_MODE=regular` cada uno es una ejecución completa en el proceso
+principal que además escribe en Postgres. **La palanca son los saltos, no las consultas**
+-- todas las columnas calientes ya están indexadas (Directus las crea desde `is_indexed`
+del esquema; `booking-indexes.sql` no las lista y eso engaña).
+
+Lo quitado, todo trabajo **demostrado** muerto y nada de lógica compartida tocada:
+- Entry resolvía el contacto con `17` en CADA turno: seis ejecuciones para saber algo que
+  la fila de sesión ya tenía. Ahora solo si falta.
+- Las dos tools llamaban a `27` aunque nadie nombrara un profesional, y el código de `27`
+  devuelve pronto en ese caso -- una ejecución y dos consultas tiradas por reserva.
+- **`17` tiene ahora `sin_contexto`**, que salta `16` (y con él `06`+`08`+`09`): ~600 ms de
+  una tool de 2,3 s. `16` trae las tareas y las citas del contacto, y el camino de reserva
+  **no las lee**. Es aditivo: quien no pase la bandera se comporta igual que siempre, y
+  solo se apuntaron `22` y Entry tras comprobar que ninguno usa `context`. `18`, `19`,
+  `20`, `23`, `24` y `25` siguen con contexto hasta que alguien los verifique uno a uno.
+
+**Y lo que esto significa para voz**: en una llamada, los ~4 s del LLM casi desaparecen
+--la plataforma empieza a hablar en cuanto llegan los primeros tokens-- pero **los 2,3 s de
+la tool son silencio**. Así que optimizar tools no es preparar la voz: es lo ÚNICO de la
+latencia que la voz no perdona.
+
 ## Los workflows de n8n no llevan el tenant dentro — resuelto (17/sep/2026)
 
 `$env` **no sirve**: n8n 2.31 lo bloquea en nodos **por defecto** (`access to
