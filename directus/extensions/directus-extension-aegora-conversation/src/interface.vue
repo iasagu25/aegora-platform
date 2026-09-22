@@ -117,7 +117,16 @@ export default {
     const enviando = ref(false);
     const error = ref('');
     const hilo = ref(null);
+    const primeraVez = ref(true);
     let temporizador = null;
+
+    // ¿Está el gestor mirando el final del hilo? Con margen, porque el navegador
+    // no siempre deja el scroll exactamente a cero.
+    function pegadoAbajo() {
+      const el = hilo.value;
+      if (!el) return true;
+      return el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+    }
 
     const sesionId = computed(() => {
       const pk = props.primaryKey;
@@ -163,8 +172,12 @@ export default {
       return '';
     });
 
-    async function cargar({ silencioso = false } = {}) {
+    async function cargar({ silencioso = false, forzarAbajo = false } = {}) {
       if (!sesionId.value) return;
+      // Se decide ANTES de repintar: si el gestor estaba leyendo hacia arriba, el
+      // sondeo de cada 10 s no puede tirarle al final -- así era imposible leer
+      // nada de lo anterior.
+      const seguirAbajo = forzarAbajo || primeraVez.value || pegadoAbajo();
       if (!silencioso) cargando.value = true;
       try {
         const { data } = await api.get('/items/conversation_messages', {
@@ -178,7 +191,8 @@ export default {
         mensajes.value = data.data || [];
         error.value = '';
         await nextTick();
-        abajo();
+        if (seguirAbajo) abajo();
+        primeraVez.value = false;
       } catch (e) {
         error.value = 'No se pudo cargar el hilo. ' + detalle(e);
       } finally {
@@ -227,7 +241,7 @@ export default {
           estado_envio: 'pendiente',
         });
         borrador.value = '';
-        await cargar({ silencioso: true });
+        await cargar({ silencioso: true, forzarAbajo: true });
       } catch (e) {
         error.value = 'No se pudo poner el mensaje en cola. ' + detalle(e);
       } finally {
@@ -324,7 +338,7 @@ export default {
     });
     onBeforeUnmount(() => { if (temporizador) clearInterval(temporizador); });
 
-    watch(sesionId, () => recargar());
+    watch(sesionId, () => { primeraVez.value = true; recargar(); });
     watch(contactoId, () => cargarCitas());
 
     return {
