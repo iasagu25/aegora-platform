@@ -682,10 +682,29 @@ Lo quitado, todo trabajo **demostrado** muerto y nada de lógica compartida toca
   solo se apuntaron `22` y Entry tras comprobar que ninguno usa `context`. `18`, `19`,
   `20`, `23`, `24` y `25` siguen con contexto hasta que alguien los verifique uno a uno.
 
-**Y lo que esto significa para voz**: en una llamada, los ~4 s del LLM casi desaparecen
---la plataforma empieza a hablar en cuanto llegan los primeros tokens-- pero **los 2,3 s de
-la tool son silencio**. Así que optimizar tools no es preparar la voz: es lo ÚNICO de la
-latencia que la voz no perdona.
+Resultado medido después de los tres cambios, misma reserva por WhatsApp:
+
+| | antes | después |
+|---|---|---|
+| `LUCÍA · TOOL · Reservar` | 2325 | **1286** |
+| `22` | 1521 | **762** |
+| `17` | 988 | **270** |
+| `16` + `06`+`08`+`09` | ~980 | **0 ejecuciones** |
+| Entry (turno entero) | 7573 | **5554** |
+
+**Solo ~1 s de ese −27% es atribuible.** El LLM pasó de ~4141 a ~3288 ms entre las dos
+medidas y eso es varianza entre llamadas, no mérito del cambio. Lo ganado de verdad es
+**un segundo de tool**. Al leer estas medidas conviene recordarlo: el tramo del LLM se
+mueve solo, y comparar totales sin restarlo invita a atribuirse lo que no es tuyo.
+
+**Y lo que esto significa para voz**: en una llamada, los ~3-4 s del LLM casi desaparecen
+--la plataforma empieza a hablar en cuanto llegan los primeros tokens-- pero **los segundos
+de la tool son silencio**. Así que optimizar tools no era preparar la voz: es lo ÚNICO de
+la latencia que la voz no perdona.
+
+**Dónde está el suelo ahora**: la reserva son ~5 saltos y ~1,3 s. Bajar más significa
+aplanar workflows compartidos (`22 -> 03` son 93 ms, `26` son 91) -- no compensa el riesgo
+por 90 ms. El siguiente tramo gordo es el LLM, y ahí n8n no pinta nada.
 
 ## Los workflows de n8n no llevan el tenant dentro — resuelto (17/sep/2026)
 
