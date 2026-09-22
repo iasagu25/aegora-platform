@@ -870,6 +870,29 @@ dependen `demo` y `dev`.
 `export-workflows.sh` + `snapshot-schema.sh` para capturar, `render-workflows.sh` +
 `apply-schema.sh` para aplicar. Nada se edita a mano en `demo` ni en `ops`.
 
+### La regla, en concreto: qué puede tocar `demo` y qué no
+
+La regla general se olvida en cuanto `demo` se vuelve el tenant interesante. Pasó el
+22/sep/2026: con la gestoría cargada y WhatsApp real, el despachador HTTP -- **código
+nuevo sin probar** -- se desplegó ahí primero, igual que las optimizaciones de latencia.
+Nadie lo decidió; simplemente era donde estaba la atención.
+
+Así que la distinción práctica no es "no toques demo", que es demasiado vago:
+
+| en `demo` | |
+|---|---|
+| **Leer**: medir ejecuciones, consultar la BD, mirar el panel, `--help`, cualquier dry-run | **sí, siempre** |
+| **Aplicar algo ya probado en `dev`** (esquema, workflows, permisos, seeds) | **sí, es el camino** |
+| **Estrenar** un workflow, un script o un cambio de esquema | **NO. A `dev` primero, aunque parezca trivial** |
+| Editar a mano cualquier cosa | **nunca** |
+
+La prueba para saber en cuál estás: **¿esto ya ha corrido en `dev`?** Si la respuesta es
+no, no va a `demo` todavía -- por pequeño que parezca y aunque `dev` esté sucio de
+pruebas. Para eso existe `reset-tenant-data.sh`.
+
+Y un aviso para quien escriba los comandos (yo incluido): **si en una sesión te descubres
+escribiendo `--tenant demo` para algo que acabas de crear, párate.** Ese es el síntoma.
+
 **`onboard-tenant.sh` va por detrás de los scripts que existen.** Encadena create, deploy,
 esquema, acceso técnico, UI, español, booking, publicación, backup y operaciones — pero NO
 llama a `configure-n8n-service.sh` (sin él Lucía no puede leer nada), `configure-tenant-role.sh`,
