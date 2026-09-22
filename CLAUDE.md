@@ -834,6 +834,22 @@ agente: `<Say>`+`<Gather>` es petición/respuesta, 1,5-3 s por turno y **sin bar
 agente de verdad usa media streams bidireccionales. Esa integración sirve para locuciones
 sueltas ("le paso con un compañero"), no para conversar.
 
+**El prompt de voz es otro fichero**, `n8n/prompts/lucia-voz.md`, y **no lo carga n8n**: se
+pega en la configuración del agente de la plataforma. No es `lucia-v2.md` reformateado --
+el canal cambia cosas de fondo: una lista de quince huecos no se lee por teléfono (se dicen
+dos o tres y se ofrece mirar más), no se puede releer nada (hay que **confirmar en voz alta
+antes de actuar**), interrumpir a alguien cuesta (frases cortas), deletrear en español es
+una tortura (**nada de correos por voz**: el resguardo va por WhatsApp al mismo número), y
+**hay que decir que es una máquina** al empezar.
+
+Lo que NO cambia: los contratos de las tools y los motivos de error son los mismos. Si se
+añade un motivo en `lucia-v2.md`, va también en el de voz.
+
+Y dos cosas que el prompt **promete y todavía no existen**: la transferencia a una persona
+(la hace la plataforma, hay que configurar el número antes de la primera llamada real o la
+promesa es falsa) y la confirmación por WhatsApp al cerrar la llamada (necesita una
+plantilla de utilidad y algo que la dispare).
+
 Pendiente antes de elegir plataforma: **webcall primero, sin teléfono** (los dos tienen SDK
 web y ya existe la web del webchat), que quita de en medio toda la capa regulatoria; y un
 bake-off Retell vs ElevenLabs con el mismo prompt y las tres tools de solo lectura, juzgado
