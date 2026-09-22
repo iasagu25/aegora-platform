@@ -258,6 +258,13 @@ viaja por SIP y a 8 kHz.
 sobre una llamada de teléfono, no sobre el navegador.** Comparar dos plataformas por su
 widget web mide sus widgets web.
 
+**Resultado del experimento**: con 0.60 el alargamiento **se suavizó pero no desapareció**.
+Eso descarta que fuera solo entonación y deja vivos a los otros dos -- el propio Flash y el
+camino WebRTC del navegador --, que son indistinguibles hasta oír una llamada real. Así que
+se queda así: Flash V2.5 con temperatura 0.60, y la decisión de pagar por `Multilingual V2`
+**no se toma hasta haber escuchado el canal de verdad**. Gastar en modelo para arreglar algo
+que podría ser jitter de una pestaña sería comprar la respuesta equivocada.
+
 ## Un prompt que nombra una tool inexistente NO da error: miente (22/sep/2026)
 
 Primera prueba real por Test Audio, contra `dev`. `mis_citas` salió perfecta -- identidad
