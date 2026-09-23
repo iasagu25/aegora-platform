@@ -66,6 +66,26 @@ log() {
 }
 
 fail() {
+
+# Directus tarda en levantar tras un reinicio, y "running" no significa "listo":
+# el puerto 8055 aún no acepta conexiones. Se sondea /server/ping, que es el
+# endpoint correcto en 12.2.0 (/server/health devuelve 403).
+esperar_api() {
+  local container="$1"
+  local timeout="${2:-120}"
+  local elapsed=0
+  while (( elapsed < timeout )); do
+    if docker exec "$container" \
+        node -e "fetch('http://127.0.0.1:8055/server/ping').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" \
+        >/dev/null 2>&1; then
+      [[ $elapsed -gt 0 ]] && log "${container} responde tras ${elapsed}s."
+      return 0
+    fi
+    sleep 3
+    elapsed=$((elapsed + 3))
+  done
+  fail "Timeout (${timeout}s) esperando a que ${container} responda en /server/ping."
+}
   log "ERROR: $*" >&2
   exit 1
 }
@@ -205,6 +225,10 @@ docker inspect "$DIRECTUS_CONTAINER" >/dev/null 2>&1 ||
 
 container_running "$DIRECTUS_CONTAINER" ||
   fail "Directus no está running: ${DIRECTUS_CONTAINER}"
+
+# "running" no basta: si el script anterior de la cadena acaba de reiniciarlo,
+# el puerto todavía no acepta conexiones.
+esperar_api "$DIRECTUS_CONTAINER"
 
 DIRECTUS_HEALTH="$(
   container_health "$DIRECTUS_CONTAINER"

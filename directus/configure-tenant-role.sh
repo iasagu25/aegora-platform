@@ -128,6 +128,10 @@ docker inspect "$DIRECTUS_CONTAINER" >/dev/null 2>&1 ||
 [[ "$(docker inspect --format '{{.State.Status}}' "$DIRECTUS_CONTAINER")" == "running" ]] ||
   fail "Directus no está running: ${DIRECTUS_CONTAINER}"
 
+# "running" no basta: si el script anterior de la cadena acaba de reiniciarlo,
+# el puerto todavía no acepta conexiones.
+esperar_api "$DIRECTUS_CONTAINER"
+
 get_env() {
   docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$1" |
     awk -F= -v key="$2" '$1 == key { sub(/^[^=]*=/, ""); print; exit }'

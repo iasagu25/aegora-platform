@@ -553,6 +553,26 @@ propone `Set hidden to true` sobre algo que quieres ver.
 hoy. Ahora los nombra al terminar, pero sigue sin ejecutarlos: aplicar el esquema y
 parar ahí deja el tenant sin la capa de interfaz.
 
+**Y con una COLECCIÓN nueva, el reinicio va también EN MEDIO** (23/sep/2026, promocionando
+`call_notes` a `demo`). Los `configure-*` hablan por la API, y la API valida contra el
+esquema que Directus tiene **en memoria**: con un único reinicio al final, todo lo que
+corre antes se encuentra un Directus que aún no conoce la colección. El síntoma llegó
+tarde y disfrazado -- n8n devolviendo `403 "no tienes permiso o no existe"` sobre
+`call_notes` en una llamada real, no un error durante el despliegue.
+
+    apply-schema --apply  ->  reinicio  ->  configure-*  ->  reinicio
+
+Son dos cachés distintas: la primera es el esquema, la segunda los permisos.
+
+**Y esperar es esperar, no dormir.** Un `sleep 20` entre el reinicio y el script siguiente
+falla con `ECONNREFUSED 127.0.0.1:8055` en cuanto Directus tarda 21. Los scripts ya traían
+`esperar_api()` (sondea `/server/ping`, que en 12.2.0 es el bueno), pero **tres de ellos la
+definían sin llamarla al empezar**: `configure-tenant-role.sh` solo la usaba al final, para
+proteger al SIGUIENTE de la cadena, nunca a sí mismo. Dead code con aspecto de salvaguarda,
+que es la peor clase: leer el fichero te convence de que está cubierto. Corregido en los
+cuatro que faltaban; `configure-directus-ui.sh` además exigía `healthy` y abortaba, ahora
+espera.
+
 Detalle menor que hace dudar de un apply correcto: **el resumen del dry-run no imprime
 las altas dentro de un array**, solo las modificaciones. Al añadir un valor a un
 `choices` se ven los índices que se desplazan pero no el nuevo, y parece que se pierde

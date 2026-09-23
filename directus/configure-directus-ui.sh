@@ -89,10 +89,19 @@ set +a
 docker inspect "$DIRECTUS_CONTAINER" >/dev/null 2>&1 \
   || die "No existe el contenedor $DIRECTUS_CONTAINER."
 
-HEALTH="$(
-  docker inspect "$DIRECTUS_CONTAINER" \
-    --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}'
-)"
+# Se ESPERA a que esté sano, no se exige que ya lo esté: si el script anterior
+# de la cadena acaba de reiniciar el contenedor, el estado es "starting" durante
+# un rato y abortar aquí parte la cadena por la mitad -- con la mitad del trabajo
+# hecho y la otra mitad sin hacer, que es peor que no haber empezado.
+HEALTH=""
+for (( _esperado = 0; _esperado <= 120; _esperado += 3 )); do
+  HEALTH="$(
+    docker inspect "$DIRECTUS_CONTAINER" \
+      --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}'
+  )"
+  [[ "$HEALTH" != "starting" ]] && break
+  sleep 3
+done
 
 [[ "$HEALTH" == "healthy" ]] \
   || die "Directus no está healthy. Estado=$HEALTH"
