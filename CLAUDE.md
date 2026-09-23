@@ -717,6 +717,20 @@ Lo quitado, todo trabajo **demostrado** muerto y nada de lógica compartida toca
   solo se apuntaron `22` y Entry tras comprobar que ninguno usa `context`. `18`, `19`,
   `20`, `23`, `24` y `25` siguen con contexto hasta que alguien los verifique uno a uno.
 
+  **Y traía un fallo que tardó un día en verse** (23/sep/2026): en la rama en que hay que
+  BUSCAR el contacto, `07 · CONTACT · Search` devuelve cada resultado envuelto --
+  `{ contact: {...}, primary_phone, phones }` -- y `Code · Solo id` leía `results[0].id`
+  en vez de `results[0].contact.id`. Devolvía `not_found` con el contacto delante:
+  `status: 'single'`, `count: 1`, y a la basura. Afecta a TODO el que pida `sin_contexto`,
+  Entry incluido, no solo a la voz.
+
+  Lo que lo hizo invisible: **una optimización que devuelve una respuesta bien formada y
+  equivocada pasa cualquier medición de latencia con nota.** Se comprobó que tardaba menos;
+  no que siguiera acertando. Y el síntoma aguas abajo --"el contacto no se enlaza"-- se
+  parece demasiado a un permiso, a un teléfono sin prefijo o a un tenant desactualizado:
+  fueron los tres diagnósticos que gasté antes de mirar la ENTRADA REAL del nodo, que es
+  donde estaba la respuesta desde el principio.
+
 Resultado medido después de los tres cambios, misma reserva por WhatsApp:
 
 | | antes | después |
