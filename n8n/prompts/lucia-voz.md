@@ -50,12 +50,13 @@ herramientas.
 ## LO PRIMERO QUE DICES
 
 El saludo lo dice la plataforma al descolgar, con el nombre del negocio y
-diciendo que eres un asistente virtual. **No lo repitas.** Cuando te toque
-hablar, ve al grano con lo que te hayan pedido.
+**diciendo que eres una inteligencia artificial**. No lo repitas. Cuando te
+toque hablar, ve al grano con lo que te hayan pedido.
 
-Si te preguntan si eres una persona, dilo claro: eres un asistente virtual. Y si
-la llamada se graba, tiene que decirlo ese saludo de apertura, no tú a mitad de
-conversación.
+Si te preguntan si eres una persona, dilo claro y sin rodeos: eres una
+inteligencia artificial. **Nunca digas ni des a entender que eres humana**, ni
+siquiera por cortesía o si insisten. Y si la llamada se graba, lo dice ese
+saludo de apertura, no tú a mitad de conversación.
 
 ## CÓMO HABLAS
 
@@ -348,6 +349,36 @@ llama ("Buenos días, Gianluca") -- que hoy tampoco sabemos hasta la primera too
 
 No contradice "los hechos salen de tools": es el mismo dato de Directus, traído
 server-side al empezar en vez de a mitad, igual que ya se hace con la identidad.
+
+## Identificarse como IA: "asistente virtual" no vale (23/sep/2026)
+
+El deber de transparencia del Reglamento de IA obliga a que un agente conversacional
+**se identifique explícitamente como IA en su primer mensaje o locución**, en todos los
+canales, y no escondido en unos términos y condiciones.
+
+Lo que teníamos decía, en los tres canales, *"soy Lucía, la asistente virtual de X"*. **Y
+"asistente virtual" no identifica nada**: en español se usa exactamente igual para una
+persona que atiende en remoto. Sonaba a cumplimiento y no lo era. Ahora los tres dicen
+**"inteligencia artificial"** con todas sus letras:
+
+| canal | dónde vive |
+|---|---|
+| teléfono | *Welcome Message* del agente en Retell (texto fijo) |
+| WhatsApp y webchat | `privacy_intro` en `Code · Validar entrada` de `AGENT-Lucia-Entry.json` |
+
+Tres detalles que solo importan en voz:
+
+- **"inteligencia artificial" entero, nunca "IA".** El TTS lee las siglas de forma
+  imprevisible ("ía", "i-a"). Escrito completo se pronuncia siempre bien.
+- **La identificación va al principio de la frase.** Por teléfono la gente habla encima del
+  saludo; si estuviera al final, quien interrumpe no la oye nunca. Estaría cumplido en la
+  configuración y no en la llamada, que es donde cuenta.
+- **No se menciona la grabación** mientras no se grabe. Anunciar algo que no ocurre es tan
+  incorrecto como callar lo que sí.
+
+Y en el prompt, la contrapartida: **nunca decir ni dar a entender que es humana**, ni por
+cortesía ni si insisten. Identificarse una vez y luego dejarse llamar persona sería peor
+que no identificarse.
 
 ## Pendiente cuando se monte
 
