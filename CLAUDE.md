@@ -859,6 +859,21 @@ Lo que hay que saber si se toca:
   `to_number`**, así que usar `from_number` habría guardado nuestro propio número en su
   ficha.
 
+**Una llamada también se lee como conversación.** El payload de Retell trae SIEMPRE el
+`transcript_object`, así que los turnos se escriben en `conversation_messages` con
+`canal: voz`, bajo el mismo `session_key` (`voz:<telefono>`) que usan las tools. No es un
+concepto nuevo: es la bandeja de siempre con un canal más, y evita la asimetría de guardar
+cada palabra de un WhatsApp y solo un resumen de una llamada.
+
+Dos detalles que parecen menores y no lo son:
+- **Los turnos se insertan de uno en uno, no en un POST con el array.** `created_at` lo pone
+  Directus (`date-created`, y sobrescribe lo que le mandes), así que un único POST deja todas
+  las filas en el mismo instante y el hilo se lee desordenado. Una fila por item hace que el
+  nodo HTTP las inserte en orden.
+- **`canal_message_id` es `<call_id>#<índice>`**, y eso es lo que permite reconocer por
+  prefijo que los turnos de esa llamada ya estaban escritos. Hace falta porque la nota se
+  escribe DESPUÉS: si fallara justo ahí, el reintento de Retell volvería a pasar por aquí.
+
 **Hueco abierto y con fecha de cierre: `require_signature` está en `false`.** La firma se
 calcula y el veredicto sale en CADA ejecución (`firma`, `firma_motivo`), que es la lección de
 WhatsApp -- lo que no se puede observar no está funcionando, se está acumulando --, pero no

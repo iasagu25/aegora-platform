@@ -302,13 +302,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// El contacto lo resuelve el MISMO sub-workflow que usan las tools (17, con\n// sin_contexto: no hacen falta sus citas ni sus tareas aquí), para que la nota y\n// la conversación no puedan discrepar sobre quién llamó.\nconst n = $('Code · Normalizar').first().json;\nconst r = $json || {};\nconst contact_id = r.contact_id || (r.contact && r.contact.id) || null;\n\nreturn [{ json: {\n  directus_base_url: n.directus_base_url,\n  fila: {\n    call_id: n.call_id,\n    contact_id,\n    telefono: n.telefono,\n    session_key: n.session_key,\n    start_at: n.start_at,\n    duracion_segundos: n.duracion_segundos,\n    direccion: n.direccion,\n    motivo: n.motivo,\n    resultado: n.resultado,\n    resumen: n.resumen,\n    requiere_seguimiento: n.requiere_seguimiento,\n  },\n}}];"
+        "jsCode": "// El contacto lo resuelve el MISMO sub-workflow que usan las tools (17, con\n// sin_contexto: aquí no hacen falta sus citas), para que la nota y la\n// conversación no puedan discrepar sobre quién llamó.\n// Se pide por nombre y no por $json: entre medias ahora van la sesión y los\n// turnos, y $json es lo que dejó el último de ellos.\nconst n = $('Code · Normalizar').first().json;\nconst r = $('Execute · 17 Resolve Contact').first().json || {};\nconst contact_id = r.contact_id || (r.context && r.context.contact && r.context.contact.id) || null;\n\nreturn [{ json: {\n  directus_base_url: n.directus_base_url,\n  fila: {\n    call_id: n.call_id,\n    contact_id,\n    telefono: n.telefono,\n    session_key: n.session_key,\n    start_at: n.start_at,\n    duracion_segundos: n.duracion_segundos,\n    direccion: n.direccion,\n    motivo: n.motivo,\n    resultado: n.resultado,\n    resumen: n.resumen,\n    requiere_seguimiento: n.requiere_seguimiento,\n  },\n}}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1780,
-        60
+        3940,
+        -140
       ],
       "id": "aegora-rc-13",
       "name": "Code · Construir nota"
@@ -334,8 +334,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        2020,
-        60
+        4180,
+        -140
       ],
       "id": "aegora-rc-14",
       "name": "HTTP · Crear nota",
@@ -353,8 +353,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2260,
-        60
+        4420,
+        -140
       ],
       "id": "aegora-rc-15",
       "name": "Code · Respuesta"
@@ -368,8 +368,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        2500,
-        160
+        4660,
+        0
       ],
       "id": "aegora-rc-16",
       "name": "Responder"
@@ -449,6 +449,245 @@
       "id": "aegora-rc-hmac4",
       "name": "Crypto · HMAC 4",
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// La salida de `17` es $json aquí, pero lo que hace falta viene de otro sitio:\n// se pide por nombre, que es la regla de esta casa desde que insertar un nodo\n// rompió cuatro cadenas en un día.\nconst n = $('Code · Normalizar').first().json;\nconst r = $json || {};\nreturn [{ json: {\n  directus_base_url: n.directus_base_url,\n  session_key: n.session_key,\n  canal: 'voz',\n  contact_id: r.contact_id || null,\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1780,
+        -140
+      ],
+      "id": "aegora-rc-t20",
+      "name": "Code · Sesión: buscar"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.directus_base_url }}/items/conversation_sessions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ 'filter[session_key][_eq]': $json.session_key, limit: 1, fields: 'id' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2020,
+        -140
+      ],
+      "id": "aegora-rc-t21",
+      "name": "HTTP · Buscar sesión",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Una llamada es un hilo más de la bandeja, con la MISMA clave que usan las tools\n// (`voz:<telefono>`): así la segunda llamada del mismo cliente cae en su hilo en\n// vez de abrir uno nuevo, y una llamada y un WhatsApp son conversaciones\n// distintas del MISMO contacto.\nconst b = $('Code · Sesión: buscar').first().json;\nconst resp = $json || {};\nconst filas = (resp.body && resp.body.data) || [];\nconst session_id = (filas[0] && filas[0].id) || null;\n\n// Sin teléfono no hay clave de hilo, y un mensaje colgando de nada es peor que no\n// registrarlo: es la misma regla que aplica Entry.\nconst posible = Boolean(b.session_key);\n\nreturn [{ json: {\n  ...b,\n  session_id,\n  crear: posible && !session_id,\n  save: { session_key: b.session_key, canal: b.canal, contact_id: b.contact_id },\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2260,
+        -140
+      ],
+      "id": "aegora-rc-t22",
+      "name": "Code · Sesión: decidir"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "s1",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.crear }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2500,
+        -140
+      ],
+      "id": "aegora-rc-t23",
+      "name": "¿Crear sesión?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.directus_base_url }}/items/conversation_sessions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.save) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2740,
+        -240
+      ],
+      "id": "aegora-rc-t24",
+      "name": "HTTP · Crear sesión",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Code · Sesión: decidir').first().json.directus_base_url }}/items/conversation_messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ 'filter[canal_message_id][_starts_with]': $('Code · Normalizar').first().json.call_id + '#', limit: 1, fields: 'id' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2980,
+        -140
+      ],
+      "id": "aegora-rc-t25",
+      "name": "HTTP · ¿Turnos escritos?",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// El transcript viene SIEMPRE en el payload de Retell, así que una llamada puede\n// leerse en la bandeja igual que un WhatsApp en vez de quedarse en un resumen.\n// No es un concepto nuevo: es `conversation_messages` con `canal: voz`.\nconst n = $('Code · Normalizar').first().json;\nconst dec = $('Code · Sesión: decidir').first().json;\nconst c = $('Code · Clasificar y normalizar').first().json.llamada || {};\nconst yaHabia = (() => { const r = $json || {}; const f = (r.body && r.body.data) || []; return f.length > 0; })();\n\n// Si la sesión se acaba de crear, el id está en la respuesta de ESE nodo.\nlet session_id = dec.session_id;\nif (!session_id) {\n  try {\n    const r = $('HTTP · Crear sesión').first().json;\n    session_id = (r.body && r.body.data && r.body.data.id) || null;\n  } catch (e) { session_id = null; }\n}\n\nconst turnos = Array.isArray(c.transcript_object) ? c.transcript_object : [];\nconst filas = [];\nif (session_id && !yaHabia) {\n  turnos.forEach((t, i) => {\n    const texto = String((t && t.content) || '').trim();\n    if (!texto) return;\n    const delCliente = String(t.role || '') === 'user';\n    filas.push({\n      session_id, contact_id: dec.contact_id, canal: 'voz',\n      direccion: delCliente ? 'entrante' : 'saliente',\n      // 'lucia' y no 'humano': lo dijo el agente. 'humano' sigue reservado para\n      // lo que escribe una persona del negocio en un relevo.\n      autor: delCliente ? 'cliente' : 'lucia',\n      texto,\n      estado_envio: delCliente ? 'recibido' : 'enviado',\n      // Lleva el índice para que un reintento se reconozca por prefijo y para no\n      // perder el orden si dos filas comparten milisegundo.\n      canal_message_id: `${n.call_id}#${String(i).padStart(3, '0')}`,\n    });\n  });\n}\n\n// UNA FILA POR ITEM, no un array en un item: así el nodo HTTP las inserta en\n// orden y `created_at` va creciendo. Con un solo POST del array entero todas\n// caerían en el mismo instante y el hilo se leería desordenado, que es\n// exactamente lo que no queremos de una conversación.\nif (!filas.length) {\n  return [{ json: { _sin_turnos: true, motivo: !session_id ? 'sin sesión'\n    : (yaHabia ? 'ya estaban escritos' : 'el transcript venía vacío') } }];\n}\nreturn filas.map((fila) => ({ json: { directus_base_url: dec.directus_base_url, ...fila } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3220,
+        -140
+      ],
+      "id": "aegora-rc-t26",
+      "name": "Code · Preparar turnos"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "t1",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json._sin_turnos === true }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3460,
+        -140
+      ],
+      "id": "aegora-rc-t27",
+      "name": "¿Hay turnos?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.directus_base_url }}/items/conversation_messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ session_id: $json.session_id, contact_id: $json.contact_id, canal: $json.canal, direccion: $json.direccion, autor: $json.autor, texto: $json.texto, estado_envio: $json.estado_envio, canal_message_id: $json.canal_message_id }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3700,
+        -240
+      ],
+      "id": "aegora-rc-t28",
+      "name": "HTTP · Guardar turno",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
     }
   ],
   "connections": {
@@ -544,7 +783,7 @@
       "main": [
         [
           {
-            "node": "Code · Construir nota",
+            "node": "Code · Sesión: buscar",
             "type": "main",
             "index": 0
           }
@@ -658,6 +897,119 @@
         [
           {
             "node": "Code · Verificar firma",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Sesión: buscar": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Buscar sesión",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Buscar sesión": {
+      "main": [
+        [
+          {
+            "node": "Code · Sesión: decidir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Sesión: decidir": {
+      "main": [
+        [
+          {
+            "node": "¿Crear sesión?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Crear sesión": {
+      "main": [
+        [
+          {
+            "node": "HTTP · ¿Turnos escritos?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · ¿Turnos escritos?": {
+      "main": [
+        [
+          {
+            "node": "Code · Preparar turnos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Preparar turnos": {
+      "main": [
+        [
+          {
+            "node": "¿Hay turnos?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Guardar turno": {
+      "main": [
+        [
+          {
+            "node": "Code · Construir nota",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Crear sesión?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Crear sesión",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP · ¿Turnos escritos?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay turnos?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Guardar turno",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Construir nota",
             "type": "main",
             "index": 0
           }
