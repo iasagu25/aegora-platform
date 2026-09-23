@@ -878,6 +878,19 @@ Lo que hay que saber si se toca:
   Contestar 200 a un fallo convierte algo recuperable en un resumen perdido para siempre.
 - El contacto lo resuelve **`17 · CORE · Resolve Context` con `sin_contexto`** -- el mismo
   resolutor que las tools, para que la nota y la conversación no discrepen sobre quién llamó.
+- **Un teléfono español entra sin el 34 la mitad de las veces**, y eso rompe la identidad
+  sin dar un solo error. En `demo` la variable de prueba traía `683187144`: la clave del
+  hilo salió `voz:683187144` en vez de `voz:34683187144`, el contacto está guardado como
+  `+34683187144`, y nadie quedó enlazado. Ni excepción ni log: una conversación correcta
+  colgando de nadie. Ahora los dos sitios que resuelven identidad (`Code · Validar` del
+  despachador y `Code · Normalizar` de la nota) normalizan a E.164 con una regla
+  deliberadamente estrecha -- 9 dígitos que empiezan por 6/7/8/9 son españoles, el resto se
+  deja como viene. En una llamada real `from_number` ya llega en E.164; el problema es todo
+  lo demás: variables, formularios, webchat.
+- **El contacto de la sesión se enlaza también cuando la sesión YA existía.** Ponerlo solo
+  al crearla deja huérfano para siempre un hilo nacido en mal momento -- el contacto aún no
+  existía, o el flujo se rompió a medias. Entry no lo sufre porque hace `PATCH` en cada
+  turno; en voz solo hay una pasada por llamada, así que hay que decirlo explícitamente.
 - **De dónde sale el teléfono hay que copiarlo del despachador, no reinventarlo.** La
   primera versión de la nota miraba solo `call.from_number` y en las pruebas por webcall
   salía siempre sin contacto, mientras la tarea creada en esa MISMA llamada sí lo
