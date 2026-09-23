@@ -177,6 +177,7 @@ Biblioteca de archivos:
 
 Conversaciones de Lucía:
   conversation_sessions  read / update   (update = coger el hilo con 'modo')
+  call_notes             read / update   (update = apagar 'requiere seguimiento')
   conversation_messages  read / create   (create = contestar; crear el mensaje
                                           ES enviarlo, lo recoge el enviador)
                                          sin update ni delete: el historial no
@@ -286,6 +287,11 @@ const permissionModel = {
   // de ser un historial de lo que pasó. Si un envío falla, la fila se queda
   // 'fallido' con el motivo y se manda otro -- no se reescribe el pasado.
   conversation_messages: { read: ALL, create: ALL },
+  // Lectura, y update SOLO para poder apagar 'requiere_seguimiento'. Esta edición de
+  // Directus no tiene permisos por campo (ver CLAUDE.md), así que dar update aquí deja
+  // también editar el resumen. Se acepta a cambio de que el aviso de seguimiento se
+  // pueda cerrar: un aviso que no se apaga deja de mirarse a la semana.
+  call_notes: { read: ALL, update: ALL },
 
   // --- intercambio de ficheros con Aegora -----------------------------------
   // Para pasarse documentación durante la implantación y luego con los cambios.

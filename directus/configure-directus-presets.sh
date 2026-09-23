@@ -223,6 +223,19 @@ const presets = [
   // Los mensajes sueltos, lo último primero. Sin columna de texto esta pantalla
   // no dice absolutamente nada: por defecto Directus elige las primeras columnas
   // de la colección y el contenido del mensaje se queda fuera.
+  // Una lista de llamadas sin el motivo son filas de teléfonos y horas. Y el orden
+  // es la última primero: lo que acaba de pasar es lo que se mira.
+  {
+    collection: 'call_notes',
+    layout: 'tabular',
+    layout_query: {
+      tabular: {
+        fields: ['start_at', 'contact_id', 'telefono', 'motivo', 'resultado', 'requiere_seguimiento'],
+        sort: ['-start_at'],
+      },
+    },
+  },
+
   {
     collection: 'conversation_messages',
     layout: 'tabular',

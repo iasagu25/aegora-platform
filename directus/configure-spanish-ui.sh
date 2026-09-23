@@ -427,6 +427,12 @@ const collectionTranslations = {
     translation: 'Mensajes de conversación',
   },
 
+  call_notes: {
+    singular: 'Nota de llamada',
+    plural: 'Notas de llamada',
+    translation: 'Notas de llamada',
+  },
+
   languages: {
     singular: 'Idioma',
     plural: 'Idiomas',
@@ -618,6 +624,22 @@ const fieldTranslations = {
     mensajes: 'Mensajes',
     created_at: 'Fecha de creación',
     updated_at: 'Última modificación',
+  },
+
+  call_notes: {
+    id: 'ID',
+    start_at: 'Fecha y hora',
+    telefono: 'Teléfono',
+    contact_id: 'Contacto',
+    motivo: 'Motivo',
+    resultado: 'Resultado',
+    resumen: 'Resumen',
+    requiere_seguimiento: 'Requiere seguimiento',
+    duracion_segundos: 'Duración (s)',
+    direccion: 'Dirección',
+    session_key: 'Conversación',
+    call_id: 'ID de llamada',
+    created_at: 'Fecha de creación',
   },
 
   conversation_messages: {

@@ -205,6 +205,9 @@ const orden = {
   // los mensajes sueltos sirven para ver qué ha entrado hoy en todos los hilos.
   conversation_sessions: 5,
   conversation_messages: 6,
+  // Las llamadas, justo detrás de las conversaciones escritas: es el mismo
+  // trabajo del gestor, solo que por otro canal.
+  call_notes: 7,
 
   services: 10,
   employees: 11,
@@ -296,6 +299,24 @@ const ordenDeCampos = {
     ['id', 'full'],
   ],
 
+  // Lo primero que quiere ver el gestor de una llamada es cuándo fue, de quién y
+  // para qué; la duración y los identificadores, al final.
+  call_notes: [
+    ['start_at', 'half'],
+    ['telefono', 'half'],
+    ['contact_id', 'full'],
+    ['motivo', 'full'],
+    ['resultado', 'full'],
+    ['resumen', 'full'],
+    ['requiere_seguimiento', 'half'],
+    ['duracion_segundos', 'half'],
+    ['direccion', 'half'],
+    ['session_key', 'full'],
+    ['call_id', 'full'],
+    ['created_at', 'half'],
+    ['id', 'full'],
+  ],
+
   conversation_messages: [
     ['created_at', 'half'],
     ['autor', 'half'],
@@ -316,7 +337,8 @@ const displaysDeCampo = [
   // no tiene display, Directus pinta el valor crudo -- el UUID. Hay que decirlo
   // campo a campo, y es exactamente lo que faltaba para que la bandeja enseñara
   // "82dd8445-c51f-..." donde debía decir el nombre de una persona.
-  ...['conversation_sessions', 'conversation_messages', 'appointments', 'tasks'].map(
+  ...['conversation_sessions', 'conversation_messages', 'appointments', 'tasks',
+    'call_notes'].map(
     (collection) => ({
       collection,
       field: 'contact_id',

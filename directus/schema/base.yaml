@@ -516,6 +516,33 @@ collections:
       versioning: false
     schema:
       name: tasks
+  - collection: call_notes
+    meta:
+      accountability: all
+      archive_app_filter: true
+      archive_field: null
+      archive_value: null
+      autosave_revision_interval: null
+      collapse: open
+      collection: call_notes
+      color: null
+      display_template: '{{start_at}} · {{motivo}}'
+      group: null
+      hidden: false
+      icon: phone_in_talk
+      item_duplication_fields: null
+      note: 'Resumen de cada llamada de voz. NO guarda audio ni transcripción: eso vive en la plataforma
+        de voz con retención corta y aquí solo queda lo mínimo.'
+      preview_url: null
+      singleton: false
+      sort: 7
+      sort_field: null
+      status: active
+      translations: null
+      unarchive_value: null
+      versioning: false
+    schema:
+      name: call_notes
 fields:
   - collection: appointment_resources
     field: id
@@ -8061,6 +8088,539 @@ fields:
       has_auto_increment: false
       foreign_key_table: null
       foreign_key_column: null
+  - collection: call_notes
+    field: id
+    type: uuid
+    meta:
+      collection: call_notes
+      conditions: null
+      display: null
+      display_options: null
+      field: id
+      group: null
+      hidden: true
+      interface: input
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 13
+      special:
+      - uuid
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: id
+      table: call_notes
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: true
+      is_indexed: false
+      is_primary_key: true
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: call_notes
+    field: start_at
+    type: timestamp
+    meta:
+      collection: call_notes
+      conditions: null
+      display: null
+      display_options: null
+      field: start_at
+      group: null
+      hidden: false
+      interface: datetime
+      note: Cuándo empezó la llamada.
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 1
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: start_at
+      table: call_notes
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: true
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: call_notes
+    field: telefono
+    type: string
+    meta:
+      collection: call_notes
+      conditions: null
+      display: null
+      display_options: null
+      field: telefono
+      group: null
+      hidden: false
+      interface: input
+      note: Número desde el que llamaron, tal cual lo entrega la plataforma. Se guarda aparte del contacto
+        porque puede no haberlo.
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 2
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: telefono
+      table: call_notes
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: call_notes
+    field: contact_id
+    type: uuid
+    meta:
+      collection: call_notes
+      conditions: null
+      display: null
+      display_options: null
+      field: contact_id
+      group: null
+      hidden: false
+      interface: select-dropdown-m2o
+      note: 'Se borra CON el contacto (cascade): un resumen sin dueño es un dato personal huérfano, no un
+        registro de negocio.'
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 3
+      special:
+      - m2o
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: contact_id
+      table: call_notes
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: true
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: contacts
+      foreign_key_column: id
+  - collection: call_notes
+    field: motivo
+    type: string
+    meta:
+      collection: call_notes
+      conditions: null
+      display: null
+      display_options: null
+      field: motivo
+      group: null
+      hidden: false
+      interface: input
+      note: Para qué llamaban, en pocas palabras. Lo extrae la plataforma al acabar.
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 4
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: motivo
+      table: call_notes
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: call_notes
+    field: resultado
+    type: string
+    meta:
+      collection: call_notes
+      conditions: null
+      display: null
+      display_options: null
+      field: resultado
+      group: null
+      hidden: false
+      interface: input
+      note: En qué quedó la llamada.
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 5
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: resultado
+      table: call_notes
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: call_notes
+    field: resumen
+    type: text
+    meta:
+      collection: call_notes
+      conditions: null
+      display: null
+      display_options: null
+      field: resumen
+      group: null
+      hidden: false
+      interface: input-multiline
+      note: 'Resumen de la llamada. Es lo ÚNICO que sobrevive: el audio y la transcripción se borran en
+        la plataforma de voz.'
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 6
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: resumen
+      table: call_notes
+      data_type: text
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: call_notes
+    field: requiere_seguimiento
+    type: boolean
+    meta:
+      collection: call_notes
+      conditions: null
+      display: null
+      display_options: null
+      field: requiere_seguimiento
+      group: null
+      hidden: false
+      interface: boolean
+      note: La llamada dejó algo pendiente que nadie ha recogido todavía.
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 7
+      special:
+      - cast-boolean
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: requiere_seguimiento
+      table: call_notes
+      data_type: boolean
+      default_value: false
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: call_notes
+    field: duracion_segundos
+    type: integer
+    meta:
+      collection: call_notes
+      conditions: null
+      display: null
+      display_options: null
+      field: duracion_segundos
+      group: null
+      hidden: false
+      interface: input
+      note: null
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 8
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: duracion_segundos
+      table: call_notes
+      data_type: integer
+      default_value: null
+      max_length: null
+      numeric_precision: 32
+      numeric_scale: 0
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: call_notes
+    field: direccion
+    type: string
+    meta:
+      collection: call_notes
+      conditions: null
+      display: null
+      display_options: null
+      field: direccion
+      group: null
+      hidden: false
+      interface: select-dropdown
+      note: null
+      options:
+        choices:
+        - text: Entrante
+          value: entrante
+        - text: Saliente
+          value: saliente
+      readonly: false
+      required: false
+      searchable: true
+      sort: 9
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: direccion
+      table: call_notes
+      data_type: character varying
+      default_value: entrante
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: call_notes
+    field: session_key
+    type: string
+    meta:
+      collection: call_notes
+      conditions: null
+      display: null
+      display_options: null
+      field: session_key
+      group: null
+      hidden: false
+      interface: input
+      note: El mismo hilo que usa la conversación (voz:<telefono>).
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 10
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: session_key
+      table: call_notes
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: true
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: call_notes
+    field: call_id
+    type: string
+    meta:
+      collection: call_notes
+      conditions: null
+      display: null
+      display_options: null
+      field: call_id
+      group: null
+      hidden: false
+      interface: input
+      note: 'Identificador de la llamada en la plataforma de voz. ÚNICO a propósito: el webhook se reintenta
+        y sin esto se duplicarían las notas.'
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 11
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: call_id
+      table: call_notes
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: true
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: call_notes
+    field: created_at
+    type: timestamp
+    meta:
+      collection: call_notes
+      conditions: null
+      display: null
+      display_options: null
+      field: created_at
+      group: null
+      hidden: true
+      interface: datetime
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 12
+      special:
+      - date-created
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: created_at
+      table: call_notes
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
 systemFields:
   - collection: directus_activity
     field: timestamp
@@ -8552,3 +9112,24 @@ relations:
       constraint_name: tasks_assignee_id_foreign
       on_update: NO ACTION
       on_delete: SET NULL
+  - collection: call_notes
+    field: contact_id
+    related_collection: contacts
+    meta:
+      junction_field: null
+      many_collection: call_notes
+      many_field: contact_id
+      one_allowed_collections: null
+      one_collection: contacts
+      one_collection_field: null
+      one_deselect_action: delete
+      one_field: null
+      sort_field: null
+    schema:
+      table: call_notes
+      column: contact_id
+      foreign_key_table: contacts
+      foreign_key_column: id
+      constraint_name: call_notes_contact_id_foreign
+      on_update: NO ACTION
+      on_delete: CASCADE

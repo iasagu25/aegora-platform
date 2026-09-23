@@ -373,6 +373,7 @@ Permissions:
 
   conversation_sessions  create / read / update / delete
   conversation_messages  create / read / update
+  call_notes             create / read
 
   solo lectura (config de booking, KB y personal):
   services · resources · service_resources · availability_rules
@@ -481,6 +482,10 @@ const permissionModel = {
   // Sin `delete`: una conversación no se borra suelta, se va con su sesión
   // (la FK es ON DELETE CASCADE) cuando SESSION · Cleanup purga la sesión.
   conversation_messages: ['create', 'read', 'update'],
+  // create = escribir la nota al acabar la llamada; read = comprobar que no existe ya,
+  // porque el webhook de la plataforma de voz se reintenta y `call_id` es único.
+  // Sin `update` ni `delete`: la nota se escribe una vez y no se retoca desde aquí.
+  call_notes: ['create', 'read'],
 };
 
 async function rawRequest(method, path, body = undefined, token = adminToken) {
