@@ -412,7 +412,20 @@ activado en las siete.
 - **Transferencia a una persona**: la regla 7 la promete y la hace la plataforma, no el
   prompt. Hay que configurar el número de destino antes de la primera llamada real, o la
   promesa es falsa.
-- **La confirmación por WhatsApp** de la regla 5 tampoco existe todavía: necesita una
-  plantilla de utilidad anclada en la cita (como `aegora_recordatorio_cita`) y algo que la
-  dispare al cerrar la llamada.
+- **Dos envíos por WhatsApp que el prompt promete y NO existen** (23/sep/2026). Los dos
+  comparten plantilla, disparador y condición, así que se hacen juntos o ninguno:
+  1. La **confirmación de cita** de la regla 5, al cerrar una reserva.
+  2. La **política de privacidad**, cuando preguntan por sus datos -- hoy esa línea está
+     puesta en el prompt del agente de `dev` y promete un mensaje que no sale.
+
+  Qué hace falta:
+  - Una plantilla **`aegora_confirmacion_cita`** de UTILITY. `aegora_recordatorio_cita` no
+    vale: dice "te recordamos tu cita" y mandar eso justo después de reservar suena raro.
+    Una confirmación ancla en una cita concreta, que es literalmente lo que Meta pide para
+    UTILITY, así que no debería costar la aprobación.
+  - El disparo **condicionado a `canal === 'voz'`**. Por WhatsApp sobra: Lucía acaba de
+    confirmarlo en el mismo hilo. El despachador ya sabe el canal, así que es una línea.
+
+  Y mientras no estén, **las dos líneas sobran del prompt**. Es el mismo fallo que las
+  tools que no existían: no da error, solo deja a alguien esperando algo que no llega.
 - **El aviso de grabación** solo si se graba, y con su base jurídica decidida.
