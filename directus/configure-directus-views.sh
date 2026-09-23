@@ -201,10 +201,9 @@ const orden = {
   tasks: 2,
   contacts: 3,
   knowledge: 4,
-  // El hilo primero y la lista plana después: se entra por la conversación, y
-  // los mensajes sueltos sirven para ver qué ha entrado hoy en todos los hilos.
+  // Se entra por la conversación. La lista plana de mensajes está oculta: ver
+  // `ocultas` más abajo.
   conversation_sessions: 5,
-  conversation_messages: 6,
   // Las llamadas, justo detrás de las conversaciones escritas: es el mismo
   // trabajo del gestor, solo que por otro canal.
   call_notes: 7,
@@ -394,6 +393,11 @@ const ocultas = [
   'contact_phones',
   // Tabla de sistema.
   'languages',
+  // La lista plana de mensajes. Desde que la conversación se lee como hilo (el
+  // interfaz de `conversation_sessions.mensajes`), esta vista solo repite lo
+  // mismo sin el contexto de quién habla con quién, y en el menú del gestor
+  // compite con "Conversaciones", que es donde tiene que entrar.
+  'conversation_messages',
 ];
 
 // OJO: service_resources NO va aquí aunque sea una tabla puente. Es el único

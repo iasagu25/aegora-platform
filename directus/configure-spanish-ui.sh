@@ -391,9 +391,12 @@ const collectionTranslations = {
   },
 
   availability_exceptions: {
-    singular: 'Ausencia',
-    plural: 'Ausencias',
-    translation: 'Ausencias',
+    // No son solo ausencias: la colección cubre cualquier desviación puntual del
+    // horario habitual -- un festivo, un cierre por obras, una tarde que sí se
+    // abre. "Ausencias" hacía pensar que era solo para bajas de un empleado.
+    singular: 'Festivo o excepción',
+    plural: 'Festivos y excepciones',
+    translation: 'Festivos y excepciones',
   },
 
   knowledge: {
@@ -428,9 +431,9 @@ const collectionTranslations = {
   },
 
   call_notes: {
-    singular: 'Nota de llamada',
-    plural: 'Notas de llamada',
-    translation: 'Notas de llamada',
+    singular: 'Resumen de llamada',
+    plural: 'Resúmenes de llamada',
+    translation: 'Resumen llamadas',
   },
 
   languages: {
