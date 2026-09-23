@@ -77,6 +77,10 @@ SECRET_FIELDS = {
     "phone_number_id": ("REPLACE_PHONE_NUMBER_ID", "WHATSAPP_PHONE_NUMBER_ID"),
     "verify_token": ("REPLACE_VERIFY_TOKEN", "WHATSAPP_VERIFY_TOKEN"),
     "app_secret": ("REPLACE_APP_SECRET", "WHATSAPP_APP_SECRET"),
+    # La API key de Retell, que es a la vez el secreto con el que firma sus
+    # webhooks. Va aquí sobre todo por la dirección de VUELTA: sin esta entrada,
+    # un export de un tenant configurado se traería la clave en claro a Git.
+    "retell_api_key": ("REPLACE_RETELL_API_KEY", "RETELL_API_KEY"),
 }
 
 # Ajustes de comportamiento que cambian por tenant. Viven en un campo de un nodo
@@ -100,6 +104,7 @@ SECRET_SHAPES = (
     (re.compile(r"\bsk-[A-Za-z0-9_-]{20,}"), "clave de OpenAI (sk-…)"),
     (re.compile(r"\bghp_[A-Za-z0-9]{20,}"), "token de GitHub (ghp_…)"),
     (re.compile(r"\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\."), "JWT"),
+    (re.compile(r"\bkey_[A-Za-z0-9]{24,}"), "clave de Retell (key_…)"),
 )
 
 # Los `id` de credencial TAMBIÉN atan al tenant. El README heredado decía que

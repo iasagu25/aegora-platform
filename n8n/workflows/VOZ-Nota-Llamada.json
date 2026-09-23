@@ -1,0 +1,581 @@
+{
+  "id": "aegoraRetellCallNote",
+  "name": "VOZ · Nota de llamada",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "retell-call",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -620,
+        300
+      ],
+      "id": "aegora-rc-01",
+      "name": "Webhook · POST /retell-call",
+      "webhookId": "aegora-retell-call"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c1",
+              "name": "tenant",
+              "type": "string",
+              "value": "__TENANT_ID__"
+            },
+            {
+              "id": "c2",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "__DIRECTUS_BASE_URL__"
+            },
+            {
+              "id": "c3",
+              "name": "tenant_timezone",
+              "type": "string",
+              "value": "Europe/Madrid"
+            },
+            {
+              "id": "c4",
+              "name": "canal",
+              "type": "string",
+              "value": "voz"
+            },
+            {
+              "id": "c5",
+              "name": "retell_api_key",
+              "type": "string",
+              "value": "REPLACE_RETELL_API_KEY"
+            },
+            {
+              "id": "c6",
+              "name": "require_signature",
+              "type": "string",
+              "value": "false"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -380,
+        300
+      ],
+      "id": "aegora-rc-02",
+      "name": "Config (editar por tenant)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Config ya ha mezclado sus campos hacia aquí (includeOtherFields), así que $json\n// lleva cuerpo, cabeceras y configuración a la vez.\nconst cfg = $json;\nconst headers = cfg.headers || {};\n\n// Retell firma los BYTES que envía. Re-serializar el JSON ya parseado NO sirve:\n// un espacio de diferencia y el HMAC no cuadra. Por eso el webhook va con\n// rawBody y aquí se recupera el crudo antes que nada.\nlet crudo = '';\nif (typeof cfg.body === 'string') crudo = cfg.body;\nelse if (cfg.body && cfg.body.data) {\n  try { crudo = Buffer.from(cfg.body.data, 'base64').toString('utf8'); } catch (e) { crudo = ''; }\n}\n\nlet cuerpo = {};\nif (crudo) { try { cuerpo = JSON.parse(crudo); } catch (e) { cuerpo = {}; } }\nif (!crudo && cfg.body && typeof cfg.body === 'object' && !cfg.body.data) cuerpo = cfg.body;\n\n// Retell manda varios eventos por llamada (call_started, call_ended,\n// call_analyzed). El análisis solo existe en el último: los otros se aceptan con\n// un 200 y se ignoran, porque responder error haría que los reintentara.\nconst evento = String(cuerpo.event || cuerpo.event_type || '').trim();\nconst llamada = (cuerpo.call && typeof cuerpo.call === 'object') ? cuerpo.call : cuerpo;\n\nreturn [{ json: {\n  evento,\n  es_analisis: evento === 'call_analyzed',\n  llamada,\n  directus_base_url: cfg.directus_base_url,\n  canal: cfg.canal,\n  tenant_timezone: cfg.tenant_timezone,\n  _raw: crudo,\n  _sig: String(headers['x-retell-signature'] || ''),\n  _secret: String(cfg.retell_api_key || ''),\n  _require_signature: String(cfg.require_signature).toLowerCase() === 'true',\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -140,
+        300
+      ],
+      "id": "aegora-rc-03",
+      "name": "Code · Clasificar y normalizar"
+    },
+    {
+      "parameters": {
+        "action": "hmac",
+        "type": "SHA256",
+        "dataPropertyName": "_hmac",
+        "value": "={{ $json._raw || 'sin-cuerpo' }}",
+        "secret": "={{ $json._secret || 'sin-secreto' }}",
+        "encoding": "hex"
+      },
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ],
+      "id": "aegora-rc-04",
+      "name": "Crypto · HMAC del cuerpo",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// El veredicto de la firma se escribe SIEMPRE, valga o no valga y se exija o no.\n// La lección de WhatsApp: una comprobación de seguridad que no se puede observar\n// no está funcionando, se está acumulando. Aquí sale en cada ejecución.\nconst d = $json;\nconst esperado = String(d._hmac || '');\nconst recibida = String(d._sig || '').replace(/^v\\d+=/, '').trim();\n\nlet firma = 'no_verificada';\nlet firma_motivo = null;\n\nif (!d._secret || d._secret.startsWith('REPLACE_')) {\n  firma_motivo = 'no hay RETELL_API_KEY en el tenant';\n} else if (!recibida) {\n  firma = 'ausente'; firma_motivo = 'la petición no trae x-retell-signature';\n} else if (!esperado) {\n  firma_motivo = 'el nodo Crypto no devolvió _hmac';\n} else {\n  // Comparación en tiempo constante: una comparación normal filtra el prefijo\n  // correcto por el tiempo que tarda en fallar.\n  const a = esperado, b = recibida;\n  let dif = a.length ^ b.length;\n  for (let i = 0; i < Math.max(a.length, b.length); i++) {\n    dif |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);\n  }\n  firma = dif === 0 ? 'valida' : 'invalida';\n  if (dif !== 0) firma_motivo = 'el HMAC no coincide';\n}\n\nconst descartar = d._require_signature && firma !== 'valida';\n\nconst salida = { ...d, firma, firma_motivo, descartar };\n// El secreto y el cuerpo crudo no siguen viajando por la ejecución.\ndelete salida._secret; delete salida._raw; delete salida._sig; delete salida._hmac;\nreturn [{ json: salida }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        340,
+        300
+      ],
+      "id": "aegora-rc-05",
+      "name": "Code · Verificar firma"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "p1",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.es_analisis }}",
+              "rightValue": ""
+            },
+            {
+              "id": "p2",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.descartar }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        580,
+        300
+      ],
+      "id": "aegora-rc-06",
+      "name": "¿Procesar?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Un evento que no es el análisis, o uno con firma inválida cuando se exige.\n// Se contesta 200 a propósito: un error haría que Retell lo reintentara en bucle,\n// y no hay nada que reintentar.\nconst d = $json;\nreturn [{ json: { ok: true, guardada: false,\n  motivo: d.descartar ? `firma ${d.firma}` : `evento ${d.evento || 'desconocido'}`,\n  firma: d.firma, firma_motivo: d.firma_motivo || null } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        820,
+        460
+      ],
+      "id": "aegora-rc-07",
+      "name": "Code · Nada que guardar"
+    },
+    {
+      "parameters": {
+        "jsCode": "// De la forma de Retell a la nuestra. Todo con alternativas: este contrato lo\n// define otra empresa y cambiará sin avisarnos, así que un campo que se mueva\n// tiene que dejar la nota coja, nunca tumbar el webhook.\nconst d = $json;\nconst c = d.llamada || {};\nconst analisis = (c.call_analysis && typeof c.call_analysis === 'object') ? c.call_analysis : {};\nconst extra = (analisis.custom_analysis_data && typeof analisis.custom_analysis_data === 'object')\n  ? analisis.custom_analysis_data : {};\n\nconst limpio = (v) => (v === undefined || v === null) ? null : (String(v).trim() || null);\nconst corto = (v, max) => { const s = limpio(v); return s ? s.slice(0, max) : null; };\n\n// Mismo formato que WhatsApp (E.164 sin '+') para que un cliente que llama y otro\n// que escribe sean EL MISMO contacto.\nconst telefono = (limpio(c.from_number) || '').replace(/[^\\d]/g, '') || null;\n\nconst ms = Number(c.start_timestamp) || 0;\nconst fin = Number(c.end_timestamp) || 0;\nconst start_at = ms ? new Date(ms).toISOString() : new Date().toISOString();\nlet duracion = Number(c.duration_ms);\nif (!Number.isFinite(duracion) || duracion <= 0) duracion = (fin && ms) ? (fin - ms) : 0;\n\nconst seguimiento = extra.requiere_seguimiento;\nconst esSi = (v) => v === true || ['true', 'si', 'sí', 'yes', '1'].includes(String(v).trim().toLowerCase());\n\nreturn [{ json: {\n  directus_base_url: d.directus_base_url,\n  call_id: limpio(c.call_id) || limpio(c.callId),\n  telefono,\n  session_key: telefono ? `${d.canal || 'voz'}:${telefono}` : null,\n  start_at,\n  duracion_segundos: Math.max(0, Math.round(duracion / 1000)),\n  direccion: String(c.direction || 'inbound').toLowerCase() === 'outbound' ? 'saliente' : 'entrante',\n  motivo: corto(extra.motivo || extra.reason, 255),\n  resultado: corto(extra.resultado || extra.outcome, 255),\n  // El resumen es lo ÚNICO que sobrevive: en la plataforma de voz el audio y la\n  // transcripción se borran con su retención corta.\n  resumen: limpio(analisis.call_summary || extra.resumen),\n  requiere_seguimiento: esSi(seguimiento),\n  firma: d.firma,\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        820,
+        160
+      ],
+      "id": "aegora-rc-08",
+      "name": "Code · Normalizar"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.directus_base_url }}/items/call_notes",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filter[call_id][_eq]",
+              "value": "={{ $json.call_id }}"
+            },
+            {
+              "name": "fields",
+              "value": "id"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1060,
+        160
+      ],
+      "id": "aegora-rc-09",
+      "name": "HTTP · ¿Ya existe?",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "n1",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              },
+              "leftValue": "={{ ($json.body && $json.body.data ? $json.body.data.length : 0) }}",
+              "rightValue": 0
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1300,
+        160
+      ],
+      "id": "aegora-rc-10",
+      "name": "¿Nota nueva?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// El webhook se reintenta, así que esto es lo NORMAL, no un error. `call_id` es\n// UNIQUE en Directus por si dos reintentos llegan a la vez y los dos pasan por\n// aquí antes de que ninguno escriba: la restricción es la que de verdad manda.\nconst n = $('Code · Normalizar').first().json;\nreturn [{ json: { ok: true, guardada: false, motivo: 'ya existía', call_id: n.call_id } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        320
+      ],
+      "id": "aegora-rc-11",
+      "name": "Code · Ya estaba"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "hNxGTXIyjXkP7iwR",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "",
+            "phone": "={{ $('Code · Normalizar').first().json.telefono || '' }}",
+            "email": "",
+            "query": "",
+            "sin_contexto": "true"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1540,
+        60
+      ],
+      "id": "aegora-rc-12",
+      "name": "Execute · 17 Resolve Contact",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// El contacto lo resuelve el MISMO sub-workflow que usan las tools (17, con\n// sin_contexto: no hacen falta sus citas ni sus tareas aquí), para que la nota y\n// la conversación no puedan discrepar sobre quién llamó.\nconst n = $('Code · Normalizar').first().json;\nconst r = $json || {};\nconst contact_id = r.contact_id || (r.contact && r.contact.id) || null;\n\nreturn [{ json: {\n  directus_base_url: n.directus_base_url,\n  fila: {\n    call_id: n.call_id,\n    contact_id,\n    telefono: n.telefono,\n    session_key: n.session_key,\n    start_at: n.start_at,\n    duracion_segundos: n.duracion_segundos,\n    direccion: n.direccion,\n    motivo: n.motivo,\n    resultado: n.resultado,\n    resumen: n.resumen,\n    requiere_seguimiento: n.requiere_seguimiento,\n  },\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1780,
+        60
+      ],
+      "id": "aegora-rc-13",
+      "name": "Code · Construir nota"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.directus_base_url }}/items/call_notes",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.fila) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2020,
+        60
+      ],
+      "id": "aegora-rc-14",
+      "name": "HTTP · Crear nota",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// La respuesta dice la VERDAD sobre lo que ha pasado, y eso no es cosmético:\n// Retell reintenta ante un error, y con la retención corta ese reintento es la\n// única red que queda si Directus estaba caído. Mentir con un 200 alegre\n// convertiría un fallo recuperable en un resumen perdido para siempre.\nconst n = $('Code · Normalizar').first().json;\nconst resp = $json || {};\nconst code = Number(resp.statusCode || 0);\nconst ok = code >= 200 && code < 300;\nconst creada = ok ? ((resp.body && resp.body.data && resp.body.data.id) || null) : null;\n\nif (!ok) {\n  throw new Error(`No se pudo guardar la nota de la llamada ${n.call_id}: `\n    + `Directus devolvió ${code}. Retell reintentará.`);\n}\nreturn [{ json: { ok: true, guardada: true, call_id: n.call_id, id: creada } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2260,
+        60
+      ],
+      "id": "aegora-rc-15",
+      "name": "Code · Respuesta"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2500,
+        160
+      ],
+      "id": "aegora-rc-16",
+      "name": "Responder"
+    }
+  ],
+  "connections": {
+    "Webhook · POST /retell-call": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "Code · Clasificar y normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Clasificar y normalizar": {
+      "main": [
+        [
+          {
+            "node": "Crypto · HMAC del cuerpo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crypto · HMAC del cuerpo": {
+      "main": [
+        [
+          {
+            "node": "Code · Verificar firma",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Verificar firma": {
+      "main": [
+        [
+          {
+            "node": "¿Procesar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Nada que guardar": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Normalizar": {
+      "main": [
+        [
+          {
+            "node": "HTTP · ¿Ya existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · ¿Ya existe?": {
+      "main": [
+        [
+          {
+            "node": "¿Nota nueva?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Ya estaba": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · 17 Resolve Contact": {
+      "main": [
+        [
+          {
+            "node": "Code · Construir nota",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Construir nota": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Crear nota",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Crear nota": {
+      "main": [
+        [
+          {
+            "node": "Code · Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Respuesta": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Procesar?": {
+      "main": [
+        [
+          {
+            "node": "Code · Normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Nada que guardar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Nota nueva?": {
+      "main": [
+        [
+          {
+            "node": "Execute · 17 Resolve Contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Ya estaba",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

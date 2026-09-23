@@ -825,6 +825,43 @@ HTTP en vez de por `Execute Workflow`.
 - `session_key` es `voz:<telefono>`: una llamada y un WhatsApp del mismo cliente son hilos
   distintos pero **el mismo contacto**.
 
+### El resumen de la llamada acaba en Directus (23/sep/2026)
+**Retell no puede transcribir sin grabar.** Sus opciones de almacenamiento son `Everything`,
+`Everything except PII` y solo metadatos: no hay "transcripción sin audio". Y venía en
+`Everything` + `Keep forever`, o sea grabando y guardando indefinidamente sin que el saludo
+lo dijera. De ahí el diseño: **retención corta donde está el dato crudo, retención larga
+donde solo queda un resumen.**
+
+    Retell (audio + transcripción, retención corta)
+      -> webhook `call_analyzed`
+      -> `VOZ · Nota de llamada`  -> Directus `call_notes` (solo el resumen, ~1 año)
+
+Lo que hay que saber si se toca:
+- **`call_notes.contact_id` es ON DELETE CASCADE**, la única relación hacia `contacts` que
+  no es `SET NULL`. Un resumen sin dueño es un dato personal huérfano, no un registro de
+  negocio. El precio, asumido: borrar el contacto borra también la prueba de que hubo
+  llamada.
+- **`call_id` es UNIQUE** porque el webhook se reintenta. El workflow además consulta antes,
+  pero lo que de verdad impide el duplicado es la restricción, no la consulta: dos
+  reintentos simultáneos pasan los dos por la comprobación.
+- **La respuesta al webhook dice la verdad**, y eso no es cosmético: Retell reintenta ante un
+  error, y con retención corta ese reintento es la única red si Directus estaba caído.
+  Contestar 200 a un fallo convierte algo recuperable en un resumen perdido para siempre.
+- El contacto lo resuelve **`17 · CORE · Resolve Context` con `sin_contexto`** -- el mismo
+  resolutor que las tools, para que la nota y la conversación no discrepen sobre quién llamó.
+
+**Hueco abierto y con fecha de cierre: `require_signature` está en `false`.** La firma se
+calcula y el veredicto sale en CADA ejecución (`firma`, `firma_motivo`), que es la lección de
+WhatsApp -- lo que no se puede observar no está funcionando, se está acumulando --, pero no
+se exige todavía porque el esquema exacto de Retell no se ha confirmado contra una llamada
+real. **Antes de llevar esto a `demo` tiene que estar en `true`**, con `RETELL_API_KEY` en
+`secrets/retell.env`. Mientras esté en `false`, cualquiera que descubra la URL puede insertar
+notas falsas.
+
+**Orden de despliegue, y no es intercambiable**: montar el pipeline en `dev` -> ver la nota
+escrita en Directus -> **entonces** bajar la retención de Retell. Al revés se tiran datos sin
+red, y el propio panel avisa de que el borrado no es reversible.
+
 **Tres capas, y solo una es cara de cambiar**: operador (bajo -- es un trunk SIP),
 plataforma de agente (**alto** -- prompt, tools y comportamiento), lógica de negocio (cero,
 ya está). De ahí el orden: **no empezar por el número**.
