@@ -1377,6 +1377,15 @@ campo (ver el quirk de Directus arriba), es dónde está la verdad.
   a propósito. El resto de colecciones usa uno u otro par, no los dos.
 
 ## Estilo de trabajo esperado
+- **Los paneles de terceros (Retell, Meta, etc.) los edita el usuario, no Claude.**
+  Automatizar un formulario web cuesta una barbaridad de tokens -- captura, localiza,
+  escribe, vuelve a capturar para comprobar -- para algo que una persona hace en un
+  minuto, y esos tokens hacen falta para el trabajo que de verdad es difícil. Claude da
+  **el texto exacto y dónde va**, en un bloque copiable, y el usuario lo pega.
+  Y hay una segunda razón, que apareció el 23/sep/2026: el usuario trabaja en ese panel a
+  la vez, así que editarlo desde aquí provoca conflictos de versión ("This draft changed
+  while you were editing") en los que alguien pierde trabajo. Si alguna vez hay que tocar
+  uno, **el que tiene la versión en Git cede**: `Refresh` y reaplicar, nunca `Override`.
 - PLAN antes de APPLY siempre. No inventar flags de script sin confirmar
   con `--help`.
 - Comandos técnicos con etiqueta explícita de entorno (Local vs VPS).
