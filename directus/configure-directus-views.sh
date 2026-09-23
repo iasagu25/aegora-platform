@@ -345,6 +345,24 @@ const displaysDeCampo = [
       display_options: { template: PLANTILLA_CONTACTO },
     })
   ),
+  // En Europa nadie dice "las 4 y 23 de la tarde": el reloj es de 24 horas. Sin
+  // `use24` Directus pinta AM/PM, y en una agenda eso no es solo feo -- "4:00"
+  // sin mirar el sufijo son las cuatro de la mañana o las de la tarde, y quien
+  // lee una cita de un vistazo se equivoca. Va en las horas que una persona LEE
+  // para actuar; los `created_at`/`updated_at` de auditoría se dejan como están.
+  ...[
+    ['appointments', 'start_at'], ['appointments', 'end_at'],
+    ['tasks', 'due_at'], ['tasks', 'completed_at'],
+    ['call_notes', 'start_at'],
+    // La ventana de 24 h de WhatsApp: si el gestor la lee mal, escribe fuera de
+    // plazo y el mensaje no sale.
+    ['conversation_sessions', 'ventana_hasta'],
+  ].map(([collection, field]) => ({
+    collection, field,
+    display: 'datetime',
+    display_options: { use24: true },
+  })),
+
   {
     // En una bandeja, "hace 5 min" dice más que "21 de septiembre de 2026 12:20"
     // y ocupa un tercio. El orden de la lista ya es por esta columna.
