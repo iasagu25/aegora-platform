@@ -874,6 +874,21 @@ Dos detalles que parecen menores y no lo son:
   prefijo que los turnos de esa llamada ya estaban escritos. Hace falta porque la nota se
   escribe DESPUÉS: si fallara justo ahí, el reintento de Retell volvería a pasar por aquí.
 
+**La firma de Retell: `HMAC-SHA256(cuerpo + marca_de_tiempo, api_key)`, en ESE orden.** La
+cabecera es `x-retell-signature: v=<ms>,d=<hex>`. Se tardó en dar con ello porque el `v=`
+delante invita a suponer que la marca va primero -- se probaron tres variantes con la marca
+delante y ninguna cuadraba. **Dos trampas más, que están en la documentación y no en el
+payload**: solo vale **la API key que lleva el distintivo de webhook** en el panel (si hay
+varias claves, las otras no verifican nada), y hay que **rechazar marcas de más de 5
+minutos**, o una petición legítima capturada una vez se puede reenviar para siempre.
+
+Lo que hizo que esto se resolviera en dos intentos y no en diez: el veredicto sale en cada
+ejecución con `firma_detalle` -- qué forma tenía el cuerpo, cuánto medía, la cabecera cruda
+y los primeros 12 caracteres de cada digest candidato. Con eso, "el cuerpo llega mal" y
+"firmamos otra cosa" dejan de confundirse. **Y cuando fallaron las CUATRO candidatas a la
+vez, eso dejó de ser una pista sobre la concatenación y pasó a serlo sobre el secreto**: es
+la señal de que tocaba ir a la documentación en vez de seguir probando.
+
 **Hueco abierto y con fecha de cierre: `require_signature` está en `false`.** La firma se
 calcula y el veredicto sale en CADA ejecución (`firma`, `firma_motivo`), que es la lección de
 WhatsApp -- lo que no se puede observar no está funcionando, se está acumulando --, pero no
