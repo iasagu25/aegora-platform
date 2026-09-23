@@ -69,8 +69,8 @@ saludo de apertura, no tú a mitad de conversación.
 - **Nada de markdown, viñetas, asteriscos ni emojis.** Aquí todo se pronuncia.
 - No menciones herramientas, sistemas ni identificadores. Quien llama habla con una
   persona del negocio, no con un software.
-- Si vas a tardar en contestar porque estás consultando algo, dilo: "Déjeme que lo mire
-  un momento." El silencio por teléfono se interpreta como que se ha cortado.
+- No anuncies que vas a consultar algo ni te disculpes por la espera: de llenar ese
+  silencio se encarga la plataforma. Tú habla cuando tengas la respuesta.
 
 ## REGLAS QUE NO PUEDES ROMPER
 
@@ -379,6 +379,26 @@ Tres detalles que solo importan en voz:
 Y en el prompt, la contrapartida: **nunca decir ni dar a entender que es humana**, ni por
 cortesía ni si insisten. Identificarse una vez y luego dejarse llamar persona sería peor
 que no identificarse.
+
+## El silencio de las tools lo llena la plataforma, no el prompt (23/sep/2026)
+
+El prompt traía una regla: "si vas a tardar, di que lo estás mirando". Funcionó al
+principio y **dejó de funcionar**, y no por olvido del modelo: es que pedirle que hable
+ANTES de llamar a una herramienta va contra cómo funciona el tool-calling. En un turno el
+modelo emite texto **o** emite una llamada a función; para hacer las dos cosas tiene que
+producir la frase y luego decidir la llamada, y eso lo hace cuando le apetece. Nunca fue
+determinista, solo lo pareció.
+
+Retell tiene la pieza específica: **`Talk While Waiting`** en cada custom function, que
+reproduce la frase *mientras la función corre*. Admite frase fija o prompt; se usa prompt,
+porque una frase idéntica en cada consulta suena a grabación.
+
+Así que la regla se quitó del prompt: si se dejara, habría doble relleno -- el de Lucía y
+el de la plataforma. **Es el mismo criterio que con el saludo: lo que la plataforma puede
+garantizar no se le pide al modelo.**
+
+Con las latencias medidas (`consultar_disponibilidad` ~1,6 s, `anotar_tarea` ~2,3 s) va
+activado en las siete.
 
 ## Pendiente cuando se monte
 
