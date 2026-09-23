@@ -889,13 +889,11 @@ y los primeros 12 caracteres de cada digest candidato. Con eso, "el cuerpo llega
 vez, eso dejó de ser una pista sobre la concatenación y pasó a serlo sobre el secreto**: es
 la señal de que tocaba ir a la documentación en vez de seguir probando.
 
-**Hueco abierto y con fecha de cierre: `require_signature` está en `false`.** La firma se
-calcula y el veredicto sale en CADA ejecución (`firma`, `firma_motivo`), que es la lección de
-WhatsApp -- lo que no se puede observar no está funcionando, se está acumulando --, pero no
-se exige todavía porque el esquema exacto de Retell no se ha confirmado contra una llamada
-real. **Antes de llevar esto a `demo` tiene que estar en `true`**, con `RETELL_API_KEY` en
-`secrets/retell.env`. Mientras esté en `false`, cualquiera que descubra la URL puede insertar
-notas falsas.
+**La firma se exige** (`require_signature: true`, confirmado en `dev` el 23/sep/2026 con
+`firma_variante: cuerpo+ts`). Consecuencia que hay que tener presente al montar un tenant:
+**sin `RETELL_API_KEY` en `secrets/retell.env` las llamadas dejan de dejar nota**, porque la
+firma no valida y el evento se descarta -- igual que el App Secret de WhatsApp, y por eso
+`render-workflows.sh` lo avisa en el plan con esas palabras.
 
 **Orden de despliegue, y no es intercambiable**: montar el pipeline en `dev` -> ver la nota
 escrita en Directus -> **entonces** bajar la retención de Retell. Al revés se tiran datos sin

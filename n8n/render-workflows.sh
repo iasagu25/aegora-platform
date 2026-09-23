@@ -160,13 +160,15 @@ elif [[ -e "$WHATSAPP_SECRETS" ]]; then
   WHATSAPP_ESTADO="sin permiso para leer ${WHATSAPP_SECRETS} (¿sudo?)"
 fi
 
-# La API key de Retell, que es también el secreto de firma de sus webhooks. A
-# diferencia de WhatsApp, faltar aquí NO deja la voz muda: `VOZ · Nota de llamada`
-# arranca con require_signature en false, así que las notas se guardan igual y lo
-# que se pierde es la comprobación de que el webhook viene de Retell. Se dice
-# claro porque un hueco de seguridad que no se nombra no se cierra nunca.
+# La API key de Retell, que es también el secreto con el que firma sus webhooks
+# (la que lleva el distintivo de webhook en el panel: las otras claves de la
+# cuenta no verifican nada). Desde que `require_signature` es `true`, faltar aquí
+# NO deja la voz "sin verificar": la deja MUDA. Sin secreto la firma no puede
+# validar, el webhook descarta el evento y las llamadas dejan de dejar rastro en
+# Directus sin un solo error a la vista. Mismo caso que el App Secret de WhatsApp,
+# mismo aviso explícito.
 RETELL_SECRETS="${TENANT_ROOT}/secrets/retell.env"
-RETELL_ESTADO="NO ENCONTRADO -> el webhook de voz no podrá verificar la firma"
+RETELL_ESTADO="NO ENCONTRADO -> las llamadas NO dejarán nota (sin la clave la firma no valida y se descarta todo)"
 if [[ -r "$RETELL_SECRETS" ]]; then
   set -a
   # shellcheck disable=SC1090
@@ -175,7 +177,9 @@ if [[ -r "$RETELL_SECRETS" ]]; then
   if [[ -n "${RETELL_API_KEY:-}" ]]; then
     RETELL_ESTADO="se rellena desde ${RETELL_SECRETS}"
   else
-    RETELL_ESTADO="INCOMPLETO en ${RETELL_SECRETS}: falta RETELL_API_KEY"
+    RETELL_ESTADO="INCOMPLETO en ${RETELL_SECRETS}: falta RETELL_API_KEY
+                        ^ sin esta, las llamadas no dejan nota: la firma no
+                          valida y el webhook descarta el evento."
   fi
 elif [[ -e "$RETELL_SECRETS" ]]; then
   RETELL_ESTADO="sin permiso para leer ${RETELL_SECRETS} (¿sudo?)"

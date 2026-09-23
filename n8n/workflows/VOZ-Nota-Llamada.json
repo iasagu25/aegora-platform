@@ -61,7 +61,7 @@
               "id": "c6",
               "name": "require_signature",
               "type": "string",
-              "value": "false"
+              "value": "true"
             }
           ]
         },
