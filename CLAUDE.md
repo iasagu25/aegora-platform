@@ -1389,4 +1389,13 @@ campo (ver el quirk de Directus arriba), es dónde está la verdad.
 - PLAN antes de APPLY siempre. No inventar flags de script sin confirmar
   con `--help`.
 - Comandos técnicos con etiqueta explícita de entorno (Local vs VPS).
+- **En el VPS, los scripts que tocan `docker` o `secrets/` van con `sudo`.** Son todos los
+  de `directus/` salvo los de lectura pura, y `n8n/render-workflows.sh` y
+  `export-workflows.sh`: leen `/opt/aegora/tenants/<tenant>/secrets/*`, que es de root, y
+  ejecutan `docker exec` contra los contenedores del tenant. `render-workflows.sh` ya lo
+  dice él mismo cuando falla ("Prueba con sudo", "¿sudo?" al no poder leer los secretos de
+  WhatsApp), pero **el aviso llega a mitad de ejecución**, así que el comando se escribe
+  con `sudo` desde el principio.
+  Ojo al escribirlo: `sudo` no hereda el `cd`, pero sí el directorio actual del shell, así
+  que `cd /opt/aegora/platform && sudo ./n8n/render-workflows.sh ...` funciona.
 - No asumir que la documentación heredada es correcta sin verificar.
