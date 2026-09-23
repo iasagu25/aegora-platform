@@ -849,6 +849,15 @@ Lo que hay que saber si se toca:
   Contestar 200 a un fallo convierte algo recuperable en un resumen perdido para siempre.
 - El contacto lo resuelve **`17 · CORE · Resolve Context` con `sin_contexto`** -- el mismo
   resolutor que las tools, para que la nota y la conversación no discrepen sobre quién llamó.
+- **De dónde sale el teléfono hay que copiarlo del despachador, no reinventarlo.** La
+  primera versión de la nota miraba solo `call.from_number` y en las pruebas por webcall
+  salía siempre sin contacto, mientras la tarea creada en esa MISMA llamada sí lo
+  encontraba: una webcall no tiene número y el teléfono llega en
+  `retell_llm_dynamic_variables.telefono`. La regla ya estaba resuelta en
+  `Code · Validar` del despachador y no se trasladó. Y de paso apareció un segundo
+  fallo que en pruebas entrantes no se ve nunca: **en una llamada SALIENTE el cliente es
+  `to_number`**, así que usar `from_number` habría guardado nuestro propio número en su
+  ficha.
 
 **Hueco abierto y con fecha de cierre: `require_signature` está en `false`.** La firma se
 calcula y el veredicto sale en CADA ejecución (`firma`, `firma_motivo`), que es la lección de
