@@ -75,12 +75,6 @@ POLICY_ID=""
 ROLE_ID=""
 USER_ID=""
 
-log() {
-  printf '[%s] %s\n' "$(date --iso-8601=seconds)" "$*"
-}
-
-fail() {
-
 # Directus tarda en levantar tras un reinicio, y "running" no significa "listo":
 # el puerto 8055 aún no acepta conexiones. Se sondea /server/ping, que es el
 # endpoint correcto en 12.2.0 (/server/health devuelve 403).
@@ -100,6 +94,13 @@ esperar_api() {
   done
   fail "Timeout (${timeout}s) esperando a que ${container} responda en /server/ping."
 }
+
+log() {
+  printf '[%s] %s\n' "$(date --iso-8601=seconds)" "$*"
+}
+
+fail() {
+
   log "ERROR: $*" >&2
   exit 1
 }

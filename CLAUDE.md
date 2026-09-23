@@ -573,6 +573,15 @@ que es la peor clase: leer el fichero te convence de que está cubierto. Corregi
 cuatro que faltaban; `configure-directus-ui.sh` además exigía `healthy` y abortaba, ahora
 espera.
 
+Y una trampa al corregirlo, que costó otra pasada: la función se insertó **dentro del
+cuerpo de `fail()`**, porque el ancla era la línea `fail() {` y en esos ficheros abre un
+bloque multilínea. Resultado: `esperar_api` solo existía si se llamaba a `fail`, y el
+script murió con `command not found` **teniendo la definición a columna 0 y pasando
+`bash -n`**. Dos lecciones: `bash -n` valida sintaxis, NO ámbito -- una función dentro de
+otra es sintácticamente correcta --, y comprobar la definición con `grep '^nombre()'`
+tampoco sirve, porque la indentación no dice nada del anidamiento. Lo que sí sirve es
+contar llaves hasta ese punto, o mirar si cae dentro del cuerpo de otra función.
+
 Detalle menor que hace dudar de un apply correcto: **el resumen del dry-run no imprime
 las altas dentro de un array**, solo las modificaciones. Al añadir un valor a un
 `choices` se ven los índices que se desplazan pero no el nuevo, y parece que se pierde
