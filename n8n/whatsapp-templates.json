@@ -172,6 +172,38 @@
           }
         ]
       }
+    },
+    {
+      "cuando": "Resumen de la jornada para un EMPLEADO del negocio (no para un cliente), cada mañana, solo los días en que tiene algo: citas hoy, tareas que vencen hoy o tareas vencidas. Es de utilidad y no de marketing porque informa de su propia agenda. Los datos van en líneas fijas del cuerpo y no en un parámetro, porque Meta no admite saltos de línea dentro de una variable.",
+      "variables": [
+        "nombre del empleado",
+        "número de citas",
+        "hora de la primera cita o 'ninguna'",
+        "tareas pendientes",
+        "tareas vencidas"
+      ],
+      "meta": {
+        "name": "aegora_resumen_diario",
+        "language": "es",
+        "category": "UTILITY",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Buenos días, {{1}}. Tu resumen de hoy:\n\nCitas: {{2}}\nPrimera cita: {{3}}\nTareas pendientes: {{4}}\nTareas vencidas: {{5}}\n\nTienes el detalle en el panel.",
+            "example": {
+              "body_text": [
+                [
+                  "Arturo",
+                  "4",
+                  "09:30",
+                  "6",
+                  "2"
+                ]
+              ]
+            }
+          }
+        ]
+      }
     }
   ],
   "_retiradas": [

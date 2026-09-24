@@ -4926,7 +4926,8 @@ fields:
       group: null
       hidden: false
       interface: boolean
-      note: null
+      note: Recibe cada mañana por WhatsApp el resumen de su día (citas y tareas), solo
+        los días en que tiene algo. Necesita el teléfono relleno.
       options: null
       readonly: false
       required: true

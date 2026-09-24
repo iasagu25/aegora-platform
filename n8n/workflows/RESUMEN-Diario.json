@@ -1,0 +1,379 @@
+{
+  "id": "aegoraResumenDiario",
+  "name": "RESUMEN · Diario al equipo",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -700,
+        0
+      ],
+      "id": "aegora-rd-01",
+      "name": "Cada día a las 8:00"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "r1",
+              "name": "tenant",
+              "type": "string",
+              "value": "__TENANT_ID__"
+            },
+            {
+              "id": "r2",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "__DIRECTUS_BASE_URL__"
+            },
+            {
+              "id": "r3",
+              "name": "tenant_timezone",
+              "type": "string",
+              "value": "Europe/Madrid"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -480,
+        0
+      ],
+      "id": "aegora-rd-02",
+      "name": "Config (editar por tenant)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// \"Hoy\" es el día en la zona del negocio, no en UTC: a las 8:00 de Madrid todavía\n// son las 6:00 en UTC, y un día calculado en UTC se come o se inventa las citas\n// de la primera y la última hora.\nconst c = $json;\nconst tz = c.tenant_timezone || 'Europe/Madrid';\nconst ahora = DateTime.now().setZone(tz);\nreturn [{ json: { ...c, tz,\n  desde: ahora.startOf('day').toUTC().toISO(),\n  hasta: ahora.endOf('day').toUTC().toISO(),\n  ahora: ahora.toUTC().toISO(),\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -260,
+        0
+      ],
+      "id": "aegora-rd-03",
+      "name": "Code · Hoy"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Code · Hoy').first().json.directus_base_url }}/items/employees",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ filter: JSON.stringify({ status: { _eq: 'Active' }, whatsapp_notifications: { _eq: true } }), fields: 'id,first_name,phone,phone_normalized,resources.id', limit: -1 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -40,
+        0
+      ],
+      "id": "aegora-rd-04",
+      "name": "HTTP · Empleados",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Code · Hoy').first().json.directus_base_url }}/items/appointments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ filter: JSON.stringify({ start_at: { _between: [$('Code · Hoy').first().json.desde, $('Code · Hoy').first().json.hasta] }, status: { _in: ['scheduled', 'confirmed'] } }), fields: 'id,start_at,recursos.resource_id,recursos.role', limit: -1 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        180,
+        0
+      ],
+      "id": "aegora-rd-05",
+      "name": "HTTP · Citas de hoy",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Code · Hoy').first().json.directus_base_url }}/items/tasks",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ filter: JSON.stringify({ status: { _eq: 'pending' }, assignee_id: { _nnull: true } }), fields: 'id,assignee_id,due_at', limit: -1 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        400,
+        0
+      ],
+      "id": "aegora-rd-06",
+      "name": "HTTP · Tareas pendientes",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Un resumen POR EMPLEADO, no uno del negocio: en una gestoría cada uno tiene su\n// agenda, y a Juan no le sirven las citas de Arturo.\nconst h = $('Code · Hoy').first().json;\nconst tz = h.tz;\n\n// Si una consulta falla, esto tiene que fallar A LA VISTA. Un resumen construido\n// sobre una lista vacía por un 403 diría \"no tienes nada hoy\" a quien tiene seis\n// citas, que es peor que no mandar nada.\nconst lista = (nombre) => {\n  const r = $(nombre).first().json || {};\n  const code = r.statusCode || 0;\n  if (code < 200 || code >= 300) {\n    const msg = (r.body && r.body.errors && r.body.errors[0] && r.body.errors[0].message) || code;\n    throw new Error(`${nombre}: Directus devolvió ${code} (${msg})`);\n  }\n  return (r.body && r.body.data) || [];\n};\nconst empleados = lista('HTTP · Empleados');\nconst citas = lista('HTTP · Citas de hoy');\nconst tareas = lista('HTTP · Tareas pendientes');\n\nconst idDe = (x) => (x && typeof x === 'object') ? x.id : x;\nconst ahora = DateTime.fromISO(h.ahora);\nconst finHoy = DateTime.fromISO(h.hasta);\n\nconst salida = [];\nconst omitidos = [];\nfor (const e of empleados) {\n  const suyos = new Set((e.resources || []).map(idDe).filter(Boolean));\n  // Solo la cita que ATIENDE (recurso primary). Un 'participant' acompaña, no la lleva.\n  const susCitas = citas.filter((a) => (a.recursos || []).some((r) =>\n    suyos.has(idDe(r.resource_id)) && (r.role || 'primary') === 'primary'));\n  const primera = susCitas.map((a) => a.start_at).sort()[0] || null;\n\n  const suyas = tareas.filter((t) => t.assignee_id === e.id);\n  const vencidas = suyas.filter((t) => t.due_at && DateTime.fromISO(t.due_at) < ahora).length;\n  const vencenHoy = suyas.filter((t) => t.due_at\n    && DateTime.fromISO(t.due_at) >= ahora && DateTime.fromISO(t.due_at) <= finHoy).length;\n\n  const telefono = e.phone_normalized || e.phone || '';\n  const nombre = e.first_name || 'equipo';\n  if (!telefono) { omitidos.push({ empleado: nombre, motivo: 'sin_telefono' }); continue; }\n  // Solo los días con algo: un \"hoy tienes 0 citas\" cada mañana enseña a no leerlo.\n  // Tareas pendientes sin plazo NO cuentan por sí solas: estarían ahí todos los días.\n  if (!susCitas.length && !vencenHoy && !vencidas) {\n    omitidos.push({ empleado: nombre, motivo: 'nada_hoy' }); continue;\n  }\n  salida.push({ json: {\n    telefono,\n    plantilla: 'aegora_resumen_diario',\n    parametros: JSON.stringify([\n      nombre,\n      String(susCitas.length),\n      primera ? DateTime.fromISO(primera).setZone(tz).toFormat('HH:mm') : 'ninguna',\n      String(suyas.length),\n      String(vencidas),\n    ]),\n    contact_id: '',\n    _empleado: nombre,\n  } });\n}\n\nif (!salida.length) {\n  return [{ json: { _nadie: true, empleados_con_aviso: empleados.length, omitidos } }];\n}\nsalida[0].json._omitidos = omitidos;\nreturn salida;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        0
+      ],
+      "id": "aegora-rd-07",
+      "name": "Code · Resúmenes"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "q1",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json._nadie === true }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        840,
+        0
+      ],
+      "id": "aegora-rd-08",
+      "name": "¿Hay a quién?"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraWhatsappPlantilla",
+          "mode": "id"
+        },
+        "mode": "each",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "telefono": "={{ $json.telefono }}",
+            "plantilla": "={{ $json.plantilla }}",
+            "parametros": "={{ $json.parametros }}",
+            "contact_id": "={{ $json.contact_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1060,
+        -100
+      ],
+      "id": "aegora-rd-09",
+      "name": "Execute · WhatsApp plantilla",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Una línea que diga qué ha pasado hoy: a quién se le mandó, a quién no y por qué.\n// Es lo que se mira cuando alguien dice \"hoy no me ha llegado el resumen\".\nconst items = $input.all().map((i) => i.json);\nif (items.length === 1 && items[0]._nadie) {\n  return [{ json: { enviados: 0, fallidos: [], omitidos: items[0].omitidos } }];\n}\nlet omitidos = [];\ntry { omitidos = $('Code · Resúmenes').first().json._omitidos || []; } catch (e) { omitidos = []; }\nreturn [{ json: {\n  enviados: items.filter((x) => x.enviado).length,\n  fallidos: items.filter((x) => !x.enviado).map((x) => x.error || x.motivo || 'desconocido'),\n  omitidos,\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        0
+      ],
+      "id": "aegora-rd-10",
+      "name": "Code · Balance"
+    }
+  ],
+  "connections": {
+    "Cada día a las 8:00": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "Code · Hoy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Hoy": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Empleados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Empleados": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Citas de hoy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Citas de hoy": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Tareas pendientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Tareas pendientes": {
+      "main": [
+        [
+          {
+            "node": "Code · Resúmenes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Resúmenes": {
+      "main": [
+        [
+          {
+            "node": "¿Hay a quién?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · WhatsApp plantilla": {
+      "main": [
+        [
+          {
+            "node": "Code · Balance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay a quién?": {
+      "main": [
+        [
+          {
+            "node": "Execute · WhatsApp plantilla",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Balance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Madrid",
+    "saveDataErrorExecution": "all"
+  }
+}

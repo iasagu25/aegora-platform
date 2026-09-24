@@ -1022,6 +1022,34 @@ reintenta solo**, igual que en `HUMANO · Enviar pendientes`. Un tenant sin
 rompe nada, pero el prompt de voz NO debe prometer la confirmación hasta que estén
 aprobadas: es el mismo fallo que las tools que no existían.
 
+### Resumen diario al equipo por WhatsApp (24/sep/2026)
+`RESUMEN · Diario al equipo` manda cada día a las 8:00 (hora de Madrid, `settings.timezone`
+del workflow) la plantilla `aegora_resumen_diario` a cada empleado con
+`whatsapp_notifications` activado y teléfono relleno. El campo ya existía en `employees` y
+no lo usaba nada; ahora tiene una nota que explica qué hace.
+
+Decisiones:
+- **Un resumen por empleado**, con SUS citas (recurso `primary`; un `participant` acompaña,
+  no atiende) y SUS tareas. Para ir de una cita a quien la atiende hace falta leer
+  `appointment_resources`, así que n8n tiene ahora `read` sobre esa colección.
+- **Solo los días con algo**: citas hoy, tareas que vencen hoy o tareas vencidas. Una tarea
+  pendiente sin plazo no dispara el resumen por sí sola, porque estaría ahí todos los días.
+- **Los datos van en líneas fijas del cuerpo de la plantilla, no en un parámetro.** Meta NO
+  admite saltos de línea, tabuladores ni más de cuatro espacios seguidos dentro de una
+  variable, así que "la lista de citas en `{{1}}`" no se puede hacer. Por eso es un
+  recuento (citas, primera hora, pendientes, vencidas) y el detalle está en el panel.
+- **Si una consulta a Directus falla, el workflow falla a la vista.** Un resumen montado
+  sobre una lista vacía por un 403 le diría "no tienes nada hoy" a quien tiene seis citas.
+- El `Execute Workflow` va con **`mode: each`**. Por defecto manda todos los items a UNA
+  ejecución del sub-workflow, que lee uno solo: con tres empleados le llegaría al primero.
+
+**Hueco conocido, a propósito:** si el empleado CONTESTA a la plantilla, su mensaje entra
+por el adapter de WhatsApp como si fuera un cliente y le responde Lucía. No rompe nada, pero
+es feo. La siguiente fase es reconocer los teléfonos de los empleados en el adapter y
+desviarlos a un flujo determinista que mande el detalle del día como texto libre (su
+respuesta ya ha abierto la ventana de 24 h). Ese detalle tiene que salir de consultas, no
+redactado por un modelo.
+
 Sigue pendiente **enviar la política de privacidad por WhatsApp** cuando preguntan por sus
 datos: necesita su propia plantilla (con la URL) y una tool que la dispare, porque no nace
 de ninguna acción sobre una cita.

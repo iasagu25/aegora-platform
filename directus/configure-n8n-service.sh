@@ -395,6 +395,7 @@ Permissions:
   contact_phones  create / read / update · all fields
   tasks           create / read / update · all fields
   appointments    create / read / update · all fields
+  appointment_resources  read   (de la cita a quien la atiende)
 
   conversation_sessions  create / read / update / delete
   conversation_messages  create / read / update
@@ -480,6 +481,9 @@ const permissionModel = {
   contact_phones: ['create', 'read', 'update'],
   tasks: ['create', 'read', 'update'],
   appointments: ['create', 'read', 'update'],
+  // Solo lectura: es el único camino de una cita a quien la atiende, y lo necesita el
+  // resumen diario de cada empleado. Las escrituras siguen siendo del Booking API.
+  appointment_resources: ['read'],
   // Config de booking: solo lectura. La capa n8n (workflows / cerebro) la
   // necesita para resolver service_id, recursos, horarios, etc. El Booking API
   // es quien escribe. NOTA: crear siempre con permissions=null, NUNCA {} —
