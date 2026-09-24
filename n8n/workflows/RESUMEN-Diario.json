@@ -79,7 +79,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendQuery": true,
         "specifyQuery": "json",
-        "jsonQuery": "={{ JSON.stringify({ filter: JSON.stringify({ status: { _eq: 'Active' }, whatsapp_notifications: { _eq: true } }), fields: 'id,first_name,phone,phone_normalized,resources.id', limit: -1 }) }}",
+        "jsonQuery": "={{ JSON.stringify({ filter: JSON.stringify({ status: { _eq: 'active' }, whatsapp_notifications: { _eq: true } }), fields: 'id,first_name,phone,phone_normalized,resources.id', limit: -1 }) }}",
         "options": {
           "response": {
             "response": {

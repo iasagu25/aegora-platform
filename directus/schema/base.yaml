@@ -4973,10 +4973,10 @@ fields:
       note: null
       options:
         choices:
-          - text: active
-            value: Active
-          - text: inactive
-            value: Inactive
+          - text: Activo
+            value: active
+          - text: Inactivo
+            value: inactive
       readonly: false
       required: true
       searchable: true
