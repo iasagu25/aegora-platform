@@ -986,10 +986,19 @@ prompt nombre**. Detalle que volverá: cuando un turno no avanza el cliente repi
 repetición el ASR se equivoca más -- aquí "sí, resérvala" se transcribió *"Cierreserva"* y
 el modelo lo leyó como cancelar.
 
-Y dos cosas que el prompt **promete y todavía no existen**: la transferencia a una persona
-(la hace la plataforma, hay que configurar el número antes de la primera llamada real o la
-promesa es falsa) y la confirmación por WhatsApp al cerrar la llamada (necesita una
-plantilla de utilidad y algo que la dispare).
+**Transferencia a una persona: resuelta (24/sep/2026).** `Transfer Call` de Retell no
+funciona en llamadas web -- solo con un número de teléfono real detrás -- así que hasta
+tener el número de Zadarma asociado no era probable ni siquiera testearlo. Con el número
+asociado, el `Displayed Caller ID` en "Retell Agent's Number" seguía enseñando un `+44`:
+no es un fallback de Retell, es el **CallerID por defecto de la cuenta de Zadarma**, que
+Zadarma usa cada vez que la cabecera `From` no le llega en E.164 exacto o no coincide con
+`P-Asserted-Identity`. Se arregla en el panel de Zadarma (ajustes de la SIP trunk ->
+CallerID por defecto -> el número real), no en Retell. Si algún día vuelve a salir un
+número que no es el nuestro, mirar ahí primero.
+
+Queda pendiente **la confirmación por WhatsApp al cerrar la llamada**: necesita una
+plantilla de utilidad y algo que la dispare (ver más abajo, apuntado junto con el envío de
+la política de privacidad -- comparten plantilla, disparador y condición de canal).
 
 Pendiente antes de elegir plataforma: **webcall primero, sin teléfono** (los dos tienen SDK
 web y ya existe la web del webchat), que quita de en medio toda la capa regulatoria; y un
