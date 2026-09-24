@@ -119,3 +119,19 @@ nada. Dejar `reservar_cita` y `cancelar_cita` para cuando el resto responda bien
   enseñaría también las llamadas.
 - **No transfiere a una persona.** Eso lo hace la plataforma de voz y hay que
   configurarlo: un agente sin salida es una trampa para quien llama.
+
+## Confirmación por WhatsApp (24/sep/2026)
+
+Después de `Responder` -- con la respuesta ya entregada a la plataforma de voz --,
+`Code · ¿Confirmar por WhatsApp?` decide si hay que avisar al cliente y, si toca, lanza
+`WHATSAPP · Enviar plantilla` **sin esperar a que termine**:
+
+| la tool devuelve | plantilla |
+|---|---|
+| `reservar_cita` → `ok: true, motivo: reservada` | `aegora_cita_confirmada` |
+| `reprogramar_cita` → `ok: true, motivo: reprogramada` | `aegora_cita_confirmada` (servicio de `antes`, día y hora de `cita`) |
+| `cancelar_cita` → `ok: true, motivo: cancelada` | `aegora_cita_anulada` |
+| cualquier otra cosa, o `canal` distinto de `voz` | nada (`no_aplica`) |
+
+Parámetros: `[servicio, fecha_label, hora]`. Si falta alguno no se envía nada y la
+ejecución dice por qué.

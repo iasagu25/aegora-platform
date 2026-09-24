@@ -412,7 +412,11 @@ activado en las siete.
 - **Transferencia a una persona**: la regla 7 la promete y la hace la plataforma, no el
   prompt. Hay que configurar el número de destino antes de la primera llamada real, o la
   promesa es falsa.
-- **Dos envíos por WhatsApp que el prompt promete y NO existen** (23/sep/2026). Los dos
+- **Confirmación de cita por WhatsApp: construida el 24/sep/2026** (ver `CLAUDE.md`). En
+  cuanto Meta apruebe `aegora_cita_confirmada` y `aegora_cita_anulada`, se añade al prompt
+  la frase que la anuncia -- no antes.
+- **Dos envíos por WhatsApp que el prompt promete y NO existen** (23/sep/2026; el primero
+  ya está resuelto, arriba). Los dos
   comparten plantilla, disparador y condición, así que se hacen juntos o ninguno:
   1. La **confirmación de cita** de la regla 5, al cerrar una reserva.
   2. La **política de privacidad**, cuando preguntan por sus datos -- hoy esa línea está

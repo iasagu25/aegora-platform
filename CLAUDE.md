@@ -996,9 +996,35 @@ Zadarma usa cada vez que la cabecera `From` no le llega en E.164 exacto o no coi
 CallerID por defecto -> el número real), no en Retell. Si algún día vuelve a salir un
 número que no es el nuestro, mirar ahí primero.
 
-Queda pendiente **la confirmación por WhatsApp al cerrar la llamada**: necesita una
-plantilla de utilidad y algo que la dispare (ver más abajo, apuntado junto con el envío de
-la política de privacidad -- comparten plantilla, disparador y condición de canal).
+**Confirmación por WhatsApp de lo hecho por teléfono (24/sep/2026).** Reservar, mover o
+anular una cita por voz manda una plantilla al mismo número: `aegora_cita_confirmada`
+(reserva y cambio) o `aegora_cita_anulada`. Tres decisiones:
+- **Se dispara en el despachador DESPUÉS de `Responder`, y sin esperar**
+  (`waitForSubWorkflow: false`). Retell ya tiene su respuesta: la voz no paga ni un
+  milisegundo por el envío.
+- **Solo con `canal: voz` y `ok: true`** en `reservada` / `reprogramada` / `cancelada`. Por
+  WhatsApp Lucía acaba de confirmarlo en el mismo hilo, y un `ya_estaba_reservada` ya tuvo
+  su confirmación la primera vez.
+- **Las plantillas no llevan el nombre del cliente**: un parámetro de Meta no puede ir
+  vacío y por voz el nombre no siempre se sabe. Si falta cualquier dato de la cita, no se
+  manda nada (`faltan_datos_de_la_cita`, a la vista en la ejecución): mejor sin mensaje que
+  con un hueco.
+
+El envío lo hace **`WHATSAPP · Enviar plantilla`**, genérico a propósito: es el mismo
+camino que necesitarán el recordatorio y el botón de "cambiar cita". Anota el mensaje en
+`conversation_messages` bajo el hilo `whatsapp:<tel>` (creándolo si no existe) **y en la
+memoria del Core** de ese hilo: si el cliente contesta "vale, gracias", el gestor y Lucía
+ven a qué contesta. Un envío fallido queda `fallido` con el error de Meta y **no se
+reintenta solo**, igual que en `HUMANO · Enviar pendientes`. Un tenant sin
+`secrets/whatsapp.env` no intenta nada (`tenant_sin_whatsapp`).
+
+**Mientras Meta no apruebe las dos plantillas, todos los envíos saldrán `fallido`.** No
+rompe nada, pero el prompt de voz NO debe prometer la confirmación hasta que estén
+aprobadas: es el mismo fallo que las tools que no existían.
+
+Sigue pendiente **enviar la política de privacidad por WhatsApp** cuando preguntan por sus
+datos: necesita su propia plantilla (con la URL) y una tool que la dispare, porque no nace
+de ninguna acción sobre una cita.
 
 Pendiente antes de elegir plataforma: **webcall primero, sin teléfono** (los dos tienen SDK
 web y ya existe la web del webchat), que quita de en medio toda la capa regulatoria; y un

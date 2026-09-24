@@ -1,0 +1,667 @@
+{
+  "id": "aegoraWhatsappPlantilla",
+  "name": "WHATSAPP · Enviar plantilla",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "telefono"
+            },
+            {
+              "name": "plantilla"
+            },
+            {
+              "name": "parametros"
+            },
+            {
+              "name": "contact_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -600,
+        0
+      ],
+      "id": "aegora-wp-01",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "w1",
+              "name": "tenant",
+              "type": "string",
+              "value": "__TENANT_ID__"
+            },
+            {
+              "id": "w2",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "__DIRECTUS_BASE_URL__"
+            },
+            {
+              "id": "w3",
+              "name": "phone_number_id",
+              "type": "string",
+              "value": "REPLACE_PHONE_NUMBER_ID"
+            },
+            {
+              "id": "w4",
+              "name": "graph_version",
+              "type": "string",
+              "value": "v21.0"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -380,
+        0
+      ],
+      "id": "aegora-wp-02",
+      "name": "Config (editar por tenant)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Envía UNA plantilla de WhatsApp y deja constancia donde la verá quien atiende.\n// Genérico a propósito: hoy lo usa la confirmación de citas por voz, y es el mismo\n// camino que necesitarán el recordatorio y el botón de \"cambiar cita\".\n//\n// Fuera de la ventana de 24 h solo se puede mandar una plantilla APROBADA por Meta.\n// Si todavía no lo está, Meta rechaza el envío y aquí se anota como fallido: no rompe\n// nada ni se reintenta solo.\nconst c = $json;\nconst limpio = (v) => (v === undefined || v === null) ? '' : String(v).trim();\n\n// Textos de las plantillas, para que la bandeja y la memoria muestren lo que el\n// cliente recibió de verdad. Generados desde n8n/whatsapp-templates.json: si se\n// cambia una plantilla allí, se cambia aquí. Una que no esté solo pierde el texto\n// bonito en el registro, no el envío.\nconst TEXTOS = {\n  \"aegora_recordatorio_cita\": \"Hola {{1}}, te recordamos tu cita del {{2}} a las {{3}}.\\n\\nSi necesitas cambiarla o cancelarla, responde a este mensaje y te ayudamos.\",\n  \"aegora_cambio_cita\": \"Hola {{1}}, necesitamos cambiar tu cita del {{2}} a las {{3}}. Lo sentimos.\\n\\n¿Qué día y hora te vendrían bien? Respóndenos y lo reorganizamos.\",\n  \"aegora_gestion_lista\": \"Hola {{1}}, ya tenemos lista tu {{2}}.\\n\\nResponde a este mensaje y te contamos los siguientes pasos.\",\n  \"aegora_cita_confirmada\": \"Te confirmamos tu cita de {{1}} el {{2}} a las {{3}}.\\n\\nSi necesitas cambiarla o cancelarla, responde a este mensaje y te ayudamos.\",\n  \"aegora_cita_anulada\": \"Te confirmamos que hemos anulado tu cita de {{1}} del {{2}} a las {{3}}.\\n\\nSi quieres pedir otra, responde a este mensaje y te ayudamos.\"\n};\n\nconst telefono = limpio(c.telefono).replace(/[^\\d]/g, '');\nconst plantilla = limpio(c.plantilla);\nlet parametros = [];\ntry { parametros = JSON.parse(c.parametros || '[]'); } catch (e) { parametros = null; }\n\nlet motivo = null;\nif (!c.phone_number_id || c.phone_number_id.startsWith('REPLACE_')) motivo = 'tenant_sin_whatsapp';\nelse if (!telefono) motivo = 'sin_telefono';\nelse if (!plantilla) motivo = 'sin_plantilla';\n// Meta rechaza un parámetro vacío, y una plantilla con un hueco es peor que no mandarla.\nelse if (!Array.isArray(parametros) || parametros.some((p) => !limpio(p))) motivo = 'parametros_incompletos';\n\nconst texto = TEXTOS[plantilla]\n  ? TEXTOS[plantilla].replace(/\\{\\{(\\d+)\\}\\}/g, (_, i) => limpio((parametros || [])[Number(i) - 1]))\n  : `[plantilla ${plantilla}] ${(parametros || []).join(' · ')}`;\n\nreturn [{ json: {\n  _enviar: !motivo,\n  motivo,\n  directus_base_url: c.directus_base_url,\n  telefono,\n  plantilla,\n  contact_id: limpio(c.contact_id) || null,\n  // El hilo de WhatsApp del cliente, que es donde contestará si responde.\n  _session_key: `whatsapp:${telefono}`,\n  _texto: texto,\n  _url: `https://graph.facebook.com/${c.graph_version}/${c.phone_number_id}/messages`,\n  _body: {\n    messaging_product: 'whatsapp', to: telefono, type: 'template',\n    template: { name: plantilla, language: { code: 'es' },\n      components: [{ type: 'body',\n        parameters: (parametros || []).map((p) => ({ type: 'text', text: limpio(p) })) }] },\n  },\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        0
+      ],
+      "id": "aegora-wp-03",
+      "name": "Code · Preparar envío"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "e1",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json._enviar }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        60,
+        0
+      ],
+      "id": "aegora-wp-04",
+      "name": "¿Se puede enviar?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json._url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json._body) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        280,
+        -100
+      ],
+      "id": "aegora-wp-05",
+      "name": "HTTP · WhatsApp plantilla",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_WHATSAPP__",
+          "name": "WhatsApp"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Traduce la respuesta de Graph. Un envío que falla NO se reintenta solo: queda\n// 'fallido' con el motivo a la vista. Reintentar a ciegas contra WhatsApp es la\n// forma de mandar cuatro veces lo mismo a una persona real.\nconst p = $('Code · Preparar envío').first().json;\nconst r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nconst ok = code >= 200 && code < 300 && Array.isArray(body.messages) && body.messages[0];\nreturn [{ json: { ...p,\n  _enviado: Boolean(ok),\n  wamid: ok ? (body.messages[0].id || null) : null,\n  error: ok ? null : `WhatsApp rechazó la plantilla (${code}): ${\n    (body.error && body.error.message) || JSON.stringify(body).slice(0, 300)}`,\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        -100
+      ],
+      "id": "aegora-wp-06",
+      "name": "Code · Resultado envío"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.directus_base_url }}/items/conversation_sessions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ 'filter[session_key][_eq]': $json._session_key, limit: 1, fields: 'id,contact_id' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        720,
+        -100
+      ],
+      "id": "aegora-wp-07",
+      "name": "HTTP · Buscar sesión",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// El envío se anota en el hilo de WhatsApp del cliente: si contesta, su respuesta cae\n// ahí y quien lea la bandeja ve a qué está contestando. Sin esto, el gestor se\n// encontraría un \"vale, gracias\" sin nada delante.\nconst e = $('Code · Resultado envío').first().json;\nconst filas = (($json || {}).body || {}).data || [];\nconst s = filas[0] || null;\nreturn [{ json: { ...e,\n  session_id: (s && s.id) || null,\n  contact_id: e.contact_id || (s && s.contact_id) || null,\n  _crear: !s,\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        940,
+        -100
+      ],
+      "id": "aegora-wp-08",
+      "name": "Code · Sesión"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "e2",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json._crear }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1160,
+        -100
+      ],
+      "id": "aegora-wp-09",
+      "name": "¿Crear sesión?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.directus_base_url }}/items/conversation_sessions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ session_key: $json._session_key, canal: 'whatsapp', contact_id: $json.contact_id }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1380,
+        -200
+      ],
+      "id": "aegora-wp-10",
+      "name": "HTTP · Crear sesión",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Se pide por nombre y no por $json: aquí se llega desde dos sitios (sesión nueva o\n// ya existente) y $json no es lo mismo en cada uno.\nconst s = $('Code · Sesión').first().json;\nlet session_id = s.session_id;\nif (!session_id) {\n  try {\n    const r = $('HTTP · Crear sesión').first().json;\n    session_id = (r.body && r.body.data && r.body.data.id) || null;\n  } catch (e) { session_id = null; }\n}\nreturn [{ json: { ...s, session_id,\n  fila: session_id ? {\n    session_id, contact_id: s.contact_id, canal: 'whatsapp',\n    direccion: 'saliente', autor: 'lucia', texto: s._texto,\n    estado_envio: s._enviado ? 'enviado' : 'fallido',\n    canal_message_id: s.wamid, error: s.error,\n  } : null,\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        -100
+      ],
+      "id": "aegora-wp-11",
+      "name": "Code · Fila del mensaje"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "e3",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ Boolean($json.fila) }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1820,
+        -100
+      ],
+      "id": "aegora-wp-12",
+      "name": "¿Hay hilo?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.directus_base_url }}/items/conversation_messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.fila) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2040,
+        -200
+      ],
+      "id": "aegora-wp-13",
+      "name": "HTTP · Guardar mensaje",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "e4",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $('Code · Fila del mensaje').first().json._enviado }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2260,
+        -100
+      ],
+      "id": "aegora-wp-14",
+      "name": "¿Enviado?"
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "insertMode": "insert",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "ai",
+              "message": "={{ $('Code · Fila del mensaje').first().json._texto }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryManager",
+      "typeVersion": 1,
+      "position": [
+        2480,
+        -200
+      ],
+      "id": "aegora-wp-15",
+      "name": "Memoria · Anotar plantilla"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Code · Fila del mensaje').first().json._session_key }}",
+        "tableName": "n8n_chat_histories",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        2480,
+        0
+      ],
+      "id": "aegora-wp-16",
+      "name": "Postgres Chat Memory (plantilla)",
+      "credentials": {
+        "postgres": {
+          "id": "__CRED_POSTGRES_ACCOUNT__",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Un resumen legible de lo que pasó, se haya enviado, fallado o ni intentado. Quien\n// llama no espera la respuesta (va en segundo plano), pero la ejecución sí la guarda,\n// y es lo primero que hay que mirar si alguien dice \"no me ha llegado nada\".\nlet r = null;\ntry { r = $('Code · Fila del mensaje').first().json; } catch (e) { r = null; }\nif (!r) {\n  const p = $('Code · Preparar envío').first().json;\n  return [{ json: { ok: false, enviado: false, motivo: p.motivo, plantilla: p.plantilla } }];\n}\nreturn [{ json: { ok: r._enviado, enviado: r._enviado, plantilla: r.plantilla,\n  wamid: r.wamid, error: r.error, anotado_en: r.fila ? r._session_key : null } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2700,
+        -100
+      ],
+      "id": "aegora-wp-17",
+      "name": "Code · Salida"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "Code · Preparar envío",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Preparar envío": {
+      "main": [
+        [
+          {
+            "node": "¿Se puede enviar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Se puede enviar?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · WhatsApp plantilla",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · WhatsApp plantilla": {
+      "main": [
+        [
+          {
+            "node": "Code · Resultado envío",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Resultado envío": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Buscar sesión",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Buscar sesión": {
+      "main": [
+        [
+          {
+            "node": "Code · Sesión",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Sesión": {
+      "main": [
+        [
+          {
+            "node": "¿Crear sesión?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Crear sesión?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Crear sesión",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Fila del mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Crear sesión": {
+      "main": [
+        [
+          {
+            "node": "Code · Fila del mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Fila del mensaje": {
+      "main": [
+        [
+          {
+            "node": "¿Hay hilo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay hilo?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Guardar mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Enviado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Guardar mensaje": {
+      "main": [
+        [
+          {
+            "node": "¿Enviado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Enviado?": {
+      "main": [
+        [
+          {
+            "node": "Memoria · Anotar plantilla",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memoria · Anotar plantilla": {
+      "main": [
+        [
+          {
+            "node": "Code · Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory (plantilla)": {
+      "ai_memory": [
+        [
+          {
+            "node": "Memoria · Anotar plantilla",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -116,6 +116,62 @@
           }
         ]
       }
+    },
+    {
+      "cuando": "Confirmación de una cita recién reservada o cambiada POR TELÉFONO. En WhatsApp no se manda: Lucía acaba de confirmarlo en el mismo hilo. Sin nombre del cliente a propósito: una variable de Meta no puede ir vacía y por voz el nombre no siempre se sabe.",
+      "variables": [
+        "servicio",
+        "día en texto",
+        "hora"
+      ],
+      "meta": {
+        "name": "aegora_cita_confirmada",
+        "language": "es",
+        "category": "UTILITY",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Te confirmamos tu cita de {{1}} el {{2}} a las {{3}}.\n\nSi necesitas cambiarla o cancelarla, responde a este mensaje y te ayudamos.",
+            "example": {
+              "body_text": [
+                [
+                  "Declaración de la renta",
+                  "viernes 25 de septiembre",
+                  "10:00"
+                ]
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "cuando": "Confirmación de una cita anulada POR TELÉFONO. Mismo criterio que aegora_cita_confirmada.",
+      "variables": [
+        "servicio",
+        "día en texto",
+        "hora"
+      ],
+      "meta": {
+        "name": "aegora_cita_anulada",
+        "language": "es",
+        "category": "UTILITY",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Te confirmamos que hemos anulado tu cita de {{1}} del {{2}} a las {{3}}.\n\nSi quieres pedir otra, responde a este mensaje y te ayudamos.",
+            "example": {
+              "body_text": [
+                [
+                  "Declaración de la renta",
+                  "viernes 25 de septiembre",
+                  "10:00"
+                ]
+              ]
+            }
+          }
+        ]
+      }
     }
   ],
   "_retiradas": [
