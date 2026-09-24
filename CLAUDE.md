@@ -1059,6 +1059,28 @@ pruebas. Para eso existe `reset-tenant-data.sh`.
 Y un aviso para quien escriba los comandos (yo incluido): **si en una sesión te descubres
 escribiendo `--tenant demo` para algo que acabas de crear, párate.** Ese es el síntoma.
 
+### `--only` es para iterar en `dev`; a `demo` y `ops` se promociona ENTERO
+`render-workflows.sh --only` existe para no reimportar 45 workflows por cada cambio de un
+fichero mientras se itera. Usarlo para **promocionar** convierte el tenant destino en una
+mezcla de versiones de días distintos, y no hay nada que lo avise: cada workflow importado
+funciona, lo que falla es la combinación con los que se quedaron atrás.
+
+Pasó el 23/sep/2026: `17 · CORE · Resolve Context` cambió el 22/sep y a `demo` solo le
+habían llegado tres workflows por `--only` desde entonces. El síntoma --"el contacto no se
+enlaza en demo y en dev sí"-- se leyó sucesivamente como permiso, como teléfono sin prefijo
+y como esquema, antes de ver que `demo` corría sub-workflows de otra semana.
+
+La regla:
+
+| destino | cómo |
+|---|---|
+| `dev` | `--only` libremente, es para eso |
+| `demo` / `ops` | `render-workflows.sh --tenant X` **sin `--only`**: PLAN, revisar la línea de secretos de WhatsApp y Retell, y `--apply` |
+
+Un render completo publica los 45 (menos `SESSION · Cleanup`) y reinicia n8n: se hace en un
+momento en que no haya una demo en curso. Si algo en `demo` está despublicado a propósito,
+va a volver a activarse, y eso tiene que estar escrito aquí para que no sorprenda.
+
 **`onboard-tenant.sh` va por detrás de los scripts que existen.** Encadena create, deploy,
 esquema, acceso técnico, UI, español, booking, publicación, backup y operaciones — pero NO
 llama a `configure-n8n-service.sh` (sin él Lucía no puede leer nada), `configure-tenant-role.sh`,
