@@ -1048,8 +1048,10 @@ aprobadas: es el mismo fallo que las tools que no existían.
 ### VIP y números bloqueados: se decide ANTES de descolgar (25/sep/2026)
 `VOZ · Llamada entrante` (`POST /webhook/retell-inbound`) es el *inbound webhook* de Retell.
 Bloqueado (`numeros_bloqueados`) -> se rechaza. `contacts.trato = vip` con `gestor_id`
-activo y con teléfono -> agente pasarela (`RETELL_AGENTE_PASARELA` en `secrets/retell.env`)
-que transfiere a `{{destino_transferencia}}`. El resto -> Lucía con nombre, empresa y
+activo y con teléfono -> agente pasarela (`RETELL_AGENTE_PASARELA` en `secrets/retell.env`):
+un Conversation Flow cuyo nodo inicial es un Transfer Call a `{{destino_transferencia}}`, que
+**no habla** -- el VIP no oye a ninguna IA. Retell no puede transferir sin agente: el webhook
+solo rechaza o elige agente, así que "transferir y ya está" es ESTE agente mudo. El resto -> Lucía con nombre, empresa y
 servicios como variables dinámicas. Detalle y montaje en Retell: `n8n/prompts/lucia-voz.md`.
 
 La regla que lo gobierna todo: **falla hacia Lucía**. Un error nuestro nunca rechaza ni

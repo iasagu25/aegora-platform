@@ -462,10 +462,14 @@ Qué se monta en Retell (lo hace el usuario):
   Lucía.
 - **Lucía** -> variables dinámicas por defecto, todas vacías: `nombre_cliente`,
   `empresa_cliente`, `es_cliente`, `servicios`, `es_vip`, `gestor_nombre`.
-- **Agente pasarela** (Single Prompt, sin tools salvo `transfer_call`): saluda con el aviso
-  de IA, dice que le pasa con `{{gestor_nombre}}` y transfiere a `{{destino_transferencia}}`.
-  Si el gestor no contesta, la transferencia de vuelta es a Lucía (o a tomar recado), no un
-  buzón muerto. Su `agent_id` va a `RETELL_AGENTE_PASARELA` en `secrets/retell.env`.
+- **Agente pasarela** (Conversation Flow, NO Single Prompt): el nodo inicial es un **Transfer
+  Call** en frío a `{{destino_transferencia}}`. Ese nodo **no habla** (lo dice la doc de
+  Retell), así que el VIP no oye a ninguna IA: suena y contesta su gestor. Como no conversa
+  con una máquina, tampoco hay aviso de IA que dar. El borde de "transferencia fallida" (el
+  gestor no contesta) sí tiene que ir a algún sitio: a un nodo que dé el aviso de IA y tome
+  recado, o a colgar -- nunca sin conectar. Su `agent_id` va a `RETELL_AGENTE_PASARELA` en
+  `secrets/retell.env`. Pendiente de comprobar en el editor que el Transfer Call puede ser el
+  nodo inicial: la documentación no lo dice.
 
 ## Pendiente cuando se monte
 
