@@ -358,6 +358,12 @@ const collectionTranslations = {
     translation: 'Contactos',
   },
 
+  numeros_bloqueados: {
+    singular: 'Número bloqueado',
+    plural: 'Números bloqueados',
+    translation: 'Números bloqueados',
+  },
+
   contact_phones: {
     singular: 'Teléfono',
     plural: 'Teléfonos',
@@ -482,6 +488,16 @@ const fieldTranslations = {
     phones: 'Teléfonos',
     tasks: 'Tareas',
     appointments: 'Citas',
+    trato: 'Trato',
+    gestor_id: 'Gestor asignado',
+  },
+
+  numeros_bloqueados: {
+    id: 'ID',
+    telefono: 'Teléfono',
+    motivo: 'Motivo',
+    created_at: 'Bloqueado el',
+    user_created: 'Bloqueado por',
   },
 
   contact_phones: {

@@ -1,0 +1,468 @@
+{
+  "id": "aegoraRetellInbound",
+  "name": "VOZ · Llamada entrante",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "retell-inbound",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -900,
+        0
+      ],
+      "id": "aegora-ve-01",
+      "name": "Webhook · POST /retell-inbound",
+      "webhookId": "aegora-retell-inbound"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "i1",
+              "name": "tenant",
+              "type": "string",
+              "value": "__TENANT_ID__"
+            },
+            {
+              "id": "i2",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "__DIRECTUS_BASE_URL__"
+            },
+            {
+              "id": "i3",
+              "name": "retell_api_key",
+              "type": "string",
+              "value": "REPLACE_RETELL_API_KEY"
+            },
+            {
+              "id": "i4",
+              "name": "agente_pasarela",
+              "type": "string",
+              "value": "__RETELL_AGENTE_PASARELA__"
+            },
+            {
+              "id": "i5",
+              "name": "require_signature",
+              "type": "string",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -680,
+        0
+      ],
+      "id": "aegora-ve-02",
+      "name": "Config (editar por tenant)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Retell llama aquí ANTES de descolgar cada llamada entrante, y lo que se conteste\n// decide quién la atiende: rechazarla (número bloqueado), pasarla a otro agente (VIP)\n// o dejar a Lucía con lo que ya sabemos de quien llama.\n//\n// Regla de todo el workflow: FALLA HACIA LUCÍA. Si algo sale mal aquí, la respuesta\n// es \"sin cambios\" y Retell atiende con el agente que tenga el número. Nunca se rechaza\n// una llamada por un error nuestro: prefiero dejar pasar a un spammer que colgarle a un\n// cliente.\nconst cfg = $json;\nconst headers = cfg.headers || {};\n\n// La firma se calcula sobre los bytes EXACTOS, igual que en `VOZ · Nota de llamada`\n// (ver allí por qué hay tantas formas de recibir el cuerpo).\nlet raw = null, forma = 'ausente';\nlet b = cfg.body;\ntry {\n  const hook = $('Webhook · POST /retell-inbound').first();\n  if (hook && hook.json && hook.json.body !== undefined) b = hook.json.body;\n  const bin = (hook && hook.binary) || {};\n  const dato = bin.data || bin.body || Object.values(bin)[0];\n  if (dato && dato.data) { raw = Buffer.from(dato.data, 'base64').toString('utf8'); forma = 'binario_webhook'; }\n} catch (e) { /* sin webhook */ }\nif (!raw) {\n  if (typeof b === 'string') { raw = b; forma = 'string'; }\n  else if (b && b.type === 'Buffer' && Array.isArray(b.data)) { raw = Buffer.from(b.data).toString('utf8'); forma = 'buffer_json'; }\n  else if (b && typeof b === 'object') { forma = 'objeto_parseado'; }\n}\nlet cuerpo = {};\nif (raw) { try { cuerpo = JSON.parse(raw); } catch (e) { cuerpo = {}; } }\nelse if (b && typeof b === 'object') { cuerpo = b; }\n\nconst cruda = String(headers['x-retell-signature'] || '');\nconst hex = cruda.match(/[0-9a-fA-F]{64}/);\nconst mt = cruda.match(/v=(\\d+)/);\nconst ts = mt ? mt[1] : '';\n\nconst llamada = cuerpo.call_inbound || {};\n// Mismo criterio que el despachador y la nota: un español sin el 34 es el mismo número.\nconst aE164 = (x) => { const g = String(x || '').replace(/[^\\d]/g, ''); return /^[6789]\\d{8}$/.test(g) ? `34${g}` : g; };\nreturn [{ json: {\n  evento: String(cuerpo.event || ''),\n  llamada,\n  telefono: aE164(llamada.from_number),\n  directus_base_url: cfg.directus_base_url,\n  agente_pasarela: String(cfg.agente_pasarela || '').startsWith('__') ? '' : String(cfg.agente_pasarela || ''),\n  forma_cuerpo: forma,\n  _raw: raw || '', _ts: ts, _sig: hex ? hex[0] : cruda.trim(),\n  // Lo firmado es CUERPO + MARCA DE TIEMPO, en ese orden (confirmado en call_analyzed).\n  _firmado: raw && ts ? `${raw}${ts}` : '',\n  _secret: String(cfg.retell_api_key || ''),\n  _require_signature: String(cfg.require_signature).toLowerCase() === 'true',\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -460,
+        0
+      ],
+      "id": "aegora-ve-03",
+      "name": "Code · Clasificar"
+    },
+    {
+      "parameters": {
+        "action": "hmac",
+        "type": "SHA256",
+        "dataPropertyName": "_hmac",
+        "value": "={{ $json._firmado || 'sin-cuerpo' }}",
+        "secret": "={{ $json._secret || 'sin-secreto' }}",
+        "encoding": "hex"
+      },
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        0
+      ],
+      "id": "aegora-ve-04",
+      "name": "Crypto · HMAC",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sin firma válida no se consulta NADA: la respuesta de este webhook lleva el nombre\n// del cliente y el teléfono de su gestor, y sin verificar cualquiera podría preguntar\n// por un número y enterarse. El veredicto sale siempre, como en la nota de llamada.\nconst d = $json;\nconst a = String(d._hmac || ''), b = String(d._sig || '');\nlet igual = a.length > 0 && a.length === b.length;\nfor (let i = 0; i < Math.max(a.length, b.length); i++) if ((a.charCodeAt(i) || 0) !== (b.charCodeAt(i) || 0)) igual = false;\nlet firma = 'invalida', firma_motivo = null;\nif (!d._secret || d._secret.startsWith('REPLACE_')) { firma = 'no_verificada'; firma_motivo = 'no hay RETELL_API_KEY en el tenant'; }\nelse if (!b) { firma = 'ausente'; firma_motivo = 'sin x-retell-signature'; }\nelse if (!d._raw) { firma = 'no_verificada'; firma_motivo = `sin cuerpo crudo (${d.forma_cuerpo})`; }\nelse if (igual) {\n  const edad = Math.abs(Date.now() - Number(d._ts || 0));\n  firma = edad <= 5 * 60 * 1000 ? 'valida' : 'caducada';\n  if (firma === 'caducada') firma_motivo = `marca de tiempo a ${Math.round(edad / 1000)}s`;\n} else { firma_motivo = 'el HMAC no coincide'; }\n\nconst procesar = d.evento === 'call_inbound' && (firma === 'valida' || !d._require_signature);\nconst salida = { ...d, firma, firma_motivo, procesar };\nfor (const k of ['_raw', '_sig', '_secret', '_hmac', '_firmado']) delete salida[k];\nreturn [{ json: salida }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -20,
+        0
+      ],
+      "id": "aegora-ve-05",
+      "name": "Code · Verificar firma"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "p1",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.procesar }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        200,
+        0
+      ],
+      "id": "aegora-ve-06",
+      "name": "¿Procesar?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Firma inválida, u otro evento (un SMS entrante también pasa por aquí). Se contesta\n// \"sin cambios\": Retell sigue con el agente del número y no se ha revelado nada.\nconst d = $json;\nreturn [{ json: { respuesta: d.evento === 'call_inbound' ? { call_inbound: {} } : {},\n  decision: 'sin_cambios', motivo: d.evento === 'call_inbound' ? `firma ${d.firma}` : `evento ${d.evento || '?'}`,\n  firma_motivo: d.firma_motivo } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        200
+      ],
+      "id": "aegora-ve-07",
+      "name": "Code · Sin cambios"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Code · Verificar firma').first().json.directus_base_url }}/items/numeros_bloqueados",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ fields: 'telefono', limit: -1 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        420,
+        -100
+      ],
+      "id": "aegora-ve-08",
+      "name": "HTTP · Bloqueados",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "hNxGTXIyjXkP7iwR",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "",
+            "phone": "={{ $('Code · Verificar firma').first().json.telefono || '' }}",
+            "email": "",
+            "query": "",
+            "sin_contexto": "true"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        640,
+        -100
+      ],
+      "id": "aegora-ve-09",
+      "name": "Execute · 17 Resolve Contact",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Code · Verificar firma').first().json.directus_base_url }}/items/contacts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ 'filter[id][_eq]': ($('Execute · 17 Resolve Contact').first().json || {}).contact_id || '00000000-0000-0000-0000-000000000000', fields: 'first_name,last_name,company,trato,gestor_id.first_name,gestor_id.last_name,gestor_id.phone,gestor_id.phone_normalized,gestor_id.status', limit: 1 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        860,
+        -100
+      ],
+      "id": "aegora-ve-10",
+      "name": "HTTP · Contacto",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Code · Verificar firma').first().json.directus_base_url }}/items/services",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ 'filter[active][_eq]': true, fields: 'name', sort: 'name', limit: -1 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1080,
+        -100
+      ],
+      "id": "aegora-ve-11",
+      "name": "HTTP · Servicios",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// La decisión, en este orden: bloqueado -> VIP -> Lucía con contexto.\n// Todas las consultas van con neverError: una que falle cuenta como \"no sé nada\",\n// y \"no sé nada\" nunca rechaza ni desvía -- deja a Lucía.\nconst d = $('Code · Verificar firma').first().json;\nconst filas = (nombre) => {\n  try {\n    const r = $(nombre).first().json || {};\n    const code = r.statusCode || 0;\n    return (code >= 200 && code < 300 && r.body && Array.isArray(r.body.data)) ? r.body.data : null;\n  } catch (e) { return null; }\n};\n// Mismo criterio que el despachador: un español tecleado sin el 34 es el mismo número.\nconst aE164 = (x) => { const g = String(x || '').replace(/[^\\d]/g, ''); return /^[6789]\\d{8}$/.test(g) ? `34${g}` : g; };\nconst tel = d.telefono;\n\nconst bloqueados = filas('HTTP · Bloqueados');\nif (tel && bloqueados && bloqueados.some((b) => aE164(b.telefono) === tel)) {\n  return [{ json: { decision: 'rechazada', respuesta: { call_inbound: { reject: true } } } }];\n}\n\nconst contacto = (filas('HTTP · Contacto') || [])[0] || null;\nconst servicios = (filas('HTTP · Servicios') || []).map((s) => s.name).filter(Boolean);\n\n// Retell espera las variables como texto. Vacías si no se sabe: el prompt tiene que\n// tolerar que no estén, porque en una webcall de prueba tampoco llegarán.\nconst variables = {\n  telefono: tel,\n  nombre_cliente: (contacto && contacto.first_name) || '',\n  empresa_cliente: (contacto && contacto.company) || '',\n  es_cliente: contacto ? 'si' : 'no',\n  servicios: servicios.join(', '),\n  es_vip: 'no',\n  gestor_nombre: '',\n};\n\nconst g = contacto && contacto.gestor_id;\nconst gestorOk = g && String(g.status || '').toLowerCase() === 'active' && (g.phone_normalized || g.phone);\nif (contacto && contacto.trato === 'vip') {\n  variables.es_vip = 'si';\n  variables.gestor_nombre = (g && g.first_name) || '';\n  // Solo se desvía si TODO está: pasarela configurada y un gestor activo con teléfono.\n  // Un VIP sin eso lo atiende Lucía -- sabiendo que es VIP --, nunca se queda colgado.\n  if (d.agente_pasarela && gestorOk) {\n    variables.destino_transferencia = `+${aE164(g.phone_normalized || g.phone)}`;\n    return [{ json: { decision: 'vip_pasarela', respuesta: { call_inbound: {\n      override_agent_id: d.agente_pasarela, dynamic_variables: variables,\n      metadata: { aegora_decision: 'vip_pasarela' } } } } }];\n  }\n  return [{ json: { decision: 'vip_sin_pasarela',\n    motivo: !d.agente_pasarela ? 'tenant sin RETELL_AGENTE_PASARELA' : 'gestor sin asignar, inactivo o sin teléfono',\n    respuesta: { call_inbound: { dynamic_variables: variables, metadata: { aegora_decision: 'vip_sin_pasarela' } } } } }];\n}\nreturn [{ json: { decision: contacto ? 'cliente' : 'desconocido',\n  respuesta: { call_inbound: { dynamic_variables: variables, metadata: { aegora_decision: contacto ? 'cliente' : 'desconocido' } } } } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        -100
+      ],
+      "id": "aegora-ve-12",
+      "name": "Code · Decidir"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.respuesta) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1520,
+        0
+      ],
+      "id": "aegora-ve-13",
+      "name": "Responder"
+    }
+  ],
+  "connections": {
+    "Webhook · POST /retell-inbound": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "Code · Clasificar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Clasificar": {
+      "main": [
+        [
+          {
+            "node": "Crypto · HMAC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crypto · HMAC": {
+      "main": [
+        [
+          {
+            "node": "Code · Verificar firma",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Verificar firma": {
+      "main": [
+        [
+          {
+            "node": "¿Procesar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Bloqueados": {
+      "main": [
+        [
+          {
+            "node": "Execute · 17 Resolve Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · 17 Resolve Contact": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Contacto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Contacto": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Servicios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Servicios": {
+      "main": [
+        [
+          {
+            "node": "Code · Decidir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Decidir": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Sin cambios": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Procesar?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Bloqueados",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Sin cambios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

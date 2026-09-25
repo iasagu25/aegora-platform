@@ -182,6 +182,7 @@ Biblioteca de archivos:
 Conversaciones de Lucía:
   conversation_sessions  read / update   (update = coger el hilo con 'modo')
   call_notes             read / update   (update = apagar 'requiere seguimiento')
+  numeros_bloqueados     create / read / update / delete   (borrar = desbloquear)
   conversation_messages  read / create   (create = contestar; crear el mensaje
                                           ES enviarlo, lo recoge el enviador)
                                          sin update ni delete: el historial no
@@ -296,6 +297,8 @@ const permissionModel = {
   // también editar el resumen. Se acepta a cambio de que el aviso de seguimiento se
   // pueda cerrar: un aviso que no se apaga deja de mirarse a la semana.
   call_notes: { read: ALL, update: ALL },
+  // Bloquear y desbloquear es cosa del negocio, sin llamarnos. Borrar = desbloquear.
+  numeros_bloqueados: { create: ALL, read: ALL, update: ALL, delete: ALL },
 
   // --- intercambio de ficheros con Aegora -----------------------------------
   // Para pasarse documentación durante la implantación y luego con los cambios.

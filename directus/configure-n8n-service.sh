@@ -400,6 +400,7 @@ Permissions:
   conversation_sessions  create / read / update / delete
   conversation_messages  create / read / update
   call_notes             create / read
+  numeros_bloqueados     read
 
   solo lectura (config de booking, KB y personal):
   services · resources · service_resources · availability_rules
@@ -515,6 +516,9 @@ const permissionModel = {
   // porque el webhook de la plataforma de voz se reintenta y `call_id` es único.
   // Sin `update` ni `delete`: la nota se escribe una vez y no se retoca desde aquí.
   call_notes: ['create', 'read'],
+  // Solo lectura: la llamada entrante mira si el número está bloqueado. Quien
+  // bloquea es el gestor, desde el panel.
+  numeros_bloqueados: ['read'],
 };
 
 async function rawRequest(method, path, body = undefined, token = adminToken) {

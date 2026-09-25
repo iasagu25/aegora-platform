@@ -543,6 +543,33 @@ collections:
       versioning: false
     schema:
       name: call_notes
+  - collection: numeros_bloqueados
+    meta:
+      accountability: all
+      archive_app_filter: true
+      archive_field: null
+      archive_value: null
+      autosave_revision_interval: null
+      collapse: open
+      collection: numeros_bloqueados
+      color: null
+      display_template: '{{telefono}}'
+      group: null
+      hidden: false
+      icon: block
+      item_duplication_fields: null
+      note: 'Números que no llegan a Lucía: por teléfono la llamada se rechaza sin descolgar y sin gastar
+        IA.'
+      preview_url: null
+      singleton: false
+      sort: 8
+      sort_field: null
+      status: active
+      translations: null
+      unarchive_value: null
+      versioning: false
+    schema:
+      name: numeros_bloqueados
 fields:
   - collection: appointment_resources
     field: id
@@ -8622,6 +8649,295 @@ fields:
       has_auto_increment: false
       foreign_key_table: null
       foreign_key_column: null
+  - collection: contacts
+    field: trato
+    type: string
+    meta:
+      collection: contacts
+      conditions: null
+      display: null
+      display_options: null
+      field: trato
+      group: null
+      hidden: false
+      interface: select-dropdown
+      note: 'VIP: sus llamadas no pasan por Lucía, van directas a su gestor.'
+      options:
+        choices:
+        - text: Normal
+          value: normal
+        - text: VIP
+          value: vip
+      readonly: false
+      required: false
+      searchable: true
+      sort: 13
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: trato
+      table: contacts
+      data_type: character varying
+      default_value: normal
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: contacts
+    field: gestor_id
+    type: uuid
+    meta:
+      collection: contacts
+      conditions: null
+      display: null
+      display_options: null
+      field: gestor_id
+      group: null
+      hidden: false
+      interface: select-dropdown-m2o
+      note: A quién se pasan sus llamadas si es VIP. Sin gestor, un VIP lo atiende Lucía.
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 14
+      special:
+      - m2o
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: gestor_id
+      table: contacts
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: true
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: employees
+      foreign_key_column: id
+  - collection: numeros_bloqueados
+    field: id
+    type: uuid
+    meta:
+      collection: numeros_bloqueados
+      conditions: null
+      display: null
+      display_options: null
+      field: id
+      group: null
+      hidden: true
+      interface: input
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 5
+      special:
+      - uuid
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: id
+      table: numeros_bloqueados
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: true
+      is_indexed: false
+      is_primary_key: true
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: numeros_bloqueados
+    field: telefono
+    type: string
+    meta:
+      collection: numeros_bloqueados
+      conditions: null
+      display: null
+      display_options: null
+      field: telefono
+      group: null
+      hidden: false
+      interface: input
+      note: 'Como lo tengas: con o sin +34, con espacios. Se compara normalizado.'
+      options: null
+      readonly: false
+      required: true
+      searchable: true
+      sort: 1
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: telefono
+      table: numeros_bloqueados
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: false
+      is_indexed: true
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: numeros_bloqueados
+    field: motivo
+    type: text
+    meta:
+      collection: numeros_bloqueados
+      conditions: null
+      display: null
+      display_options: null
+      field: motivo
+      group: null
+      hidden: false
+      interface: input-multiline
+      note: Por qué se bloqueó, para quien lo lea dentro de un año.
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 2
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: motivo
+      table: numeros_bloqueados
+      data_type: text
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: numeros_bloqueados
+    field: created_at
+    type: timestamp
+    meta:
+      collection: numeros_bloqueados
+      conditions: null
+      display: null
+      display_options: null
+      field: created_at
+      group: null
+      hidden: false
+      interface: datetime
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 3
+      special:
+      - date-created
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: created_at
+      table: numeros_bloqueados
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: numeros_bloqueados
+    field: user_created
+    type: uuid
+    meta:
+      collection: numeros_bloqueados
+      conditions: null
+      display: null
+      display_options: null
+      field: user_created
+      group: null
+      hidden: false
+      interface: select-dropdown-m2o
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 4
+      special:
+      - user-created
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: user_created
+      table: numeros_bloqueados
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: directus_users
+      foreign_key_column: id
 systemFields:
   - collection: directus_activity
     field: timestamp
@@ -9134,3 +9450,45 @@ relations:
       constraint_name: call_notes_contact_id_foreign
       on_update: NO ACTION
       on_delete: CASCADE
+  - collection: contacts
+    field: gestor_id
+    related_collection: employees
+    meta:
+      junction_field: null
+      many_collection: contacts
+      many_field: gestor_id
+      one_allowed_collections: null
+      one_collection: employees
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: contacts
+      column: gestor_id
+      foreign_key_table: employees
+      foreign_key_column: id
+      constraint_name: contacts_gestor_id_foreign
+      on_update: NO ACTION
+      on_delete: SET NULL
+  - collection: numeros_bloqueados
+    field: user_created
+    related_collection: directus_users
+    meta:
+      junction_field: null
+      many_collection: numeros_bloqueados
+      many_field: user_created
+      one_allowed_collections: null
+      one_collection: directus_users
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: numeros_bloqueados
+      column: user_created
+      foreign_key_table: directus_users
+      foreign_key_column: id
+      constraint_name: numeros_bloqueados_user_created_foreign
+      on_update: NO ACTION
+      on_delete: SET NULL

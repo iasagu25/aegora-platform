@@ -95,6 +95,10 @@ SECRET_FIELDS = {
 # la empresa a todo el mundo.
 AJUSTES_TENANT = {
     "pedir_empresa": ("__CONTACTO_PEDIR_EMPRESA__", "CONTACTO_PEDIR_EMPRESA", "false"),
+    # Agente de Retell al que se pasa una llamada VIP (`VOZ · Llamada entrante`).
+    # Vacío = no hay pasarela y Lucía atiende también a los VIP. Vive en
+    # secrets/retell.env junto a la API key, aunque no sea secreto: es de Retell.
+    "agente_pasarela": ("__RETELL_AGENTE_PASARELA__", "RETELL_AGENTE_PASARELA", ""),
 }
 
 # Formas que delatan un secreto aunque el campo no esté en la lista de arriba.

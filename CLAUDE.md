@@ -1022,6 +1022,22 @@ reintenta solo**, igual que en `HUMANO · Enviar pendientes`. Un tenant sin
 rompe nada, pero el prompt de voz NO debe prometer la confirmación hasta que estén
 aprobadas: es el mismo fallo que las tools que no existían.
 
+### VIP y números bloqueados: se decide ANTES de descolgar (25/sep/2026)
+`VOZ · Llamada entrante` (`POST /webhook/retell-inbound`) es el *inbound webhook* de Retell.
+Bloqueado (`numeros_bloqueados`) -> se rechaza. `contacts.trato = vip` con `gestor_id`
+activo y con teléfono -> agente pasarela (`RETELL_AGENTE_PASARELA` en `secrets/retell.env`)
+que transfiere a `{{destino_transferencia}}`. El resto -> Lucía con nombre, empresa y
+servicios como variables dinámicas. Detalle y montaje en Retell: `n8n/prompts/lucia-voz.md`.
+
+La regla que lo gobierna todo: **falla hacia Lucía**. Un error nuestro nunca rechaza ni
+desvía una llamada; como mucho la deja sin contexto. Y por eso **el número conserva a Lucía
+como agente inbound**: es lo que Retell conecta si el webhook no contesta. La pasarela no es
+obligatoria -- sin ella los VIP los atiende Lucía sabiendo que lo son.
+
+`numeros_bloqueados` es una colección aparte y no un campo de `contacts` a propósito: el
+spam casi nunca es un contacto, y crear una ficha para bloquear un número es meter datos
+personales de alguien a quien precisamente no se quiere tratar.
+
 ### Resumen diario al equipo por WhatsApp (24/sep/2026)
 `RESUMEN · Diario al equipo` manda cada día a las 8:00 (hora de Madrid, `settings.timezone`
 del workflow) la plantilla `aegora_resumen_diario` a cada empleado con

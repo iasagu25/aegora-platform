@@ -30,6 +30,16 @@ Las rellena la plataforma desde la configuración del agente y los metadatos de 
 | `{{negocio}}` | nombre del negocio, de la config del agente |
 | `{{ahora}}` | fecha y hora actuales en la zona del negocio |
 | `{{zona_horaria}}` | `Europe/Madrid` |
+| `{{nombre_cliente}}`, `{{empresa_cliente}}`, `{{es_cliente}}` | `VOZ · Llamada entrante`, antes de descolgar, desde la ficha del contacto |
+| `{{servicios}}` | ídem, los servicios activos separados por comas |
+| `{{es_vip}}`, `{{gestor_nombre}}` | ídem; solo llegan a Lucía los VIP que NO se desviaron (ver abajo) |
+
+Las del webhook de entrada **pueden no llegar**: en una webcall de prueba no hay webhook, y
+si el webhook falla Retell descuelga igual con Lucía y sin variables (a propósito: nunca se
+deja una llamada sin atender por un error nuestro). Por eso el prompt las trata como una
+pista y no como un hecho, y **en Retell hay que darles valor por defecto vacío**: una
+variable sin valor se queda escrita tal cual, `{{nombre_cliente}}`, y el modelo la leería
+como un nombre.
 
 El **teléfono de quien llama no aparece aquí a propósito**: lo inyecta el despachador desde
 los metadatos de la llamada. El modelo no lo ve ni lo necesita, y así no puede decidir de
@@ -46,6 +56,23 @@ NEGOCIO: {{negocio}}
 Eres Lucía, la asistente virtual de {{negocio}}, y estás atendiendo una llamada de
 teléfono. Tu trabajo es entender qué necesita quien llama y resolvérselo con tus
 herramientas.
+
+## QUIÉN LLAMA (puede venir vacío)
+
+CLIENTE: {{nombre_cliente}} · EMPRESA: {{empresa_cliente}} · YA ES CLIENTE: {{es_cliente}}
+VIP: {{es_vip}} · SU GESTOR: {{gestor_nombre}}
+SERVICIOS DEL NEGOCIO: {{servicios}}
+
+Esto sale de la ficha asociada al número que llama, antes de descolgar. Úsalo así:
+- Si hay nombre, **no se lo preguntes** y trátale por él con naturalidad. Si la
+  persona dice llamarse de otra forma, manda lo que diga ella: puede estar
+  llamando otra persona desde ese teléfono.
+- Si un campo está vacío, o aparece literalmente entre llaves, **no sabes ese
+  dato**: pregúntalo cuando haga falta, como siempre.
+- SERVICIOS es para entender lo que piden y ofrecerlo por su nombre. Los huecos,
+  precios y citas salen **siempre** de tus herramientas, nunca de aquí.
+- VIP y SU GESTOR son para ti, **no se los digas**. Si es VIP y pide hablar con
+  una persona, pásale sin insistir en resolverlo tú.
 
 ## LO PRIMERO QUE DICES
 
@@ -406,6 +433,39 @@ garantizar no se le pide al modelo.**
 
 Con las latencias medidas (`consultar_disponibilidad` ~1,6 s, `anotar_tarea` ~2,3 s) va
 activado en las siete.
+
+## Antes de descolgar: `VOZ · Llamada entrante` (25/sep/2026)
+
+Retell llama a `POST /webhook/retell-inbound` con cada llamada entrante **antes de
+descolgar**, y la respuesta decide quién la atiende. Orden de decisión:
+
+1. **Número en `numeros_bloqueados`** -> `reject: true`. Se compara normalizado por los dos
+   lados (`aE164`), así que el gestor lo apunta como quiera.
+2. **Contacto `trato: vip` con gestor activo y con teléfono, y pasarela configurada** ->
+   `override_agent_id` = `RETELL_AGENTE_PASARELA` + `destino_transferencia` = teléfono del
+   gestor en E.164. La pasarela es un agente mínimo que dice una frase y transfiere.
+3. **Todo lo demás** -> Lucía, con las variables de arriba.
+
+Lo que no es negociable, y está en el código:
+- **Falla hacia Lucía.** Firma inválida, Directus caído, contacto sin gestor, pasarela sin
+  configurar: todo acaba en "sin cambios" o en Lucía con lo que se sepa. Nunca se rechaza por
+  un error nuestro. Y como Retell, si el webhook no contesta en 10 s tras 3 intentos, conecta
+  **el agente inbound del número**, el número tiene que conservar a Lucía como tal: si se le
+  quita, un webhook caído cuelga todas las llamadas.
+- **La firma se verifica igual que en la nota** (`cuerpo + ts`, ventana de 5 min) y sin ella
+  no se consulta nada: la respuesta lleva el nombre del cliente y el teléfono del gestor.
+- Un VIP que no se puede desviar lo atiende Lucía **sabiendo que es VIP** (`es_vip: si`).
+
+Qué se monta en Retell (lo hace el usuario):
+- **Número de teléfono** -> *Inbound Webhook URL*:
+  `https://n8n.<dominio del tenant>/webhook/retell-inbound`. El agente inbound sigue siendo
+  Lucía.
+- **Lucía** -> variables dinámicas por defecto, todas vacías: `nombre_cliente`,
+  `empresa_cliente`, `es_cliente`, `servicios`, `es_vip`, `gestor_nombre`.
+- **Agente pasarela** (Single Prompt, sin tools salvo `transfer_call`): saluda con el aviso
+  de IA, dice que le pasa con `{{gestor_nombre}}` y transfiere a `{{destino_transferencia}}`.
+  Si el gestor no contesta, la transferencia de vuelta es a Lucía (o a tomar recado), no un
+  buzón muerto. Su `agent_id` va a `RETELL_AGENTE_PASARELA` en `secrets/retell.env`.
 
 ## Pendiente cuando se monte
 

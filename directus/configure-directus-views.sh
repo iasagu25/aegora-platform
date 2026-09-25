@@ -207,6 +207,8 @@ const orden = {
   // Las llamadas, justo detrás de las conversaciones escritas: es el mismo
   // trabajo del gestor, solo que por otro canal.
   call_notes: 7,
+  // Justo detrás de las llamadas: es desde donde se decide bloquear a alguien.
+  numeros_bloqueados: 8,
 
   services: 10,
   employees: 11,
@@ -244,6 +246,7 @@ const comoSeLlaman = {
   // del nombre de quien atiende, que es el único motivo de que el campo exista.
   appointment_resources: '{{resource_id}}',
   employees: '{{first_name}} {{last_name}}',
+  numeros_bloqueados: '{{telefono}}',
   services: '{{name}}',
   resources: '{{name}}',
   calendars: '{{name}}',
@@ -300,6 +303,14 @@ const ordenDeCampos = {
 
   // Lo primero que quiere ver el gestor de una llamada es cuándo fue, de quién y
   // para qué; la duración y los identificadores, al final.
+  numeros_bloqueados: [
+    ['telefono', 'half'],
+    ['created_at', 'half'],
+    ['motivo', 'full'],
+    ['user_created', 'half'],
+    ['id', 'full'],
+  ],
+
   call_notes: [
     ['start_at', 'half'],
     ['telefono', 'half'],
@@ -332,6 +343,13 @@ const ordenDeCampos = {
 };
 
 const displaysDeCampo = [
+  // El gestor de un VIP es un empleado: sin display se vería su UUID.
+  {
+    collection: 'contacts',
+    field: 'gestor_id',
+    display: 'related-values',
+    display_options: { template: '{{first_name}} {{last_name}}' },
+  },
   // El display_template de una colección NO basta: si el campo que la referencia
   // no tiene display, Directus pinta el valor crudo -- el UUID. Hay que decirlo
   // campo a campo, y es exactamente lo que faltaba para que la bandeja enseñara

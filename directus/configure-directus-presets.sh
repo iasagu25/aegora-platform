@@ -226,6 +226,12 @@ const presets = [
   // Una lista de llamadas sin el motivo son filas de teléfonos y horas. Y el orden
   // es la última primero: lo que acaba de pasar es lo que se mira.
   {
+    collection: 'numeros_bloqueados',
+    layout: 'tabular',
+    layout_query: { tabular: { fields: ['telefono', 'motivo', 'created_at'], sort: ['-created_at'] } },
+  },
+
+  {
     collection: 'call_notes',
     layout: 'tabular',
     layout_query: {

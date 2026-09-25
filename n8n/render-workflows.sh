@@ -265,6 +265,7 @@ Tokens que se resuelven:
 
 Ajustes del tenant (de tenant.env; el valor por defecto si no está):
   CONTACTO_PEDIR_EMPRESA  ${CONTACTO_PEDIR_EMPRESA:-false}
+  RETELL_AGENTE_PASARELA  ${RETELL_AGENTE_PASARELA:-(vacío: los VIP los atiende Lucía, no se desvían)}
 
 Credenciales en su n8n:
   ${CREDS_ESTADO}
