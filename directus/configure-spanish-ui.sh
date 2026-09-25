@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
+
+# Espera única a los contenedores (ver el fichero): nunca sleep ni un healthy exigido sin esperar.
+# shellcheck source=/dev/null
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../scripts/lib/esperar-contenedor.sh"
 IFS=$'\n\t'
 
 # =============================================================================
@@ -58,26 +62,6 @@ DIRECTUS_HEALTH=""
 # =============================================================================
 # Logging
 # =============================================================================
-
-# Directus tarda en levantar tras un reinicio, y "running" no significa "listo":
-# el puerto 8055 aún no acepta conexiones. Se sondea /server/ping, que es el
-# endpoint correcto en 12.2.0 (/server/health devuelve 403).
-esperar_api() {
-  local container="$1"
-  local timeout="${2:-120}"
-  local elapsed=0
-  while (( elapsed < timeout )); do
-    if docker exec "$container" \
-        node -e "fetch('http://127.0.0.1:8055/server/ping').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" \
-        >/dev/null 2>&1; then
-      [[ $elapsed -gt 0 ]] && log "${container} responde tras ${elapsed}s."
-      return 0
-    fi
-    sleep 3
-    elapsed=$((elapsed + 3))
-  done
-  fail "Timeout (${timeout}s) esperando a que ${container} responda en /server/ping."
-}
 
 log() {
   printf '[%s] %s\n' \
@@ -224,19 +208,11 @@ DECLARED_DIRECTUS_VERSION="$DIRECTUS_VERSION"
 docker inspect "$DIRECTUS_CONTAINER" >/dev/null 2>&1 ||
   fail "No existe el contenedor Directus: ${DIRECTUS_CONTAINER}"
 
-container_running "$DIRECTUS_CONTAINER" ||
-  fail "Directus no está running: ${DIRECTUS_CONTAINER}"
-
-# "running" no basta: si el script anterior de la cadena acaba de reiniciarlo,
-# el puerto todavía no acepta conexiones.
-esperar_api "$DIRECTUS_CONTAINER"
+esperar_healthy "$DIRECTUS_CONTAINER"
 
 DIRECTUS_HEALTH="$(
   container_health "$DIRECTUS_CONTAINER"
 )"
-
-[[ "$DIRECTUS_HEALTH" == "healthy" ]] ||
-  fail "Directus no está healthy: ${DIRECTUS_HEALTH}"
 
 ACTUAL_DIRECTUS_VERSION="$(
   docker exec \

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
+
+# Espera única a los contenedores (ver el fichero): nunca sleep ni un healthy exigido sin esperar.
+# shellcheck source=/dev/null
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../scripts/lib/esperar-contenedor.sh"
 IFS=$'\n\t'
 
 # =============================================================================
@@ -111,8 +115,7 @@ export PRIVACY_POLICY_URL="${PRIVACY_POLICY_URL:-https://aegora.es/politica-priv
 # Con lo que Lucía se presenta: "soy la asistente de ...". Sale de TENANT_NAME.
 export TENANT_DISPLAY_NAME="${TENANT_NAME:?Falta TENANT_NAME en tenant.env}"
 
-[[ "$(docker inspect --format '{{.State.Status}}' "$N8N_CONTAINER" 2>/dev/null)" == "running" ]] ||
-  fail "n8n no está running: ${N8N_CONTAINER}"
+esperar_healthy "$N8N_CONTAINER"
 
 # Igual que en el import: los flags se comprueban contra el binario, no contra
 # lo que decía la documentación.

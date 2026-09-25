@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
+
+# Espera única a los contenedores (ver el fichero): nunca sleep ni un healthy exigido sin esperar.
+# shellcheck source=/dev/null
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../scripts/lib/esperar-contenedor.sh"
 IFS=$'\n\t'
 
 # =============================================================================
@@ -192,6 +196,11 @@ fi
 # que solo se sacan id y nombre -- el blob cifrado no sale del contenedor.
 AEGORA_CREDENTIALS='{}'
 CREDS_ESTADO="n8n no consultado (solo en --apply se necesita)"
+# Si existe, se espera a que esté sano: recién reiniciado por otro script, leer sus
+# credenciales ahora daría un "no se pudieron leer" que no es verdad.
+if docker inspect "$N8N_CONTAINER" >/dev/null 2>&1; then
+  esperar_healthy "$N8N_CONTAINER"
+fi
 if [[ "$(docker inspect --format '{{.State.Status}}' "$N8N_CONTAINER" 2>/dev/null)" == "running" ]]; then
   if AEGORA_CREDENTIALS="$(
       docker exec "$N8N_CONTAINER" sh -c '
@@ -318,8 +327,7 @@ if [[ "$APPLY" != true ]]; then
   exit 0
 fi
 
-[[ "$(docker inspect --format '{{.State.Status}}' "$N8N_CONTAINER" 2>/dev/null)" == "running" ]] ||
-  fail "n8n no está running: ${N8N_CONTAINER}"
+esperar_healthy "$N8N_CONTAINER"
 
 # Si no se pudieron leer, el render fallaría diciendo que faltan las cinco
 # credenciales -- que es falso y manda a crear duplicados. Mejor parar aquí.
@@ -411,25 +419,8 @@ fi
 # Sin esto el import parece correcto y el webhook sigue devolviendo 404.
 # -----------------------------------------------------------------------------
 log "Reiniciando ${N8N_CONTAINER} (el CLI no afecta al proceso en marcha)…"
-docker restart "$N8N_CONTAINER" >/dev/null
-
-log "Esperando a que n8n responda…"
-LISTO=false
-for _ in $(seq 1 45); do
-  if docker exec "$N8N_CONTAINER" node -e \
-      "fetch('http://127.0.0.1:5678/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" \
-      >/dev/null 2>&1; then
-    LISTO=true
-    break
-  fi
-  sleep 2
-done
-
-if [[ "$LISTO" == true ]]; then
-  log "n8n responde."
-else
-  log "AVISO: n8n no respondía a /healthz tras 90s. Revisa: docker logs --tail 50 ${N8N_CONTAINER}"
-fi
+reiniciar_y_esperar "$N8N_CONTAINER"
+log "n8n responde."
 
 cat <<DONE
 

@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+
+# Espera única a los contenedores (ver el fichero): nunca sleep ni un healthy exigido sin esperar.
+# shellcheck source=/dev/null
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../scripts/lib/esperar-contenedor.sh"
 IFS=$'\n\t'
 
 readonly PLATFORM_ROOT="/opt/aegora/platform"
@@ -150,13 +154,9 @@ DECLARED_DIRECTUS_VERSION="$DIRECTUS_VERSION"
 docker inspect "$DIRECTUS_CONTAINER" >/dev/null 2>&1 ||
   fail "No existe el contenedor Directus: ${DIRECTUS_CONTAINER}"
 
-container_running "$DIRECTUS_CONTAINER" ||
-  fail "Directus no está running: ${DIRECTUS_CONTAINER}"
+esperar_healthy "$DIRECTUS_CONTAINER"
 
 DIRECTUS_HEALTH="$(container_health "$DIRECTUS_CONTAINER")"
-
-[[ "$DIRECTUS_HEALTH" == "healthy" ]] ||
-  fail "Directus no está healthy: ${DIRECTUS_HEALTH}"
 
 DIRECTUS_VERSION="$(
   docker exec     "$DIRECTUS_CONTAINER"     node     -p "require('/directus/package.json').version" |

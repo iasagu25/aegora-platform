@@ -590,6 +590,21 @@ otra es sintácticamente correcta --, y comprobar la definición con `grep '^nom
 tampoco sirve, porque la indentación no dice nada del anidamiento. Lo que sí sirve es
 contar llaves hasta ese punto, o mirar si cae dentro del cuerpo de otra función.
 
+**Y desde el 25/sep/2026 la espera es UNA sola: `scripts/lib/esperar-contenedor.sh`**
+(`esperar_healthy` / `reiniciar_y_esperar`). Cada script traía la suya y medían cosas
+distintas: unos sondeaban `/server/ping`, otros exigían `healthy` de Docker sin esperar.
+Son **dos relojes**: la API contesta a los ~24 s de un reinicio, pero el healthcheck de
+Docker solo pasa a `healthy` en su siguiente sondeo (cada 15 s). `configure-tenant-role.sh`
+esperó al ping, `configure-n8n-service.sh` exigió `healthy` y la cadena murió con
+`Directus no está healthy: starting` con un Directus que ya respondía. Ahora todos esperan a
+lo más estricto de los dos, en el mismo sitio; `starting`/`unhealthy` son de paso y solo
+`exited`/`dead`/inexistente abortan. La usan todos los scripts de `directus/`, los de
+`n8n/` que hablan con el contenedor, `publish-tenant.sh` y `restore-tenant.sh` (que tenía un
+`sleep 20` y daba por bueno `starting`). `deploy-tenant.sh`, `deploy-booking.sh` y
+`onboard-tenant.sh` ya esperaban `healthy` con su propia función y se dejaron.
+**Un script nuevo que hable con un contenedor la usa al empezar; uno que reinicie usa
+`reiniciar_y_esperar`.** Nada de `docker restart` suelto ni de `sleep`.
+
 Detalle menor que hace dudar de un apply correcto: **el resumen del dry-run no imprime
 las altas dentro de un array**, solo las modificaciones. Al añadir un valor a un
 `choices` se ven los índices que se desplazan pero no el nuevo, y parece que se pierde

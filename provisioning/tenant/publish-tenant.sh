@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
+
+# Espera única a los contenedores (ver el fichero): nunca sleep ni un healthy exigido sin esperar.
+# shellcheck source=/dev/null
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../../scripts/lib/esperar-contenedor.sh"
 IFS=$'\n\t'
 
 # =============================================================================
@@ -180,17 +184,9 @@ validate_service() {
   container_exists "$container" ||
     fail "${label}: no existe el contenedor ${container}"
 
-  container_running "$container" ||
-    fail "${label}: ${container} no está running"
-
-  local health
-
-  health="$(
-    container_health "$container"
-  )"
-
-  [[ "$health" == "healthy" ]] ||
-    fail "${label}: ${container} health=${health}"
+  # Se ESPERA a que esté sano, no se exige: publicar justo tras un despliegue o
+  # un reinicio lo encontraba en "starting" y abortaba.
+  esperar_healthy "$container"
 
   network_has_container \
     "$PROXY_NETWORK" \

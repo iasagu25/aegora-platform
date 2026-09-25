@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
+
+# Espera única a los contenedores (ver el fichero): nunca sleep ni un healthy exigido sin esperar.
+# shellcheck source=/dev/null
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../../scripts/lib/esperar-contenedor.sh"
 IFS=$'\n\t'
 
 # =============================================================================
@@ -1179,8 +1183,9 @@ if [[ "$RESTORE_BOOKING" == true ]]; then
   start_container_if_present "$BOOKING_CONTAINER"
 fi
 
-log "Esperando 20 segundos para estabilización."
-sleep 20
+# Un ensayo de recuperación termina cuando el servicio ATIENDE, no cuando el script
+# acaba: aquí se espera a `healthy` de verdad. Antes era un sleep 20 y valía con
+# "starting", o sea que un tenant que nunca llegaba a arrancar se daba por restaurado.
 
 for container in \
   "$DIRECTUS_CONTAINER" \
@@ -1205,16 +1210,7 @@ for container in \
 
   log "Contenedor ${container}: status=${status}, health=${health}"
 
-  [[ "$status" == "running" ]] ||
-    fail "El contenedor '${container}' no está en ejecución."
-
-  if [[
-    "$health" != "not-configured" &&
-    "$health" != "healthy" &&
-    "$health" != "starting"
-  ]]; then
-    fail "El contenedor '${container}' no está healthy."
-  fi
+  esperar_healthy "$container"
 done
 
 log "Restauración de producción finalizada correctamente."

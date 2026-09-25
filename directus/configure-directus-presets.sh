@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
+
+# Espera única a los contenedores (ver el fichero): nunca sleep ni un healthy exigido sin esperar.
+# shellcheck source=/dev/null
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../scripts/lib/esperar-contenedor.sh"
 IFS=$'\n\t'
 
 # =============================================================================
@@ -30,34 +34,6 @@ APPLY=false
 
 log() { printf '[%s] %s\n' "$(date --iso-8601=seconds)" "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
-
-# Directus tarda en levantar tras un reinicio, y "running" no significa "listo":
-# el puerto 8055 aún no acepta conexiones. Aquí se sondea /server/ping, que es
-# lo que estos scripts van a usar de verdad -- y es el endpoint correcto en
-# 12.2.0, donde /server/health devuelve 403.
-#
-# Sin esto, encadenar dos scripts de configuración falla con ECONNREFUSED en el
-# segundo porque el primero acaba de reiniciar el contenedor.
-esperar_api() {
-  local container="$1"
-  local timeout="${2:-120}"
-  local elapsed=0
-
-  while (( elapsed < timeout )); do
-    if docker exec "$container" \
-        node -e "fetch('http://127.0.0.1:8055/server/ping').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" \
-        >/dev/null 2>&1; then
-      if [[ $elapsed -gt 0 ]]; then
-        log "${container} responde tras ${elapsed}s."
-      fi
-      return 0
-    fi
-    sleep 3
-    elapsed=$((elapsed + 3))
-  done
-
-  fail "Timeout (${timeout}s) esperando a que ${container} responda en /server/ping."
-}
 
 
 usage() {
@@ -115,12 +91,7 @@ set +a
 [[ "$TENANT_ID" == "$TENANT" ]] ||
   fail "TENANT_ID (${TENANT_ID}) no coincide con --tenant (${TENANT})."
 
-[[ "$(docker inspect --format '{{.State.Status}}' "$DIRECTUS_CONTAINER" 2>/dev/null)" == "running" ]] ||
-  fail "Directus no está running: ${DIRECTUS_CONTAINER}"
-
-# "running" no basta: si el script anterior de la cadena acaba de reiniciarlo,
-# el puerto todavía no acepta conexiones.
-esperar_api "$DIRECTUS_CONTAINER"
+esperar_healthy "$DIRECTUS_CONTAINER"
 
 cat <<EOF
 

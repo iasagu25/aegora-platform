@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# Espera única a los contenedores (ver el fichero): nunca sleep ni un healthy exigido sin esperar.
+# shellcheck source=/dev/null
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../scripts/lib/esperar-contenedor.sh"
+
 EXPECTED_DIRECTUS_VERSION="12.2.0"
 TENANTS_ROOT="/opt/aegora/tenants"
 
@@ -89,22 +93,8 @@ set +a
 docker inspect "$DIRECTUS_CONTAINER" >/dev/null 2>&1 \
   || die "No existe el contenedor $DIRECTUS_CONTAINER."
 
-# Se ESPERA a que esté sano, no se exige que ya lo esté: si el script anterior
-# de la cadena acaba de reiniciar el contenedor, el estado es "starting" durante
-# un rato y abortar aquí parte la cadena por la mitad -- con la mitad del trabajo
-# hecho y la otra mitad sin hacer, que es peor que no haber empezado.
-HEALTH=""
-for (( _esperado = 0; _esperado <= 120; _esperado += 3 )); do
-  HEALTH="$(
-    docker inspect "$DIRECTUS_CONTAINER" \
-      --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}'
-  )"
-  [[ "$HEALTH" != "starting" ]] && break
-  sleep 3
-done
-
-[[ "$HEALTH" == "healthy" ]] \
-  || die "Directus no está healthy. Estado=$HEALTH"
+esperar_healthy "$DIRECTUS_CONTAINER"
+HEALTH="healthy"
 
 ACTUAL_DIRECTUS_VERSION="$(
   docker exec "$DIRECTUS_CONTAINER" \

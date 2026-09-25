@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
+
+# Espera única a los contenedores (ver el fichero): nunca sleep ni un healthy exigido sin esperar.
+# shellcheck source=/dev/null
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../scripts/lib/esperar-contenedor.sh"
 IFS=$'\n\t'
 
 # =============================================================================
@@ -33,34 +37,6 @@ APPLY=false
 
 log() { printf '[%s] %s\n' "$(date --iso-8601=seconds)" "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
-
-# Directus tarda en levantar tras un reinicio, y "running" no significa "listo":
-# el puerto 8055 aún no acepta conexiones. Aquí se sondea /server/ping, que es
-# lo que estos scripts van a usar de verdad -- y es el endpoint correcto en
-# 12.2.0, donde /server/health devuelve 403.
-#
-# Sin esto, encadenar dos scripts de configuración falla con ECONNREFUSED en el
-# segundo porque el primero acaba de reiniciar el contenedor.
-esperar_api() {
-  local container="$1"
-  local timeout="${2:-120}"
-  local elapsed=0
-
-  while (( elapsed < timeout )); do
-    if docker exec "$container" \
-        node -e "fetch('http://127.0.0.1:8055/server/ping').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" \
-        >/dev/null 2>&1; then
-      if [[ $elapsed -gt 0 ]]; then
-        log "${container} responde tras ${elapsed}s."
-      fi
-      return 0
-    fi
-    sleep 3
-    elapsed=$((elapsed + 3))
-  done
-
-  fail "Timeout (${timeout}s) esperando a que ${container} responda en /server/ping."
-}
 
 
 usage() {
@@ -125,12 +101,7 @@ set +a
 docker inspect "$DIRECTUS_CONTAINER" >/dev/null 2>&1 ||
   fail "No existe el contenedor Directus: ${DIRECTUS_CONTAINER}"
 
-[[ "$(docker inspect --format '{{.State.Status}}' "$DIRECTUS_CONTAINER")" == "running" ]] ||
-  fail "Directus no está running: ${DIRECTUS_CONTAINER}"
-
-# "running" no basta: si el script anterior de la cadena acaba de reiniciarlo,
-# el puerto todavía no acepta conexiones.
-esperar_api "$DIRECTUS_CONTAINER"
+esperar_healthy "$DIRECTUS_CONTAINER"
 
 get_env() {
   docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$1" |
@@ -465,9 +436,7 @@ SQL
 
 log "Role y policy enlazados."
 log "Reiniciando ${DIRECTUS_CONTAINER} (Directus 12.2 cachea permisos)."
-docker restart "$DIRECTUS_CONTAINER" >/dev/null
-log "Esperando a que vuelva a responder…"
-esperar_api "$DIRECTUS_CONTAINER"
+reiniciar_y_esperar "$DIRECTUS_CONTAINER"
 
 cat <<EOF
 

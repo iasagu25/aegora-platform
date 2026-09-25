@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
+
+# Espera única a los contenedores (ver el fichero): nunca sleep ni un healthy exigido sin esperar.
+# shellcheck source=/dev/null
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../../scripts/lib/esperar-contenedor.sh"
 IFS=$'\n\t'
 
 # =============================================================================
@@ -87,8 +91,7 @@ set +a
 : "${DIRECTUS_CONTAINER:?Falta DIRECTUS_CONTAINER}"
 : "${DIRECTUS_PROVISIONING_TOKEN:?Falta DIRECTUS_PROVISIONING_TOKEN}"
 
-[[ "$(docker inspect --format '{{.State.Status}}' "$DIRECTUS_CONTAINER" 2>/dev/null)" == "running" ]] ||
-  fail "Directus no está running: ${DIRECTUS_CONTAINER}"
+esperar_healthy "$DIRECTUS_CONTAINER"
 
 cat <<PLAN
 
