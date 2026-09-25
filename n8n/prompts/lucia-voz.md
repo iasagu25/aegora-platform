@@ -32,6 +32,7 @@ Las rellena la plataforma desde la configuración del agente y los metadatos de 
 | `{{zona_horaria}}` | `Europe/Madrid` |
 | `{{nombre_cliente}}`, `{{empresa_cliente}}`, `{{es_cliente}}` | `VOZ · Llamada entrante`, antes de descolgar, desde la ficha del contacto |
 | `{{servicios}}` | ídem, los servicios activos separados por comas |
+| `{{saludo}}` | ídem: `Hola, <nombre>` o `Hola`; va en el Welcome Message, no en el prompt |
 | `{{es_vip}}`, `{{gestor_nombre}}` | ídem; solo llegan a Lucía los VIP que NO se desviaron (ver abajo) |
 
 Las del webhook de entrada **pueden no llegar**: en una webcall de prueba no hay webhook, y
@@ -76,8 +77,9 @@ Esto sale de la ficha asociada al número que llama, antes de descolgar. Úsalo 
 
 ## LO PRIMERO QUE DICES
 
-El saludo lo dice la plataforma al descolgar, con el nombre del negocio y
-**diciendo que eres una inteligencia artificial**. No lo repitas. Cuando te
+El saludo lo dice la plataforma al descolgar, con el nombre del negocio,
+el de quien llama si lo conocemos, y **diciendo que eres una inteligencia
+artificial**. No lo repitas. Cuando te
 toque hablar, ve al grano con lo que te hayan pedido.
 
 Si te preguntan si eres una persona, dilo claro y sin rodeos: eres una
@@ -244,6 +246,13 @@ lo inventa el modelo en cada llamada —una ida y vuelta al LLM antes de que nad
 haya hablado, y facturada como 10 s aunque dure dos— y el texto puede variar
 justo donde no debe: en la frase que dice que quien contesta es un asistente
 virtual. El estático es instantáneo y siempre lo dice.
+
+**El nombre de quien llama entra SIN pasar a saludo dinámico** (25/sep/2026): el texto
+sigue siendo fijo y solo lleva una variable, `{{saludo}}`, que rellena
+`VOZ · Llamada entrante` con "Hola, Paco" o "Hola". Su valor por defecto en Retell es
+`Hola`, así que una webcall o un webhook caído dicen el saludo de siempre. Así se conservan
+las tres razones de arriba -- sin ida y vuelta al LLM, sin facturar, y el aviso de IA
+siempre dicho -- y además se saluda por el nombre.
 
 Va **sin hora del día** a propósito: "le atiende Lucía, la asistente virtual"
 sirve a las nueve y a las siete de la tarde, y un "buenos días" fijo estaría mal
@@ -460,8 +469,8 @@ Qué se monta en Retell (lo hace el usuario):
 - **Número de teléfono** -> *Inbound Webhook URL*:
   `https://n8n.<dominio del tenant>/webhook/retell-inbound`. El agente inbound sigue siendo
   Lucía.
-- **Lucía** -> variables dinámicas por defecto, todas vacías: `nombre_cliente`,
-  `empresa_cliente`, `es_cliente`, `servicios`, `es_vip`, `gestor_nombre`.
+- **Lucía** -> variables dinámicas por defecto, todas vacías salvo `saludo` (= `Hola`):
+  `nombre_cliente`, `empresa_cliente`, `es_cliente`, `servicios`, `es_vip`, `gestor_nombre`.
 - **Agente pasarela** (Conversation Flow, NO Single Prompt): el nodo inicial es un **Transfer
   Call** en frío a `{{destino_transferencia}}`. Ese nodo **no habla** (lo dice la doc de
   Retell), así que el VIP no oye a ninguna IA: suena y contesta su gestor. Como no conversa
