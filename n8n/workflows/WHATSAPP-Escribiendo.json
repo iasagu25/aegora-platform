@@ -1,0 +1,260 @@
+{
+  "id": "aegoraWhatsappEscribiendo",
+  "name": "WHATSAPP · Escribiendo",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "session_key"
+            },
+            {
+              "name": "wamid"
+            },
+            {
+              "name": "phone_number_id"
+            },
+            {
+              "name": "graph_version"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -600,
+        0
+      ],
+      "id": "aegora-we-01",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "__DIRECTUS_BASE_URL__"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -380,
+        0
+      ],
+      "id": "aegora-we-02",
+      "name": "Config (editar por tenant)"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.directus_base_url }}/items/conversation_sessions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ 'filter[session_key][_eq]': $json.session_key, fields: 'modo', limit: 1 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          },
+          "timeout": 5000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -160,
+        0
+      ],
+      "id": "aegora-we-03",
+      "name": "HTTP · Modo de la sesión",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// El \"escribiendo…\" promete una respuesta, así que solo se enseña cuando la va a\n// dar Lucía. Con la sesión en `humano` el mensaje lo lee una persona que puede\n// tardar una hora: enseñarlo ahí sería mentir, y además marcaría como leído algo\n// que nadie ha leído todavía.\n//\n// Una sesión que no existe (primer mensaje) o una consulta que falla cuentan como\n// `auto`: es lo que hará Entry en ese caso, y lo peor que puede pasar es un\n// indicador de más durante unos segundos.\nconst e = $('When Executed by Another Workflow').first().json;\nconst r = $json || {};\nconst fila = (r.statusCode >= 200 && r.statusCode < 300 && r.body && Array.isArray(r.body.data)) ? r.body.data[0] : null;\nconst modo = (fila && fila.modo) || 'auto';\nconst listo = Boolean(e.wamid && e.phone_number_id && !String(e.phone_number_id).startsWith('REPLACE_'));\nreturn [{ json: {\n  enviar: modo === 'auto' && listo,\n  motivo: modo !== 'auto' ? `sesión en modo ${modo}` : (listo ? null : 'falta wamid o phone_number_id'),\n  _url: `https://graph.facebook.com/${e.graph_version || 'v21.0'}/${e.phone_number_id}/messages`,\n  // Marca el mensaje como leído y enseña el indicador. Meta lo quita solo al llegar\n  // la respuesta o a los 25 s, lo que antes ocurra: no hay que apagarlo.\n  _body: { messaging_product: 'whatsapp', status: 'read', message_id: e.wamid, typing_indicator: { type: 'text' } },\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        60,
+        0
+      ],
+      "id": "aegora-we-04",
+      "name": "Code · ¿Escribiendo?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "w1",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.enviar }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        280,
+        0
+      ],
+      "id": "aegora-we-05",
+      "name": "¿Enviar?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json._url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json._body) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          },
+          "timeout": 5000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        500,
+        -100
+      ],
+      "id": "aegora-we-06",
+      "name": "HTTP · Escribiendo",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_WHATSAPP__",
+          "name": "WhatsApp"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Un fallo aquí no rompe nada -- la respuesta de Lucía sale igual --, pero se deja a\n// la vista en la ejecución con el error de Meta, para que no se acumule en silencio.\nconst r = $json || {};\nconst ok = r.statusCode >= 200 && r.statusCode < 300;\nreturn [{ json: { escribiendo: ok, status: r.statusCode || null, error: ok ? null : (r.body && r.body.error) || r.body || null } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        -100
+      ],
+      "id": "aegora-we-07",
+      "name": "Code · Resultado"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Modo de la sesión",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Modo de la sesión": {
+      "main": [
+        [
+          {
+            "node": "Code · ¿Escribiendo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · ¿Escribiendo?": {
+      "main": [
+        [
+          {
+            "node": "¿Enviar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Enviar?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Escribiendo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "HTTP · Escribiendo": {
+      "main": [
+        [
+          {
+            "node": "Code · Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none"
+  }
+}

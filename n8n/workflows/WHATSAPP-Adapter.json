@@ -458,6 +458,41 @@
       ],
       "id": "aegora-wa-verificar-firma",
       "name": "Code · Verificar firma"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraWhatsappEscribiendo",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "session_key": "={{ $('Code · Clasificar y normalizar').item.json.entry.session_key }}",
+            "wamid": "={{ $('Code · Clasificar y normalizar').item.json.wamid }}",
+            "phone_number_id": "={{ $('Config (editar por tenant)').item.json.phone_number_id }}",
+            "graph_version": "={{ $('Config (editar por tenant)').item.json.graph_version }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1360,
+        -200
+      ],
+      "id": "aegora-wa-escribiendo",
+      "name": "Execute · Escribiendo",
+      "onError": "continueRegularOutput",
+      "notes": "Sin esperar y por ENCIMA de Entry en el lienzo: con executionOrder v1 las ramas de una misma salida corren de arriba abajo, así que se dispara antes de que Entry empiece y no le añade latencia."
     }
   ],
   "connections": {
@@ -518,6 +553,11 @@
     "Responder 200 (recibido)": {
       "main": [
         [
+          {
+            "node": "Execute · Escribiendo",
+            "type": "main",
+            "index": 0
+          },
           {
             "node": "Execute · AGENT-Lucia-Entry",
             "type": "main",

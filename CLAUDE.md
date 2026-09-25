@@ -450,6 +450,14 @@ mensaje y ~1320 en los de dos, y una espera antes del primero pondría TODOS por
 1200. Ese ~1 s de base es firma + clasificación + el viaje a `graph.facebook.com`, y no
 hay nada que recortar ahí.
 
+**"Escribiendo…" en WhatsApp (25/sep/2026).** `WHATSAPP · Escribiendo` manda a Meta
+`status: read` + `typing_indicator` con el `wamid` del mensaje entrante; Meta lo quita solo al
+llegar la respuesta o a los 25 s. El adapter lo dispara **sin esperar** y colocado **por
+encima de Entry en el lienzo** -- con `executionOrder: v1` las ramas de una misma salida
+corren de arriba abajo --, así que sale antes de que Entry empiece y no le suma latencia.
+**Solo con la sesión en `auto`**: en `humano` el indicador prometería una respuesta que puede
+tardar una hora, y además marcaría como leído algo que ninguna persona ha leído.
+
 **Insertar un nodo en una cadena cambia `$json` para todo lo que va detrás**, y el fallo
 sale lejos del cambio. Pasó **cuatro veces el 21/sep/2026**: el gestor de memoria delante
 de `Salida relevo humano`, el guardado de mensajes delante de `Salida Entry`, la consulta
