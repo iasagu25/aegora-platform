@@ -59,14 +59,47 @@
     },
     {
       "parameters": {
-        "jsCode": "// KB V1 sin RAG: la colección es pequeña, se devuelve entera y responde el agente.\n// El texto va TAL CUAL: horarios, precios y condiciones no se resumen ni se reinterpretan.\nconst r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 300 || body.errors) {\n  return [{ json: { ok: false, motivo: 'error_kb',\n    detalle: JSON.stringify(body.errors || body).slice(0, 300) } }];\n}\nconst rows = Array.isArray(body.data) ? body.data : [];\nif (!rows.length) {\n  return [{ json: { ok: true, hay_info: false, texto: '' } }];\n}\nconst texto = rows.map(x => '## ' + (x.title || '') + '\\n' + (x.body || '')).join('\\n\\n');\nreturn [{ json: { ok: true, hay_info: true, texto } }];"
+        "method": "GET",
+        "url": "={{ $('When Executed by Agent').first().json.directus_base_url }}/items/services",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ 'filter[active][_eq]': 'true', fields: 'name,description,duration_minutes', sort: 'name', limit: -1 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "aegora-info-servicios",
+      "name": "HTTP · Directus servicios",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        400,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// KB V1 sin RAG: la colección es pequeña, se devuelve entera y responde el agente.\n// El texto va TAL CUAL: horarios, precios y condiciones no se resumen ni se reinterpretan.\n//\n// Y detrás, la lista de servicios que se pueden RESERVAR, leída de `services`. La KB la\n// escribe una persona y no se entera de un servicio nuevo: con solo la KB, Lucía contestó\n// \"no ofrecemos demo\" teniendo el servicio creado y activo (2/oct/2026). Lo que se puede\n// reservar lo dice la tabla con la que reserva el Booking API, no un texto.\n// Se leen por nombre de nodo, no por $json: son dos consultas en cadena.\nconst leer = (nombre) => {\n  const r = $(nombre).first().json ?? {};\n  const code = r.statusCode ?? 0;\n  const body = (r.body ?? r) || {};\n  if (code >= 300 || body.errors) return { error: JSON.stringify(body.errors || body).slice(0, 300) };\n  return { rows: Array.isArray(body.data) ? body.data : [] };\n};\n\nconst kb = leer('HTTP · Directus knowledge');\nif (kb.error) return [{ json: { ok: false, motivo: 'error_kb', detalle: kb.error } }];\nconst sv = leer('HTTP · Directus servicios');\n\nconst partes = kb.rows.map(x => '## ' + (x.title || '') + '\\n' + (x.body || ''));\nconst servicios = sv.rows || [];\nif (servicios.length) {\n  partes.push('## Servicios que se pueden reservar\\n' + servicios.map(s =>\n    '- ' + s.name + (s.duration_minutes ? ` (${s.duration_minutes} min)` : '') +\n    (s.description ? ': ' + String(s.description).trim() : '')).join('\\n'));\n}\n\nconst texto = partes.join('\\n\\n');\nreturn [{ json: {\n  ok: true,\n  hay_info: texto.length > 0,\n  texto,\n  // Si la lista de servicios no se pudo leer, que se note: decir \"no lo ofrecemos\" sobre\n  // una consulta fallida es el mismo error que esto viene a quitar.\n  ...(sv.error ? { aviso: 'No se pudo leer la lista de servicios.' } : {}),\n} }];"
       },
       "id": "i-0003",
       "name": "Code · Salida",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        400,
+        620,
         0
       ]
     }
@@ -84,6 +117,17 @@
       ]
     },
     "HTTP · Directus knowledge": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Directus servicios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Directus servicios": {
       "main": [
         [
           {

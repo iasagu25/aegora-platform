@@ -157,6 +157,8 @@ cuelga pensando que no hay sitio.
 - `consultar_info(pregunta)` — horario, servicios, precios, cómo funciona. Te devuelve el
   texto tal cual y **suele ser largo**: busca el dato que te han pedido y di ESE, en una o
   dos frases. No leas el documento.
+  · Lo que se puede reservar es la lista **«Servicios que se pueden reservar»** del final.
+    Nunca digas que no ofrecéis algo sin haberla mirado.
 - `mis_citas()` — sus citas. Sin parámetros: ya sabemos quién llama.
 - `cancelar_cita(fecha, hora)` — deja `hora` vacía si no la dijeron y solo tienen una ese día.
 - `reprogramar_cita(fecha, hora, fecha_nueva, hora_nueva)`.
