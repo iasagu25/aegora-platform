@@ -779,6 +779,25 @@ la latencia que la voz no perdona.
 aplanar workflows compartidos (`22 -> 03` son 93 ms, `26` son 91) -- no compensa el riesgo
 por 90 ms. El siguiente tramo gordo es el LLM, y ahí n8n no pinta nada.
 
+## Límite por minuto de OpenAI: modelo de respaldo, no reintentos (2/oct/2026)
+La organización de OpenAI está en un nivel con **30.000 tokens/minuto para `gpt-4o`**, y un
+turno de Lucía con una tool son dos llamadas de ~7.000: **dos o tres turnos en el mismo
+minuto ya lo tocan.** El síntoma engaña por partida doble: el nodo del agente va con
+"continuar si falla", así que la ejecución del Core sale **verde**, y el cliente lee
+"se me ha cruzado un cable". Solo se ve abriendo el nodo `AI Agent · Lucía`.
+
+**Subir `maxRetries` no sirve**: el manejador de errores del nodo OpenAI de n8n lanza el
+`RateLimitError` en el acto, sin reintentar (comprobado en su código fuente). Lo que hay:
+- **Modelo de respaldo** en el agente (`needsFallback`, `OpenAI Chat Model · Respaldo` =
+  `gpt-4o-mini`). El límite es **por modelo**, así que el respaldo tiene su propio cupo.
+- Si fallan los dos, `Code · Salida v2` distingue el 429 y contesta "voy con un poco de
+  retraso", no "se me ha cruzado un cable".
+- **No** se reintenta el agente entero: repetiría las tools del turno, y `anotar_tarea` no
+  es idempotente.
+
+Lo de fondo es el nivel de la cuenta (sube con el gasto acumulado y los días desde el primer
+pago) o un modelo con más cupo como principal. Por la voz no pasa: usa el LLM de Retell.
+
 ## Los workflows de n8n no llevan el tenant dentro — resuelto (17/sep/2026)
 
 `$env` **no sirve**: n8n 2.31 lo bloquea en nodos **por defecto** (`access to
