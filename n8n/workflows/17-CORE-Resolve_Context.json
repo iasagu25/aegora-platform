@@ -439,6 +439,54 @@
         660,
         0
       ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c17-hay-busqueda",
+              "leftValue": "={{ $('Code in JavaScript').first().json.search_query || '' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        392,
+        128
+      ],
+      "id": "aegora-17-hay-busqueda",
+      "name": "¿Hay algo que buscar?",
+      "notes": "Sin id, teléfono, email ni texto no hay a quién buscar. Antes se llamaba a 07 igualmente y 07 lanza 'query es obligatorio': un webchat sin teléfono dejaba dos ejecuciones en error en CADA turno."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nadie a quien buscar: es 'no sé quién es', no un error. Misma forma que el resto\n// de salidas not_found, para que ningún llamante tenga que distinguirla.\nreturn [{ json: { ok: true, resolved: false, status: 'not_found', contact_id: null,\n                  context: null, count: 0, candidates: [] } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        288
+      ],
+      "id": "aegora-17-sin-identidad",
+      "name": "Code · Sin identidad"
     }
   ],
   "connections": {
@@ -475,7 +523,7 @@
         ],
         [
           {
-            "node": "Call '07 · CONTACT · Search'",
+            "node": "¿Hay algo que buscar?",
             "type": "main",
             "index": 0
           }
@@ -591,6 +639,24 @@
         [
           {
             "node": "Call '16 · CORE · Contact Context'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay algo que buscar?": {
+      "main": [
+        [
+          {
+            "node": "Call '07 · CONTACT · Search'",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Sin identidad",
             "type": "main",
             "index": 0
           }
