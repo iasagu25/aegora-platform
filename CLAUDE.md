@@ -321,6 +321,21 @@ simplemente el agente se comporta distinto y no hay nada que mirar.
 al router determinista. No borrarlo todavía — es la red de seguridad hasta que v2 acumule
 rodaje por WhatsApp, no solo por webchat.
 
+**Un parámetro que el prompt nombra y el nodo tool no expone no da error: se pierde**
+(2/oct/2026). `reservar_cita` del Core v2 no ofrecía `empresa` ni `profesional` al modelo
+(solo existían en la tool y en el prompt), y `consultar_disponibilidad` tampoco
+`profesional`. Efecto: por WhatsApp y webchat **la empresa no se guardaba nunca** -- la tool
+la pedía, el cliente la daba, el modelo no tenía dónde ponerla y la tool, que no bloquea por
+ella, reservaba sin -- y pedir un profesional concreto se ignoraba. La voz no lo sufría
+porque el despachador pasa los argumentos tal cual. Al añadir un campo a una `LUCIA-TOOL-*`,
+**se añade también su `$fromAI` en el nodo del Core**: son tres sitios (tool, nodo, prompt)
+y el del medio es el que se olvida.
+
+**"Confirma antes de cancelar" vive ahora en la tool, no solo en el prompt.** gpt-4o se la
+saltó con la regla escrita. `cancelar_cita` lleva `confirmado`: con `false` localiza la cita
+y devuelve `falta_confirmacion` con cuál es, sin tocar nada. Solo un `false` explícito
+frena, porque el despachador de voz no manda el campo (allí confirma el prompt de voz).
+
 #### Ajustes de comportamiento por tenant (`CONTACTO_PEDIR_EMPRESA`, 21/sep/2026)
 Lo que una gestoría necesita y una peluquería no: **la empresa del cliente**. En una
 gestoría a las personas se las conoce por su empresa y una ficha sin ella no sirve; en

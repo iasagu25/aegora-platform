@@ -20,6 +20,9 @@
             },
             {
               "name": "tenant_timezone"
+            },
+            {
+              "name": "confirmado"
             }
           ]
         }
@@ -35,7 +38,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const i = $json ?? {};\nconst clean = v => (v === undefined || v === null) ? '' : String(v).trim();\nconst delCanal = clean(i.telefono);\nconst dicho = clean(i.telefono_dicho);\nconst telefono = delCanal || dicho;\nreturn [{ json: {\n  _identificado: telefono !== '',\n  telefono,\n  telefono_del_canal: delCanal !== '',\n  fecha: clean(i.fecha),\n  hora: clean(i.hora),\n  fecha_nueva: clean(i.fecha_nueva),\n  hora_nueva: clean(i.hora_nueva),\n  tenant_timezone: clean(i.tenant_timezone) || 'Europe/Madrid',\n} }];"
+        "jsCode": "const i = $json ?? {};\nconst clean = v => (v === undefined || v === null) ? '' : String(v).trim();\nconst delCanal = clean(i.telefono);\nconst dicho = clean(i.telefono_dicho);\nconst telefono = delCanal || dicho;\nreturn [{ json: {\n  _identificado: telefono !== '',\n  telefono,\n  telefono_del_canal: delCanal !== '',\n  fecha: clean(i.fecha),\n  hora: clean(i.hora),\n  fecha_nueva: clean(i.fecha_nueva),\n  hora_nueva: clean(i.hora_nueva),\n  tenant_timezone: clean(i.tenant_timezone) || 'Europe/Madrid',\n  // Solo un `false` EXPLÍCITO frena: el Core siempre manda el campo, y el despachador\n  // de voz no lo manda (allí la confirmación en voz alta la hace el prompt de voz).\n  sin_confirmar: clean(i.confirmado).toLowerCase() === 'false',\n} }];"
       },
       "id": "c-0002",
       "name": "Code · Entrada",
@@ -333,6 +336,54 @@
         400,
         140
       ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "cancel-sin-confirmar",
+              "leftValue": "={{ $('Code · Entrada').first().json.sin_confirmar }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        860,
+        -360
+      ],
+      "id": "aegora-cancel-sin-confirmar",
+      "name": "¿Falta confirmación?",
+      "notes": "La regla 'confirma antes de cancelar' estaba solo en el prompt y gpt-4o se la saltó (2/oct/2026). Ahora la herramienta no cancela sin confirmado=true: devuelve la cita localizada para que el agente pregunte por ESA."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Se localizó la cita pero el cliente aún no ha dicho que sí. Se devuelve cuál es, para\n// que el agente pregunte por ESA (día, hora y servicio de verdad), no por la que cree.\nconst cita = $('Code · Localizar cita').first().json.cita;\nreturn [{ json: { ok: false, motivo: 'falta_confirmacion', cita } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1060,
+        -360
+      ],
+      "id": "aegora-cancel-pedir-conf",
+      "name": "Code · Pedir confirmación"
     }
   ],
   "connections": {
@@ -402,7 +453,7 @@
       "main": [
         [
           {
-            "node": "Execute · 25 Appointment Cancel",
+            "node": "¿Falta confirmación?",
             "type": "main",
             "index": 0
           }
@@ -421,6 +472,24 @@
         [
           {
             "node": "Code · Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Falta confirmación?": {
+      "main": [
+        [
+          {
+            "node": "Code · Pedir confirmación",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute · 25 Appointment Cancel",
             "type": "main",
             "index": 0
           }
