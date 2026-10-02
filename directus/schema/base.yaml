@@ -2502,17 +2502,19 @@ fields:
         relative: true
       field: date_created
       group: null
-      hidden: true
+      hidden: false
       interface: datetime
       note: null
       options: null
       readonly: true
       required: false
       searchable: true
-      sort: 2
+      sort: 9
       special:
         - date-created
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Fecha de creación
       validation: null
       validation_message: null
       width: half
@@ -2544,17 +2546,19 @@ fields:
         relative: true
       field: date_updated
       group: null
-      hidden: true
+      hidden: false
       interface: datetime
       note: null
       options: null
       readonly: true
       required: false
       searchable: true
-      sort: 3
+      sort: 10
       special:
         - date-updated
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Última modificación
       validation: null
       validation_message: null
       width: half
@@ -2736,92 +2740,6 @@ fields:
       table: calendars
       data_type: boolean
       default_value: true
-      max_length: null
-      numeric_precision: null
-      numeric_scale: null
-      is_nullable: true
-      is_unique: false
-      is_indexed: false
-      is_primary_key: false
-      is_generated: false
-      generation_expression: null
-      has_auto_increment: false
-      foreign_key_table: null
-      foreign_key_column: null
-  - collection: calendars
-    field: created_at
-    type: dateTime
-    meta:
-      collection: calendars
-      conditions: null
-      display: null
-      display_options: null
-      field: created_at
-      group: null
-      hidden: false
-      interface: datetime
-      note: null
-      options: null
-      readonly: false
-      required: false
-      searchable: true
-      sort: 9
-      special:
-        - date-created
-      translations:
-        - language: es-ES
-          translation: Fecha de creación
-      validation: null
-      validation_message: null
-      width: full
-    schema:
-      name: created_at
-      table: calendars
-      data_type: timestamp without time zone
-      default_value: null
-      max_length: null
-      numeric_precision: null
-      numeric_scale: null
-      is_nullable: true
-      is_unique: false
-      is_indexed: false
-      is_primary_key: false
-      is_generated: false
-      generation_expression: null
-      has_auto_increment: false
-      foreign_key_table: null
-      foreign_key_column: null
-  - collection: calendars
-    field: updated_at
-    type: dateTime
-    meta:
-      collection: calendars
-      conditions: null
-      display: null
-      display_options: null
-      field: updated_at
-      group: null
-      hidden: false
-      interface: datetime
-      note: null
-      options: null
-      readonly: false
-      required: false
-      searchable: true
-      sort: 10
-      special:
-        - date-updated
-      translations:
-        - language: es-ES
-          translation: Última modificación
-      validation: null
-      validation_message: null
-      width: full
-    schema:
-      name: updated_at
-      table: calendars
-      data_type: timestamp without time zone
-      default_value: null
       max_length: null
       numeric_precision: null
       numeric_scale: null
@@ -5633,17 +5551,19 @@ fields:
         relative: true
       field: date_created
       group: null
-      hidden: true
+      hidden: false
       interface: datetime
       note: null
       options: null
       readonly: true
       required: false
       searchable: true
-      sort: 2
+      sort: 13
       special:
         - date-created
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Fecha de creación
       validation: null
       validation_message: null
       width: half
@@ -5675,17 +5595,19 @@ fields:
         relative: true
       field: date_updated
       group: null
-      hidden: true
+      hidden: false
       interface: datetime
       note: null
       options: null
       readonly: true
       required: false
       searchable: true
-      sort: 3
+      sort: 14
       special:
         - date-updated
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Última modificación
       validation: null
       validation_message: null
       width: half
@@ -5961,92 +5883,6 @@ fields:
       foreign_key_table: null
       foreign_key_column: null
   - collection: locations
-    field: created_at
-    type: dateTime
-    meta:
-      collection: locations
-      conditions: null
-      display: null
-      display_options: null
-      field: created_at
-      group: null
-      hidden: false
-      interface: datetime
-      note: null
-      options: null
-      readonly: true
-      required: false
-      searchable: true
-      sort: 13
-      special:
-        - date-created
-      translations:
-        - language: es-ES
-          translation: Fecha de creación
-      validation: null
-      validation_message: null
-      width: full
-    schema:
-      name: created_at
-      table: locations
-      data_type: timestamp without time zone
-      default_value: null
-      max_length: null
-      numeric_precision: null
-      numeric_scale: null
-      is_nullable: true
-      is_unique: false
-      is_indexed: false
-      is_primary_key: false
-      is_generated: false
-      generation_expression: null
-      has_auto_increment: false
-      foreign_key_table: null
-      foreign_key_column: null
-  - collection: locations
-    field: updated_at
-    type: dateTime
-    meta:
-      collection: locations
-      conditions: null
-      display: null
-      display_options: null
-      field: updated_at
-      group: null
-      hidden: false
-      interface: datetime
-      note: null
-      options: null
-      readonly: true
-      required: false
-      searchable: true
-      sort: 14
-      special:
-        - date-updated
-      translations:
-        - language: es-ES
-          translation: Última modificación
-      validation: null
-      validation_message: null
-      width: full
-    schema:
-      name: updated_at
-      table: locations
-      data_type: timestamp without time zone
-      default_value: null
-      max_length: null
-      numeric_precision: null
-      numeric_scale: null
-      is_nullable: true
-      is_unique: false
-      is_indexed: false
-      is_primary_key: false
-      is_generated: false
-      generation_expression: null
-      has_auto_increment: false
-      foreign_key_table: null
-      foreign_key_column: null
-  - collection: locations
     field: timezone
     type: string
     meta:
@@ -6198,17 +6034,19 @@ fields:
         relative: true
       field: date_created
       group: null
-      hidden: true
+      hidden: false
       interface: datetime
       note: null
       options: null
       readonly: true
       required: false
       searchable: true
-      sort: 2
+      sort: 12
       special:
         - date-created
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Fecha de creación
       validation: null
       validation_message: null
       width: half
@@ -6240,17 +6078,19 @@ fields:
         relative: true
       field: date_updated
       group: null
-      hidden: true
+      hidden: false
       interface: datetime
       note: null
       options: null
       readonly: true
       required: false
       searchable: true
-      sort: 3
+      sort: 13
       special:
         - date-updated
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Última modificación
       validation: null
       validation_message: null
       width: half
@@ -6592,92 +6432,6 @@ fields:
       has_auto_increment: false
       foreign_key_table: null
       foreign_key_column: null
-  - collection: resources
-    field: created_at
-    type: dateTime
-    meta:
-      collection: resources
-      conditions: null
-      display: null
-      display_options: null
-      field: created_at
-      group: null
-      hidden: false
-      interface: datetime
-      note: null
-      options: null
-      readonly: true
-      required: false
-      searchable: true
-      sort: 12
-      special:
-        - date-created
-      translations:
-        - language: es-ES
-          translation: Fecha de creación
-      validation: null
-      validation_message: null
-      width: full
-    schema:
-      name: created_at
-      table: resources
-      data_type: timestamp without time zone
-      default_value: null
-      max_length: null
-      numeric_precision: null
-      numeric_scale: null
-      is_nullable: true
-      is_unique: false
-      is_indexed: false
-      is_primary_key: false
-      is_generated: false
-      generation_expression: null
-      has_auto_increment: false
-      foreign_key_table: null
-      foreign_key_column: null
-  - collection: resources
-    field: updated_at
-    type: dateTime
-    meta:
-      collection: resources
-      conditions: null
-      display: null
-      display_options: null
-      field: updated_at
-      group: null
-      hidden: false
-      interface: datetime
-      note: null
-      options: null
-      readonly: true
-      required: false
-      searchable: true
-      sort: 13
-      special:
-        - date-updated
-      translations:
-        - language: es-ES
-          translation: Última modificación
-      validation: null
-      validation_message: null
-      width: full
-    schema:
-      name: updated_at
-      table: resources
-      data_type: timestamp without time zone
-      default_value: null
-      max_length: null
-      numeric_precision: null
-      numeric_scale: null
-      is_nullable: true
-      is_unique: false
-      is_indexed: false
-      is_primary_key: false
-      is_generated: false
-      generation_expression: null
-      has_auto_increment: false
-      foreign_key_table: null
-      foreign_key_column: null
   - collection: service_resources
     field: id
     type: uuid
@@ -6950,17 +6704,19 @@ fields:
         relative: true
       field: date_created
       group: null
-      hidden: true
+      hidden: false
       interface: datetime
       note: null
       options: null
       readonly: true
       required: false
       searchable: true
-      sort: 2
+      sort: 12
       special:
         - date-created
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Fecha de creación
       validation: null
       validation_message: null
       width: half
@@ -6992,17 +6748,19 @@ fields:
         relative: true
       field: date_updated
       group: null
-      hidden: true
+      hidden: false
       interface: datetime
       note: null
       options: null
       readonly: true
       required: false
       searchable: true
-      sort: 3
+      sort: 13
       special:
         - date-updated
-      translations: null
+      translations:
+        - language: es-ES
+          translation: Última modificación
       validation: null
       validation_message: null
       width: half
@@ -7313,92 +7071,6 @@ fields:
       table: services
       data_type: boolean
       default_value: true
-      max_length: null
-      numeric_precision: null
-      numeric_scale: null
-      is_nullable: true
-      is_unique: false
-      is_indexed: false
-      is_primary_key: false
-      is_generated: false
-      generation_expression: null
-      has_auto_increment: false
-      foreign_key_table: null
-      foreign_key_column: null
-  - collection: services
-    field: created_at
-    type: dateTime
-    meta:
-      collection: services
-      conditions: null
-      display: null
-      display_options: null
-      field: created_at
-      group: null
-      hidden: false
-      interface: datetime
-      note: null
-      options: null
-      readonly: true
-      required: false
-      searchable: true
-      sort: 12
-      special:
-        - date-created
-      translations:
-        - language: es-ES
-          translation: Fecha de creación
-      validation: null
-      validation_message: null
-      width: full
-    schema:
-      name: created_at
-      table: services
-      data_type: timestamp without time zone
-      default_value: null
-      max_length: null
-      numeric_precision: null
-      numeric_scale: null
-      is_nullable: true
-      is_unique: false
-      is_indexed: false
-      is_primary_key: false
-      is_generated: false
-      generation_expression: null
-      has_auto_increment: false
-      foreign_key_table: null
-      foreign_key_column: null
-  - collection: services
-    field: updated_at
-    type: dateTime
-    meta:
-      collection: services
-      conditions: null
-      display: null
-      display_options: null
-      field: updated_at
-      group: null
-      hidden: false
-      interface: datetime
-      note: null
-      options: null
-      readonly: true
-      required: false
-      searchable: true
-      sort: 13
-      special:
-        - date-updated
-      translations:
-        - language: es-ES
-          translation: Última modificación
-      validation: null
-      validation_message: null
-      width: full
-    schema:
-      name: updated_at
-      table: services
-      data_type: timestamp without time zone
-      default_value: null
       max_length: null
       numeric_precision: null
       numeric_scale: null

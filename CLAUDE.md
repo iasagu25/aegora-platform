@@ -28,12 +28,14 @@ documentado sigue siendo cierto.
 ## Infraestructura
 - VPS: `vm7423` (LumaDock), IP `185.200.244.81`, usuario `aegora`, EPYC VPS.P5.
 - Repo en VPS: `/opt/aegora/platform`. Tenants en `/opt/aegora/tenants/<tenant>`.
-- Tenants activos: `demo` (uso activo, incluye desarrollo de booking y n8n),
-  `aegora-internal`. El id `aegora` está reservado, no usar para tenants nuevos.
-- Contenedores: `<tenant>-directus`, `<tenant>-n8n`. Postgres compartido:
-  `aegora-postgres`. BD por tenant: `directus_<tenant>`, `n8n_<tenant>`,
-  `booking_<tenant>` (ya existe una Booking API con su propia BD, construida
-  antes del incidente, **pendiente integrar** con el planteamiento actual).
+- Tenants activos: `demo` (demos a clientes) y `dev` (desarrollo). `ops` (la operación de
+  Aegora) está decidido y sin crear. `aegora-internal` se borró el 20/sep/2026. Ver
+  "Tres tenants con alcances separados". El id `aegora` está reservado, no usar para
+  tenants nuevos.
+- Contenedores: `<tenant>-directus`, `<tenant>-n8n`, `<tenant>-booking`. Postgres
+  compartido: `aegora-postgres`. BD por tenant: `directus_<tenant>` (que usa también el
+  Booking API) y `n8n_<tenant>`. `demo` conserva además un `booking_<tenant>` vacío de
+  antes de Booking V1 (ver "Ojo con `booking_<tenant>`").
 
 ## Directus — quirks descubiertos (verificados, no asumir lo contrario)
 - Apply schema: `directus/apply-schema.sh --tenant TENANT [--apply]` (sin
@@ -51,7 +53,7 @@ documentado sigue siendo cierto.
   (`directus-provisioning@aegora.es`) **ya existe en demo** (creado con
   `directus/provision-directus-access.sh --tenant demo --apply`; token en
   `/opt/aegora/tenants/demo/secrets/directus-provisioning.env`). También
-  en `aegora-internal`. Para llamadas a la API de Directus, usar ese token
+  en `dev`. Para llamadas a la API de Directus, usar ese token
   ejecutando `node` dentro del contenedor contra `http://127.0.0.1:8055`
   (evita DNS/permisos del host).
 - Directus fijado en 12.2.0 a propósito (no actualizar a 12.3.x todavía,
@@ -207,8 +209,8 @@ Orden de sospechas cuando no hay huecos y "debería haberlos" (16/sep/2026: fue 
   - `create-tenant.sh` + manifests: sin `booking_<tenant>` (DB/rol/data dir).
     Booking V1 usa `directus_<tenant>`. Se conservan `BOOKING_CONTAINER` y
     `BOOKING_HOST` en `tenant.env` (los leen `deploy-booking.sh` /
-    `publish-tenant.sh`). Los tenants ya creados (`demo`, `aegora-internal`)
-    conservan su `booking_<tenant>` vacío + refs en `config/tenant.env` y
+    `publish-tenant.sh`). El tenant creado antes del cambio (`demo`)
+    conserva su `booking_<tenant>` vacío + refs en `config/tenant.env` y
     `config/backup.manifest.json` hasta limpieza manual.
   - n8n: 26 workflows de dominio de `demo` versionados en `n8n/workflows/`
     (`NN-CATEGORIA-Nombre.json`, export normalizado). Credenciales por tenant
@@ -521,10 +523,9 @@ bueno:
   - `SESSION · Cleanup`: el permiso `delete` ya lo declara
     `configure-n8n-service.sh`; queda probarlo y activarlo.
   - Probar el widget en navegador contra el host público del n8n de `demo`.
-  - Verificar tras el primer `render-workflows.sh --apply` que los dos adapters
-    siguen respondiendo en su webhook de producción.
-  - Aplicar `base.yaml` + `booking-indexes.sql` en `aegora-internal`, y montar
-    allí credenciales n8n + workflows.
+  - **Crear `ops`** (sustituye a `aegora-internal`): credencial S3 dedicada en Hetzner
+    ANTES del onboarding, y después el orden real de `dev` (esquema, `configure-*`,
+    credenciales n8n, `render-workflows.sh` completo).
   - Migrar build A → imagen en GHCR (CI en `aegora-booking`).
   - **Límites de recursos en las plantillas** (`mem_limit`, `cpus` en los tres
     `compose.yml.tpl`). Hoy no hay ninguno y no hay swap: un tenant que se
@@ -1626,11 +1627,24 @@ campo (ver el quirk de Directus arriba), es dónde está la verdad.
   apagar un trozo (una promoción caducada) sin borrarlo, y los títulos concatenados le dan
   estructura al modelo para localizar el dato.
 
-## Deuda de esquema conocida (no urgente)
-- `calendars`, `locations`, `resources` y `services` llevan **dos pares de timestamps**:
-  `created_at`/`updated_at` (convención del negocio) y `date_created`/`date_updated`
-  (los de Directus). Limpiarlo implica borrar columnas, así que no se toca sin decidirlo
-  a propósito. El resto de colecciones usa uno u otro par, no los dos.
+## Timestamps duplicados: se quedan los `date_*` (decidido 2/oct/2026)
+`calendars`, `locations`, `resources` y `services` llevaban **dos pares**, y **los dos los
+rellenaba Directus solo** (`special: date-created` / `date-updated` en ambos). No era "uno
+automático y otro nuestro": era el mismo dato dos veces, y el par `created_at`/`updated_at`
+era el peor -- `dateTime` (sin zona) frente a `timestamp` (con zona). Nada lo leía: ni
+workflows, ni Booking API, ni SQL, ni seeds (comprobado con grep en los dos repos).
+
+Se quitan `created_at`/`updated_at` de esas cuatro y se enseñan los `date_*` en su lugar
+(mismo orden y traducción). Queda una regla que antes era casualidad:
+
+| tipo de colección | timestamps |
+|---|---|
+| de negocio (`contacts`, `appointments`, `tasks`, conversaciones…) | `created_at` / `updated_at` |
+| de configuración (`services`, `resources`, reglas, junctions…) | `date_created` / `date_updated` |
+
+**Borrar columnas no se deshace con Git**: antes del `--apply` se comprueba que no hay filas
+con `date_created` vacío y `created_at` relleno -- serían filas insertadas por SQL, cuya
+fecha se perdería.
 
 ## Estilo de trabajo esperado
 - **Los paneles de terceros (Retell, Meta, etc.) los edita el usuario, no Claude.**

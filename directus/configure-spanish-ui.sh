@@ -547,8 +547,8 @@ const fieldTranslations = {
     maximum_booking_days: 'Se puede reservar con (días)',
     requires_confirmation: 'Requiere confirmación',
     active: 'Activo',
-    created_at: 'Fecha de creación',
-    updated_at: 'Última modificación',
+    date_created: 'Fecha de creación',
+    date_updated: 'Última modificación',
   },
 
   resources: {
@@ -560,8 +560,8 @@ const fieldTranslations = {
     calendar_id: 'Calendario',
     capacity: 'Capacidad',
     active: 'Activo',
-    created_at: 'Fecha de creación',
-    updated_at: 'Última modificación',
+    date_created: 'Fecha de creación',
+    date_updated: 'Última modificación',
   },
 
   locations: {
@@ -575,8 +575,8 @@ const fieldTranslations = {
     active: 'Activa',
     calendars: 'Calendarios',
     resources: 'Recursos',
-    created_at: 'Fecha de creación',
-    updated_at: 'Última modificación',
+    date_created: 'Fecha de creación',
+    date_updated: 'Última modificación',
   },
 
   calendars: {
@@ -586,8 +586,8 @@ const fieldTranslations = {
     timezone: 'Zona horaria',
     active: 'Activo',
     resources: 'Recursos',
-    created_at: 'Fecha de creación',
-    updated_at: 'Última modificación',
+    date_created: 'Fecha de creación',
+    date_updated: 'Última modificación',
   },
 
   availability_rules: {
