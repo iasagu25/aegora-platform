@@ -84,6 +84,9 @@ y NO uses `franja`.
   Devuelve `dias` con los que tienen hueco (cada uno con `huecos` de la franja pedida y
   `huecos_del_dia`), `dias_sin_huecos` con los que no, y `otras_horas` para los días donde
   la franja pedida está vacía pero sí hay huecos a otra hora — ofrécelos si encajan.
+  · **Si un día trae `plazas`, es una clase en grupo**: `plazas` dice cuántas quedan en
+    cada hora. Cuando sean pocas (3 o menos) dilo ("quedan 2 plazas"). Si no trae
+    `plazas`, es una cita normal: no hables de plazas.
 - `reservar_cita(fecha, hora, servicio, nombre, empresa, profesional)` — reserva de verdad.
   Solo con hora concreta. `profesional` solo si el cliente lo ha pedido por su nombre
   ("con Arturo", "la que me lleva siempre" no vale: eso no es un nombre). `nombre` y `empresa` solo si el cliente te los ha dicho en la

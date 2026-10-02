@@ -154,7 +154,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const r = $input.first().json ?? {};\nconst status = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\n\nif (body.ok !== true) {\n  return [{ json: {\n    available: false,\n    error: body.error || ('http_' + status),\n    message: body.detail || 'El Booking API devolvió un error',\n  } }];\n}\n\nconst slots = Array.isArray(body.slots)\n  ? body.slots.map(s => ({ start_at: s.start_at, end_at: s.end_at }))\n  : [];\n\nreturn [{ json: {\n  available: slots.length > 0,\n  count: slots.length,\n  service_id: body.service_id,\n  date: body.date,\n  timezone: body.timezone,\n  duration_minutes: body.duration_minutes,\n  slots,\n} }];"
+        "jsCode": "const r = $input.first().json ?? {};\nconst status = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\n\nif (body.ok !== true) {\n  return [{ json: {\n    available: false,\n    error: body.error || ('http_' + status),\n    message: body.detail || 'El Booking API devolvió un error',\n  } }];\n}\n\n// `plazas` solo en clases en grupo (`group`): en una cita individual `seats_left` cuenta\n// recursos libres, y decirle al cliente \"quedan 3 plazas\" para ver a un gestor sería falso.\nconst slots = Array.isArray(body.slots)\n  ? body.slots.map(s => ({\n      start_at: s.start_at,\n      end_at: s.end_at,\n      ...(s.group ? { plazas: s.seats_left } : {}),\n    }))\n  : [];\n\nreturn [{ json: {\n  available: slots.length > 0,\n  count: slots.length,\n  service_id: body.service_id,\n  date: body.date,\n  timezone: body.timezone,\n  duration_minutes: body.duration_minutes,\n  slots,\n} }];"
       },
       "id": "8f0e0a10-0000-4000-8000-000000000005",
       "name": "Shape result",

@@ -1228,7 +1228,14 @@ Dos conjuntos para enseñar la plataforma a un cliente sin que parezca un tenant
 - **Gimnasio**: **clases en bloque con N plazas** — varias personas se apuntan al mismo
   hueco.
 
-**El de gimnasio NO se puede montar con datos: le falta motor.** El modelo V1 es
+**Motor de clases en grupo: hecho (2/oct/2026)** -- `resources.capacity` = plazas por hueco
+(contrato §6.10 de `aegora-booking`). Cada asistente es una cita propia; una cita del mismo
+servicio a la misma hora exacta ocupa plaza y cualquier otra solapada bloquea el hueco. La
+disponibilidad devuelve `group`/`seats_left`, y `consultar_disponibilidad` pasa `plazas` al
+agente solo en clases. Primer uso previsto: que los potenciales clientes de Aegora reserven
+la demo. Lo de abajo es el razonamiento de antes de hacerlo.
+
+**El de gimnasio NO se podía montar con datos: le faltaba motor.** El modelo V1 es
 `service_resources` como pool OR y una cita ocupa un recurso; una clase de 19:00 con 12
 plazas es otra cosa -- la capacidad vive en el hueco, no en el recurso. `availability` hoy
 devuelve libre/ocupado, no plazas restantes, y `book` bloquea el hueco con la primera

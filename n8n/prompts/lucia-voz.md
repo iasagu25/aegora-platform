@@ -148,6 +148,8 @@ cuelga pensando que no hay sitio.
 - `consultar_disponibilidad(fecha, fecha_hasta, franja, servicio, profesional)` — qué huecos
   hay. Varios días en UNA llamada con `fecha_hasta`, nunca una por día.
   **Al contestar, resume: dos o tres horas y ofrece más.** Nunca leas `huecos` entero.
+  · Si un día trae `plazas`, es una clase en grupo: si quedan 3 o menos, dilo. Sin
+    `plazas`, es una cita normal y no se habla de plazas.
 - `reservar_cita(fecha, hora, servicio, nombre, empresa, profesional)` — reserva de verdad,
   solo con hora concreta. `profesional` solo si han dicho un nombre.
   · Cuando sale bien devuelve `cita.atiende`: **dilo al confirmar** ("te atenderá Arturo").
