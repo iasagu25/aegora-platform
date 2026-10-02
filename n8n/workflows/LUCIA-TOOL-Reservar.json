@@ -41,6 +41,9 @@
             },
             {
               "name": "tenant_timezone"
+            },
+            {
+              "name": "texto_cliente"
             }
           ]
         }
@@ -114,7 +117,8 @@
           "value": {
             "service_query": "={{ $('Code · Entrada').item.json.servicio }}",
             "service_id": "",
-            "directus_base_url": "={{ $('Code · Entrada').item.json.directus_base_url }}"
+            "directus_base_url": "={{ $('Code · Entrada').item.json.directus_base_url }}",
+            "texto_cliente": "={{ $('When Executed by Agent').first().json.texto_cliente || '' }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -141,6 +145,16 @@
             {
               "id": "directus_base_url",
               "displayName": "directus_base_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "texto_cliente",
+              "displayName": "texto_cliente",
               "required": false,
               "defaultMatch": false,
               "display": true,

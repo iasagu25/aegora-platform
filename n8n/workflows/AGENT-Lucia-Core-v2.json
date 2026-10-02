@@ -203,7 +203,8 @@
             "booking_base_url": "={{ $('Config (editar por tenant)').first().json.booking_base_url }}",
             "tenant_timezone": "={{ $('Config (editar por tenant)').first().json.tenant_timezone }}",
             "fecha_hasta": "={{ $fromAI('fecha_hasta', 'Último día del rango en formato YYYY-MM-DD, cuando preguntan por varios días (\"esta semana\", \"la semana que viene\", \"¿cuándo tienes libre?\"). Vacío si preguntan por un día concreto', 'string', '') }}",
-            "profesional": "={{ $fromAI('profesional', 'Nombre de la persona con la que el cliente quiere la cita. Vacío si no ha pedido a nadie', 'string', '') }}"
+            "profesional": "={{ $fromAI('profesional', 'Nombre de la persona con la que el cliente quiere la cita. Vacío si no ha pedido a nadie', 'string', '') }}",
+            "texto_cliente": "={{ $('When Executed by Another Workflow').first().json.message }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -286,6 +287,16 @@
               "canBeUsedToMatch": true,
               "type": "string",
               "removed": false
+            },
+            {
+              "id": "texto_cliente",
+              "displayName": "texto_cliente",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -325,7 +336,8 @@
             "tenant_timezone": "={{ $('Config (editar por tenant)').first().json.tenant_timezone }}",
             "telefono_dicho": "={{ $fromAI('telefono_dicho', 'Teléfono que el cliente te haya dado en la conversación. Déjalo vacío si no te lo ha dicho: si el canal ya lo conoce, se usa ese', 'string', '') }}",
             "empresa": "={{ $fromAI('empresa', 'Empresa del cliente SOLO si te la ha dicho en esta conversación. Vacío si no', 'string', '') }}",
-            "profesional": "={{ $fromAI('profesional', 'Nombre de la persona con la que el cliente ha pedido la cita. Vacío si no ha pedido a nadie', 'string', '') }}"
+            "profesional": "={{ $fromAI('profesional', 'Nombre de la persona con la que el cliente ha pedido la cita. Vacío si no ha pedido a nadie', 'string', '') }}",
+            "texto_cliente": "={{ $('When Executed by Another Workflow').first().json.message }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -442,6 +454,16 @@
             {
               "id": "profesional",
               "displayName": "profesional",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "texto_cliente",
+              "displayName": "texto_cliente",
               "required": false,
               "defaultMatch": false,
               "display": true,
