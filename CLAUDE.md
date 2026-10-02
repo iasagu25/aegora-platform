@@ -1549,9 +1549,10 @@ era ni a quién avisar. Y en silencio: un borrado, tres citas huérfanas, y nada
 Segundo efecto encadenado: la `idempotency_key` de una reserva es
 `session_key + start_at`, **sin el contacto**, así que una cita huérfana seguía casando
 con la siguiente petición del mismo teléfono y el Booking API la devolvía como idempotente
--- Lucía confirmaba *"tu cita ya está reservada"* de una cita que no era de nadie. **Eso
-sigue sin arreglar y es del Booking API**: una cita sin dueño no debería casar con la
-petición de nadie. Merece una línea en el contrato cuando se toque ese repo.
+-- Lucía confirmaba *"tu cita ya está reservada"* de una cita que no era de nadie.
+**Arreglado en el Booking API (2/oct/2026, contrato §7)**: la key solo vale si la cita que
+la lleva es del mismo contacto y sigue activa; si no, se suelta y se reserva de nuevo. Cubre
+también reservar, cancelar y volver a pedir la misma hora en la misma sesión.
 
 El arreglo: **un trigger `BEFORE DELETE` sobre `contacts`**
 (`directus/sql/contacts-erasure.sql`) que cancela sus citas futuras -- lo que dicen a la
