@@ -336,6 +336,16 @@ saltó con la regla escrita. `cancelar_cita` lleva `confirmado`: con `false` loc
 y devuelve `falta_confirmacion` con cuál es, sin tocar nada. Solo un `false` explícito
 frena, porque el despachador de voz no manda el campo (allí confirma el prompt de voz).
 
+**La memoria del agente también guarda sus errores, y se los cree** (2/oct/2026). En un hilo
+de WhatsApp Lucía dijo tres veces "no ofrecemos demo" cuando el servicio aún no existía en
+`demo`. Creado ya el servicio, en el mismo hilo contestó dos turnos SIN llamar a ninguna
+tool -- "no ofrecemos demo" otra vez, y al "sí" de reservar, lo mismo --, aunque entre medias
+`consultar_disponibilidad` le había enseñado la demo con sus plazas. Tres afirmaciones suyas
+pesaron más que un resultado de tool. La regla 2 del prompt dice ahora explícitamente que lo
+que ella dijo antes no es un dato. Al probar un cambio de catálogo con un número que ya habló
+de él, **borrar la memoria de ese hilo** (`n8n_chat_histories`, por `session_id`) o el
+resultado no dice nada del cambio.
+
 #### Ajustes de comportamiento por tenant (`CONTACTO_PEDIR_EMPRESA`, 21/sep/2026)
 Lo que una gestoría necesita y una peluquería no: **la empresa del cliente**. En una
 gestoría a las personas se las conoce por su empresa y una ficha sin ella no sirve; en
