@@ -531,6 +531,21 @@ bueno:
    solo tener el día. Entrar "de más" es seguro: `Construir start_at` revalida y
    `Salida · pedir datos reserva` pide exactamente lo que falte.
 
+- **PARA EL 8/OCT/2026 -- desplegar el `.ics` en `dev`** (construido el 7/oct, commit
+  `ded99c9`; sin aplicar todavía). En orden:
+  1. Despublicar `CALENDARIO · Outlook` en el n8n de `dev` (sigue activo de la prueba de
+     Graph y reintenta el 401; está aparcado en `n8n/aparcados/`).
+  2. `apply-schema.sh --tenant dev` (PLAN: dos campos nuevos en `employees`,
+     `sincronizar_calendario` y `calendar_sync` ocultos, `sync-calendario-ics.sql`) ->
+     `--apply` -> reinicio -> `configure-directus-views`, `-ui`, `spanish-ui`, `n8n-service`.
+  3. `render-workflows.sh --tenant dev --only CALENDARIO-ICS` (PLAN: comprobar que
+     `__WEBHOOK_PUBLIC_URL__` sale `https://lucia.<dominio de dev>`) -> `--apply`.
+  4. Probar: a los ~5 min aparece "Enlace del calendario" en el empleado; `curl` del enlace
+     empieza por `BEGIN:VCALENDAR`; suscribirse desde Outlook / Google / iPhone; reservar,
+     mover y anular una cita y verla cambiar (iPhone en minutos; Outlook y Google, horas).
+  Después, el mismo camino a `demo` (esquema completo + render completo) y avisar al cliente
+  de `jcaaudiconsult.com` (correo IMAP propio) de que su opción es esta y del retraso.
+
 - Pendiente omnicanal / cerebro:
   - **WhatsApp**: `WHATSAPP-Adapter.json` en producción en `demo` (verificación
     de webhook, firma `X-Hub-Signature-256`, dedup por `wamid`, aviso de
