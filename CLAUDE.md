@@ -1311,7 +1311,7 @@ distintos a propósito**. Uno donde todos atienden a la vez no enseña nada -- l
 que Lucía ofrezca huecos diferentes según el servicio, porque cada servicio lo dan
 personas distintas.
 
-## Sincronización con el calendario del cliente (Google / Outlook) — decidido, sin construir
+## Sincronización con el calendario del cliente (Google / Outlook) — Outlook fase 1 construida (ver abajo)
 El layout Calendario de Directus **no admite color por evento** (sus únicas opciones son
 plantilla, campo inicio, campo fin y primer día) y además **renderiza la plantilla como
 texto plano**: un `display` de etiquetas se ve con chips en Tarjetas, pero pelado en el
@@ -1381,6 +1381,53 @@ como empresa. El aviso de privacidad de Lucía ya apunta a la política real
 (`https://aegora.es/politica-privacidad`), la misma para todos los tenants; sigue
 siendo el token `__PRIVACY_POLICY_URL__` por si algún negocio acaba teniendo la
 suya, y entonces se pone `PRIVACY_POLICY_URL` en su `tenant.env`.
+
+## Sincronización Aegora → Outlook: fase 1 construida (7/oct/2026)
+`CALENDARIO · Outlook` deja el calendario de Outlook de cada empleado como dice Aegora. Solo
+en ese sentido: lo que se cambie en Outlook no vuelve (fase 3), y el pie de cada evento lo
+dice para que nadie mueva una cita desde el móvil creyendo que avisa al cliente.
+
+Piezas, y por qué cada una:
+- **`appointments.calendario_pendiente`** lo pone un trigger (`directus/sql/sync-calendario.sql`)
+  en `appointments` (alta o cambio de hora, estado, contacto, servicio, título o notas),
+  `appointment_resources` (cambia quién atiende) y `employees` (activa o desactiva la
+  sincronización, o cambia de email: se marcan sus citas futuras). La base de datos lo ve
+  TODO -- Booking API, panel y el trigger de supresión --; un Flow o un webhook solo verían
+  su parte. El trigger compara columnas, así que el desmarcado de n8n no re-marca: sin esa
+  comparación sería un bucle.
+- **El workflow sondea cada minuto** (`saveDataSuccessExecution: none`, como el enviador del
+  relevo) y **recalcula desde cero** qué tiene que haber: crear, actualizar, mover de buzón,
+  borrar o nada. Marcar de más no hace daño. Desmarca solo si la cita no cambió mientras
+  tanto (`updated_at` igual) y si la fila se guardó; un fallo deja la cita pendiente y no
+  insiste más de una vez cada 15 min (`esperar`).
+- **`calendar_sync`**: qué evento de Outlook es cada cita (`clave`, `buzon`,
+  `external_event_id`, `estado`, `error`). Los ids del proveedor no entran en `appointments`,
+  como pide el handover. Sin `delete` para n8n: una cita anulada deja la fila en
+  `sin_evento`. **Si una cita no llega al calendario, el motivo está en `error`.**
+- **Una clase en grupo es UN evento** (`clave` = `grupo:<recurso>|<inicio>|<servicio>`) con la
+  lista de apuntados. Limitación conocida: si una cita sale de una clase por cambio de hora,
+  el evento de la clase de antes no se rehace hasta que esa clase vuelva a cambiar.
+- **Buzón** = `employees.email` del recurso `primary`, solo con `sincronizar_calendario`
+  activo y el empleado `active`. Tiene que ser el **UPN** del usuario en Microsoft 365.
+
+**Autenticación: client credentials, sin inicio de sesión por empleado.** Credencial de n8n
+`Microsoft Graph`, tipo **OAuth2 API** con grant **Client Credentials** (token URL
+`https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token`, scope
+`https://graph.microsoft.com/.default`), creada a mano en cada tenant como la del despachador.
+El secreto vive cifrado en n8n, no en Git ni en `secrets/`. Permiso en Entra:
+`Calendars.ReadWrite` **de aplicación**, con consentimiento de administrador concedido.
+
+**Un permiso de aplicación necesita buzones de Exchange Online, o sea licencias de Microsoft
+365.** Un "Default Directory" de Azure sin licencias registra la app y concede el permiso sin
+problema, y luego Graph contesta `MailboxNotEnabledForRESTAPI`. La sincronización de antes del
+incidente no era prueba de lo contrario: aquellos workflows (los "DESEDE outlook" incluidos)
+eran todos de **Google Calendar** contra un Gmail personal con OAuth delegado; de Microsoft solo
+había un nodo HTTP vacío.
+
+**Como `render-workflows.sh` exige todas las credenciales que usan los workflows, `Microsoft
+Graph` tiene que existir en TODOS los tenants** antes del siguiente render, aunque sea con
+datos de mentira donde no se use: sin ningún empleado con la sincronización activa, el
+workflow no llama nunca a Graph.
 
 ## En los Code node de n8n NO hay criptografía (n8n 2.31, task runner)
 Dos puertas cerradas, comprobadas ejecutando (en el editor no se ve ninguna):

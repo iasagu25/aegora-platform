@@ -443,6 +443,12 @@ const collectionTranslations = {
     translation: 'Resumen llamadas',
   },
 
+  calendar_sync: {
+    singular: 'Sincronización de calendario',
+    plural: 'Sincronizaciones de calendario',
+    translation: 'Sincronización de calendario',
+  },
+
   languages: {
     singular: 'Idioma',
     plural: 'Idiomas',
@@ -496,6 +502,7 @@ const fieldTranslations = {
     phone: 'Teléfono',
     phone_normalized: 'Teléfono normalizado',
     whatsapp_notifications: 'Notificaciones por WhatsApp',
+    sincronizar_calendario: 'Sincronizar calendario',
     status: 'Estado',
     role: 'Puesto / función',
     directus_user_id: 'Usuario Directus',
@@ -531,6 +538,7 @@ const fieldTranslations = {
     source: 'Origen',
     external_provider: 'Proveedor externo',
     external_event_id: 'ID del evento externo',
+    calendario_pendiente: 'Pendiente de sincronizar',
     created_at: 'Fecha de creación',
     updated_at: 'Última modificación',
   },
@@ -660,6 +668,17 @@ const fieldTranslations = {
     session_key: 'Conversación',
     call_id: 'ID de llamada',
     created_at: 'Fecha de creación',
+  },
+
+  calendar_sync: {
+    id: 'ID',
+    clave: 'Cita o clase',
+    proveedor: 'Proveedor',
+    buzon: 'Calendario (buzón)',
+    external_event_id: 'ID del evento',
+    estado: 'Estado',
+    error: 'Último error',
+    date_updated: 'Última sincronización',
   },
 
   conversation_messages: {

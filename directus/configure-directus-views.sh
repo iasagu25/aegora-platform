@@ -189,6 +189,9 @@ const orden = {
   availability_rules: 15,
   availability_exceptions: 16,
   service_resources: 17,
+  // Solo la ve el administrador (el gestor no tiene permiso): es donde se mira por qué
+  // una cita no ha llegado a un calendario de Outlook.
+  calendar_sync: 18,
 };
 
 // Cómo se nombra un registro cuando se le referencia desde otro sitio. Sin esto

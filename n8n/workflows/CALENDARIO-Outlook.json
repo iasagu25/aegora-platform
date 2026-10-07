@@ -1,0 +1,833 @@
+{
+  "id": "aegoraCalendarioOutlook",
+  "name": "CALENDARIO · Outlook",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "aegora-cal-01",
+      "name": "Cada minuto"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "o1",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "__DIRECTUS_BASE_URL__"
+            },
+            {
+              "id": "o2",
+              "name": "lote",
+              "type": "number",
+              "value": 25
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        200,
+        0
+      ],
+      "id": "aegora-cal-02",
+      "name": "Config (editar por tenant)"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Config (editar por tenant)').first().json.directus_base_url }}/items/appointments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ filter: JSON.stringify({ calendario_pendiente: { _eq: true } }), sort: 'start_at', limit: $json.lote, fields: ['id','start_at','end_at','status','title','notes','updated_at','service_id.id','service_id.name','contact_id.first_name','contact_id.last_name','contact_id.company','contact_id.phones.phone_number','recursos.role','recursos.resource_id.id','recursos.resource_id.name','recursos.resource_id.capacity','recursos.resource_id.employee_id.email','recursos.resource_id.employee_id.sincronizar_calendario','recursos.resource_id.employee_id.status'].join(',') }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        400,
+        0
+      ],
+      "id": "aegora-cal-03",
+      "name": "HTTP · Citas pendientes",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Qué cita va a qué calendario, y con qué clave se la reconoce.\n//\n// - El calendario es el del EMPLEADO del recurso que atiende (`primary`), y solo si\n//   ha activado \"Sincronizar calendario\", está activo y tiene email. Sin eso, la cita\n//   no tiene evento -- y si lo tenía, se borra.\n// - La clave es el id de la cita. En una clase en grupo (recurso con capacidad > 1)\n//   es la de la CLASE: recurso + hora + servicio. Una clase de 10 es un evento con\n//   la lista de apuntados, no diez eventos encima unos de otros.\n//\n// Un fallo de Directus para el workflow a la vista: seguir con una lista vacía\n// borraría eventos que sí existen.\nconst r = $json ?? {};\nif (!(r.statusCode >= 200 && r.statusCode < 300)) {\n  throw new Error('Directus devolvió ' + r.statusCode + ' al leer las citas pendientes: '\n    + JSON.stringify(r.body).slice(0, 300));\n}\nconst filas = (r.body && r.body.data) || [];\nif (!filas.length) return [];\n\nconst citas = filas.map((a) => {\n  const rec = Array.isArray(a.recursos) ? a.recursos : [];\n  const prim = rec.find((x) => x.role === 'primary') || rec[0] || null;\n  const res = (prim && prim.resource_id) || null;\n  const emp = (res && res.employee_id) || null;\n  const grupo = !!(res && Number(res.capacity) > 1);\n  const inicio = a.start_at ? DateTime.fromISO(a.start_at, { zone: 'utc' }).toISO() : '';\n  const servicio = (a.service_id && a.service_id.id) || '';\n  const buzon = (emp && emp.sincronizar_calendario === true\n    && String(emp.status || '').toLowerCase() === 'active' && emp.email)\n    ? String(emp.email).trim().toLowerCase() : null;\n  return {\n    id: a.id, updated_at: a.updated_at, status: a.status, start_at: a.start_at, end_at: a.end_at,\n    title: a.title, notes: a.notes, servicio: (a.service_id && a.service_id.name) || a.title || 'Cita',\n    servicio_id: servicio, contacto: a.contact_id || null,\n    recurso_id: res ? res.id : null, recurso: res ? res.name : null,\n    grupo, buzon,\n    clave: grupo ? `grupo:${res.id}|${inicio}|${servicio}` : a.id,\n  };\n});\n\nconst grupos = [];\nconst vistos = new Set();\nfor (const c of citas) {\n  if (c.grupo && !vistos.has(c.clave)) {\n    vistos.add(c.clave);\n    grupos.push({ recurso_id: c.recurso_id, start_at: c.start_at, servicio_id: c.servicio_id });\n  }\n}\nreturn [{ json: { citas, claves: [...new Set(citas.map((c) => c.clave))], grupos } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        0
+      ],
+      "id": "aegora-cal-04",
+      "name": "Code · Claves"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Config (editar por tenant)').first().json.directus_base_url }}/items/calendar_sync",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ filter: JSON.stringify({ clave: { _in: $json.claves } }), fields: 'id,clave,buzon,external_event_id,estado,date_updated', limit: -1 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        800,
+        0
+      ],
+      "id": "aegora-cal-05",
+      "name": "HTTP · Filas de sincronización",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Config (editar por tenant)').first().json.directus_base_url }}/items/appointments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ filter: JSON.stringify(($('Code · Claves').first().json.grupos.length) ? { _or: $('Code · Claves').first().json.grupos.map(g => ({ _and: [{ start_at: { _eq: g.start_at } }, { service_id: { _eq: g.servicio_id } }, { status: { _in: ['scheduled','confirmed'] } },{ recursos: { _some: { resource_id: { _eq: g.recurso_id }, role: { _eq: 'primary' } } } } ] })) } : { id: { _null: true } }), fields: 'id,start_at,service_id,contact_id.first_name,contact_id.last_name,contact_id.company,contact_id.phones.phone_number,recursos.resource_id,recursos.role', limit: -1 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1000,
+        0
+      ],
+      "id": "aegora-cal-06",
+      "name": "HTTP · Asistentes de clases",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Para cada clave, qué hay que hacer en Outlook para que el calendario diga lo mismo\n// que Aegora. Se recalcula desde cero en cada pasada, así que marcar de más no hace\n// daño y una pasada fallida se arregla sola en la siguiente.\n//\n//   crear       hay que tener evento y no lo hay\n//   actualizar  lo hay, en el buzón que toca: se reescribe\n//   mover       lo hay, pero en OTRO buzón (cambió quién atiende): se borra y se crea\n//   borrar      lo hay y ya no debe (cancelada, o el empleado desactivó la sincronización)\n//   nada        ni lo hay ni debe haberlo\n//   esperar     la última vez falló hace menos de 15 min: no se insiste cada minuto\n//               contra un buzón que no existe; la cita sigue pendiente\nconst leer = (nombre) => {\n  const r = $(nombre).first().json ?? {};\n  if (!(r.statusCode >= 200 && r.statusCode < 300)) {\n    throw new Error(nombre + ': Directus devolvió ' + r.statusCode + ' '\n      + JSON.stringify(r.body).slice(0, 300));\n  }\n  return (r.body && r.body.data) || [];\n};\nconst { citas } = $('Code · Claves').first().json;\nconst filas = leer('HTTP · Filas de sincronización');\nconst asistentes = leer('HTTP · Asistentes de clases');\nconst filaDe = Object.fromEntries(filas.map((f) => [f.clave, f]));\nconst ACTIVAS = ['scheduled', 'confirmed'];\nconst ESPERA_TRAS_ERROR_MS = 15 * 60 * 1000;\n\nconst esc = (s) => String(s ?? '').replace(/[&<>\"]/g, (ch) =>\n  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[ch]));\nconst nombre = (ct) => [ct && ct.first_name, ct && ct.last_name].filter(Boolean).join(' ')\n  || (ct && ct.company) || 'Cliente';\nconst telefono = (ct) => ((ct && ct.phones) || []).map((p) => p.phone_number).filter(Boolean)[0] || '';\nconst utc = (s) => DateTime.fromISO(s, { zone: 'utc' }).toFormat(\"yyyy-LL-dd'T'HH:mm:ss\");\n// Va en todos los eventos: en esta fase el calendario es un espejo, y un cambio hecho\n// en Outlook no vuelve a Aegora. Sin decirlo, alguien movería la cita en el móvil y\n// el cliente seguiría citado a la hora de antes.\nconst PIE = '<p style=\"color:#6b7280;font-size:12px\">Reservada con Aegora. Para cambiarla o '\n  + 'anularla, hazlo en el panel de Aegora: lo que se cambie aquí no llega al cliente.</p>';\n\nconst evento = (c, apuntados) => {\n  let subject, content;\n  if (apuntados) {\n    const n = apuntados.length;\n    subject = `${c.servicio} · ${n} ${n === 1 ? 'apuntado' : 'apuntados'}`;\n    content = '<p><b>Apuntados:</b></p><ul>' + apuntados.map((a) => {\n      const ct = a.contact_id || {};\n      const extra = [ct.company, telefono(ct)].filter(Boolean).map(esc).join(' · ');\n      return `<li>${esc(nombre(ct))}${extra ? ' — ' + extra : ''}</li>`;\n    }).join('') + '</ul>' + PIE;\n  } else {\n    const ct = c.contacto || {};\n    subject = `${c.servicio} · ${nombre(ct)}`;\n    const lineas = [['Cliente', nombre(ct)], ['Empresa', ct.company], ['Teléfono', telefono(ct)]]\n      .filter(([, v]) => v).map(([k, v]) => `<b>${k}:</b> ${esc(v)}`).join('<br>');\n    content = `<p>${lineas}</p>` + (c.notes ? `<p>${esc(c.notes).replace(/\\n/g, '<br>')}</p>` : '') + PIE;\n  }\n  return {\n    subject,\n    body: { contentType: 'HTML', content },\n    start: { dateTime: utc(c.start_at), timeZone: 'UTC' },\n    end: { dateTime: utc(c.end_at), timeZone: 'UTC' },\n    showAs: 'busy',\n    categories: ['Aegora'],\n    isReminderOn: true,\n    reminderMinutesBeforeStart: 15,\n  };\n};\n\nconst ops = new Map();\nfor (const c of citas) {\n  if (!ops.has(c.clave)) ops.set(c.clave, { c, desmarcar: [] });\n  ops.get(c.clave).desmarcar.push({ id: c.id, updated_at: c.updated_at });\n}\n\nconst salida = [];\nfor (const [clave, { c, desmarcar }] of ops) {\n  const fila = filaDe[clave] || null;\n  let quiere = null;\n  if (c.grupo) {\n    const apuntados = asistentes.filter((a) => a.start_at === c.start_at && a.service_id === c.servicio_id\n      && (a.recursos || []).some((x) => x.resource_id === c.recurso_id && x.role === 'primary'));\n    if (c.buzon && apuntados.length) quiere = evento(c, apuntados);\n  } else if (c.buzon && ACTIVAS.includes(c.status)) {\n    quiere = evento(c, null);\n  }\n\n  const tiene = !!(fila && fila.external_event_id);\n  let op;\n  if (fila && fila.estado === 'error' && fila.date_updated\n      && Date.now() - DateTime.fromISO(fila.date_updated).toMillis() < ESPERA_TRAS_ERROR_MS) op = 'esperar';\n  else if (quiere && !tiene) op = 'crear';\n  else if (quiere && fila.buzon === c.buzon) op = 'actualizar';\n  else if (quiere) op = 'mover';\n  else if (tiene) op = 'borrar';\n  else op = 'nada';\n\n  salida.push({ json: {\n    op, clave, desmarcar,\n    buzon: c.buzon,\n    buzon_anterior: fila ? fila.buzon : null,\n    event_id: fila ? fila.external_event_id : null,\n    fila_id: fila ? fila.id : null,\n    // transactionId: si Graph recibe dos veces la misma creación (un reintento), no\n    // crea dos eventos.\n    evento: quiere ? (op === 'crear' || op === 'mover' ? { ...quiere, transactionId: clave.slice(0, 200) } : quiere) : null,\n  } });\n}\nreturn salida;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ],
+      "id": "aegora-cal-07",
+      "name": "Code · Plan"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "rightValue": "crear",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "op-crear"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "crear"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "rightValue": "actualizar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "op-actualizar"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "actualizar"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "rightValue": "borrar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "op-borrar"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "borrar"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "rightValue": "mover",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "op-mover"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "mover"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "rightValue": "nada",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "op-nada"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "nada"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1400,
+        0
+      ],
+      "id": "aegora-cal-08",
+      "name": "Switch · Operación"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.microsoft.com/v1.0/users/{{ encodeURIComponent($json.buzon) }}/events",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.evento) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1640,
+        -300
+      ],
+      "id": "aegora-cal-09",
+      "name": "Graph · Crear evento",
+      "credentials": {
+        "oAuth2Api": {
+          "id": "__CRED_MICROSOFT_GRAPH__",
+          "name": "Microsoft Graph"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://graph.microsoft.com/v1.0/users/{{ encodeURIComponent($json.buzon) }}/events/{{ encodeURIComponent($json.event_id) }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.evento) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1640,
+        -150
+      ],
+      "id": "aegora-cal-10",
+      "name": "Graph · Actualizar evento",
+      "credentials": {
+        "oAuth2Api": {
+          "id": "__CRED_MICROSOFT_GRAPH__",
+          "name": "Microsoft Graph"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://graph.microsoft.com/v1.0/users/{{ encodeURIComponent($json.buzon_anterior) }}/events/{{ encodeURIComponent($json.event_id) }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1640,
+        0
+      ],
+      "id": "aegora-cal-11",
+      "name": "Graph · Borrar evento",
+      "credentials": {
+        "oAuth2Api": {
+          "id": "__CRED_MICROSOFT_GRAPH__",
+          "name": "Microsoft Graph"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://graph.microsoft.com/v1.0/users/{{ encodeURIComponent($json.buzon_anterior) }}/events/{{ encodeURIComponent($json.event_id) }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1640,
+        150
+      ],
+      "id": "aegora-cal-12",
+      "name": "Graph · Borrar del buzón anterior",
+      "credentials": {
+        "oAuth2Api": {
+          "id": "__CRED_MICROSOFT_GRAPH__",
+          "name": "Microsoft Graph"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.microsoft.com/v1.0/users/{{ encodeURIComponent($('Code · Plan').item.json.buzon) }}/events",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Code · Plan').item.json.evento) }}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1860,
+        150
+      ],
+      "id": "aegora-cal-13",
+      "name": "Graph · Crear en el buzón nuevo",
+      "credentials": {
+        "oAuth2Api": {
+          "id": "__CRED_MICROSOFT_GRAPH__",
+          "name": "Microsoft Graph"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Lo que respondió Microsoft, convertido en lo que hay que guardar. Se lee la\n// operación del Plan por emparejamiento (`.item`): $json aquí es la respuesta de\n// Graph, o el propio plan si no hubo nada que pedirle.\nconst op = $('Code · Plan').item.json;\nconst r = $json ?? {};\nconst code = r.statusCode || 0;\nconst bien = code >= 200 && code < 300;\nconst motivo = () => {\n  const e = r.body && r.body.error;\n  return (e ? `${e.code}: ${e.message}` : `HTTP ${code}`).slice(0, 500);\n};\n\nlet ok = true;\nlet fila = null;\nswitch (op.op) {\n  case 'crear':\n  case 'mover':\n    if (bien && r.body && r.body.id) {\n      fila = { estado: 'sincronizada', external_event_id: r.body.id, buzon: op.buzon, error: null };\n    } else {\n      ok = false;\n      fila = { estado: 'error', error: motivo(), buzon: op.buzon,\n               external_event_id: op.op === 'mover' ? null : (op.event_id || null) };\n    }\n    break;\n  case 'actualizar':\n    if (bien) {\n      fila = { estado: 'sincronizada', external_event_id: op.event_id, buzon: op.buzon, error: null };\n    } else if (code === 404) {\n      // Alguien lo borró a mano en Outlook. Se olvida y la siguiente pasada lo crea.\n      ok = false;\n      fila = { estado: 'sin_evento', external_event_id: null,\n               error: 'El evento ya no estaba en Outlook; se vuelve a crear.' };\n    } else {\n      ok = false;\n      fila = { estado: 'error', error: motivo() };\n    }\n    break;\n  case 'borrar':\n    // 404 también es éxito: el evento ya no está, que es lo que se quería.\n    if (bien || code === 404) fila = { estado: 'sin_evento', external_event_id: null, error: null };\n    else { ok = false; fila = { estado: 'error', error: motivo() }; }\n    break;\n  default:\n    fila = null;\n}\n\nconst guardar = !!fila;\nreturn { json: {\n  ...op,\n  _ok: ok,\n  _guardar: guardar,\n  _fila_id: op.fila_id || null,\n  _fila: guardar ? (op.fila_id ? fila : { clave: op.clave, proveedor: 'outlook', ...fila }) : null,\n} };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2100,
+        0
+      ],
+      "id": "aegora-cal-14",
+      "name": "Code · Resultado"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "g1",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json._guardar }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2300,
+        0
+      ],
+      "id": "aegora-cal-15",
+      "name": "¿Guardar fila?"
+    },
+    {
+      "parameters": {
+        "method": "={{ $json._fila_id ? 'PATCH' : 'POST' }}",
+        "url": "={{ $('Config (editar por tenant)').first().json.directus_base_url }}/items/calendar_sync{{ $json._fila_id ? '/' + $json._fila_id : '' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json._fila) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2500,
+        -100
+      ],
+      "id": "aegora-cal-16",
+      "name": "HTTP · Guardar fila",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Las citas que ya están como deben quedan desmarcadas. Las que fallaron siguen\n// marcadas y vuelven a entrar en la siguiente pasada.\n//\n// Se desmarca SOLO si la cita no ha cambiado desde que se leyó (mismo `updated_at`):\n// si alguien la movió mientras se hablaba con Outlook, el cambio nuevo no se pierde.\n// Y si guardar la fila falló, tampoco: se crearía otro evento la próxima vez.\nconst base = $('Config (editar por tenant)').first().json.directus_base_url;\nconst salida = [];\n$input.all().forEach((it, i) => {\n  const r = $('Code · Resultado').itemMatching(i).json;\n  const code = it.json && it.json.statusCode;\n  const guardada = code === undefined || (code >= 200 && code < 300);\n  if (!r._ok || !guardada) return;\n  for (const d of r.desmarcar) salida.push({ json: { ...d, directus_base_url: base } });\n});\nreturn salida;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2700,
+        0
+      ],
+      "id": "aegora-cal-17",
+      "name": "Code · Desmarcar"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $json.directus_base_url }}/items/appointments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ query: { filter: { _and: [ { id: { _eq: $json.id } }, { updated_at: { _eq: $json.updated_at } } ] } }, data: { calendario_pendiente: false } }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2900,
+        0
+      ],
+      "id": "aegora-cal-18",
+      "name": "HTTP · Desmarcar cita",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cada minuto": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Citas pendientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Citas pendientes": {
+      "main": [
+        [
+          {
+            "node": "Code · Claves",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Claves": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Filas de sincronización",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Filas de sincronización": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Asistentes de clases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Asistentes de clases": {
+      "main": [
+        [
+          {
+            "node": "Code · Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Plan": {
+      "main": [
+        [
+          {
+            "node": "Switch · Operación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch · Operación": {
+      "main": [
+        [
+          {
+            "node": "Graph · Crear evento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Graph · Actualizar evento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Graph · Borrar evento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Graph · Borrar del buzón anterior",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Graph · Crear evento": {
+      "main": [
+        [
+          {
+            "node": "Code · Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Graph · Actualizar evento": {
+      "main": [
+        [
+          {
+            "node": "Code · Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Graph · Borrar evento": {
+      "main": [
+        [
+          {
+            "node": "Code · Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Graph · Crear en el buzón nuevo": {
+      "main": [
+        [
+          {
+            "node": "Code · Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Graph · Borrar del buzón anterior": {
+      "main": [
+        [
+          {
+            "node": "Graph · Crear en el buzón nuevo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Resultado": {
+      "main": [
+        [
+          {
+            "node": "¿Guardar fila?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Guardar fila?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Guardar fila",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Desmarcar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Guardar fila": {
+      "main": [
+        [
+          {
+            "node": "Code · Desmarcar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Desmarcar": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Desmarcar cita",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "timezone": "Europe/Madrid"
+  }
+}

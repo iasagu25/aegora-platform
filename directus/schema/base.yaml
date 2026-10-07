@@ -570,6 +570,33 @@ collections:
       versioning: false
     schema:
       name: numeros_bloqueados
+  - collection: calendar_sync
+    meta:
+      accountability: all
+      archive_app_filter: true
+      archive_field: null
+      archive_value: null
+      autosave_revision_interval: null
+      collapse: open
+      collection: calendar_sync
+      color: null
+      display_template: '{{clave}} · {{estado}}'
+      group: null
+      hidden: false
+      icon: event_repeat
+      item_duplication_fields: null
+      note: 'Qué evento de Outlook corresponde a cada cita. La escribe n8n; no se edita a mano. Si
+        una cita no llega al calendario, aquí está el error.'
+      preview_url: null
+      singleton: false
+      sort: 18
+      sort_field: null
+      status: active
+      translations: null
+      unarchive_value: null
+      versioning: false
+    schema:
+      name: calendar_sync
 fields:
   - collection: appointment_resources
     field: id
@@ -8610,6 +8637,419 @@ fields:
       has_auto_increment: false
       foreign_key_table: directus_users
       foreign_key_column: id
+  - collection: calendar_sync
+    field: id
+    type: uuid
+    meta:
+      collection: calendar_sync
+      conditions: null
+      display: null
+      display_options: null
+      field: id
+      group: null
+      hidden: true
+      interface: input
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 9
+      special: 
+        - uuid
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: id
+      table: calendar_sync
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: true
+      is_indexed: false
+      is_primary_key: true
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: calendar_sync
+    field: clave
+    type: string
+    meta:
+      collection: calendar_sync
+      conditions: null
+      display: null
+      display_options: null
+      field: clave
+      group: null
+      hidden: false
+      interface: input
+      note: 'El id de la cita, o en una clase en grupo grupo:<recurso>|<inicio>|<servicio>: la clase es UN evento.'
+      options: null
+      readonly: true
+      required: true
+      searchable: true
+      sort: 1
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: clave
+      table: calendar_sync
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: true
+      is_indexed: true
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: calendar_sync
+    field: proveedor
+    type: string
+    meta:
+      collection: calendar_sync
+      conditions: null
+      display: null
+      display_options: null
+      field: proveedor
+      group: null
+      hidden: false
+      interface: input
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 2
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: proveedor
+      table: calendar_sync
+      data_type: character varying
+      default_value: 'outlook'
+      max_length: 32
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: calendar_sync
+    field: buzon
+    type: string
+    meta:
+      collection: calendar_sync
+      conditions: null
+      display: null
+      display_options: null
+      field: buzon
+      group: null
+      hidden: false
+      interface: input
+      note: 'Correo del calendario donde está el evento.'
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 3
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: buzon
+      table: calendar_sync
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: calendar_sync
+    field: external_event_id
+    type: string
+    meta:
+      collection: calendar_sync
+      conditions: null
+      display: null
+      display_options: null
+      field: external_event_id
+      group: null
+      hidden: false
+      interface: input
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 4
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: external_event_id
+      table: calendar_sync
+      data_type: character varying
+      default_value: null
+      max_length: 255
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: calendar_sync
+    field: estado
+    type: string
+    meta:
+      collection: calendar_sync
+      conditions: null
+      display: null
+      display_options: null
+      field: estado
+      group: null
+      hidden: false
+      interface: select-dropdown
+      note: null
+      options: 
+        choices:
+          - text: Sincronizada
+            value: sincronizada
+          - text: Sin evento
+            value: sin_evento
+          - text: Error
+            value: error
+      readonly: true
+      required: false
+      searchable: true
+      sort: 5
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: estado
+      table: calendar_sync
+      data_type: character varying
+      default_value: null
+      max_length: 32
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: calendar_sync
+    field: error
+    type: text
+    meta:
+      collection: calendar_sync
+      conditions: null
+      display: null
+      display_options: null
+      field: error
+      group: null
+      hidden: false
+      interface: input-multiline
+      note: 'Lo que respondió Microsoft la última vez que falló. Se reintenta en cada pasada.'
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 6
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: error
+      table: calendar_sync
+      data_type: text
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: calendar_sync
+    field: date_updated
+    type: timestamp
+    meta:
+      collection: calendar_sync
+      conditions: null
+      display: null
+      display_options: null
+      field: date_updated
+      group: null
+      hidden: false
+      interface: datetime
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 7
+      special: 
+        - date-updated
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: date_updated
+      table: calendar_sync
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: employees
+    field: sincronizar_calendario
+    type: boolean
+    meta:
+      collection: employees
+      conditions: null
+      display: null
+      display_options: null
+      field: sincronizar_calendario
+      group: null
+      hidden: false
+      interface: boolean
+      note: 'Sus citas aparecen en su calendario de Outlook (el buzón de su correo). Necesita el email relleno y la conexión con Microsoft 365 del negocio.'
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 8
+      special: 
+        - cast-boolean
+      translations: 
+        - language: es-ES
+          translation: 'Sincronizar calendario'
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: sincronizar_calendario
+      table: employees
+      data_type: boolean
+      default_value: false
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: appointments
+    field: calendario_pendiente
+    type: boolean
+    meta:
+      collection: appointments
+      conditions: null
+      display: null
+      display_options: null
+      field: calendario_pendiente
+      group: null
+      hidden: true
+      interface: boolean
+      note: 'Lo marca la base de datos cuando la cita cambia; lo desmarca la sincronización con el calendario.'
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 30
+      special: 
+        - cast-boolean
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: calendario_pendiente
+      table: appointments
+      data_type: boolean
+      default_value: false
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
 systemFields:
   - collection: directus_activity
     field: timestamp

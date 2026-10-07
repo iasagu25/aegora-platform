@@ -341,6 +341,7 @@ Permissions:
   conversation_messages  create / read / update
   call_notes             create / read
   numeros_bloqueados     read
+  calendar_sync          create / read / update   (qué evento de Outlook es cada cita)
 
   solo lectura (config de booking, KB y personal):
   services · resources · service_resources · availability_rules
@@ -459,6 +460,9 @@ const permissionModel = {
   // Solo lectura: la llamada entrante mira si el número está bloqueado. Quien
   // bloquea es el gestor, desde el panel.
   numeros_bloqueados: ['read'],
+  // La escribe CALENDARIO · Outlook: qué evento corresponde a cada cita. Sin delete:
+  // cuando una cita se cancela, la fila se queda en `sin_evento` y sirve de historial.
+  calendar_sync: ['create', 'read', 'update'],
 };
 
 async function rawRequest(method, path, body = undefined, token = adminToken) {
