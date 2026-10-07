@@ -130,6 +130,8 @@ export BOOKING_BASE_URL="http://${BOOKING_CONTAINER}:3000"
 export PRIVACY_POLICY_URL="${PRIVACY_POLICY_URL:-https://aegora.es/politica-privacidad}"
 # Con lo que Lucía se presenta: "soy la asistente de ...". Sale de TENANT_NAME.
 export TENANT_DISPLAY_NAME="${TENANT_NAME:?Falta TENANT_NAME en tenant.env}"
+# Dónde se ven los webhooks desde fuera: el enlace .ics que se suscribe en el calendario.
+export WEBHOOK_PUBLIC_URL="https://${WEBHOOK_HOST:?Falta WEBHOOK_HOST en tenant.env}"
 
 # Los secretos de WhatsApp. En Git el adapter lleva REPLACE_*, así que
 # importarlo sin esto dejaría el WhatsApp del tenant sin configurar -- antes se
@@ -271,6 +273,7 @@ Tokens que se resuelven:
   __DIRECTUS_BASE_URL__   ${DIRECTUS_BASE_URL}
   __BOOKING_BASE_URL__    ${BOOKING_BASE_URL}
   __PRIVACY_POLICY_URL__  ${PRIVACY_POLICY_URL}
+  __WEBHOOK_PUBLIC_URL__  ${WEBHOOK_PUBLIC_URL}
 
 Ajustes del tenant (de tenant.env; el valor por defecto si no está):
   CONTACTO_PEDIR_EMPRESA  ${CONTACTO_PEDIR_EMPRESA:-false}

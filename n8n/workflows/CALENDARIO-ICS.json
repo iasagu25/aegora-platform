@@ -1,0 +1,579 @@
+{
+  "id": "aegoraCalendarioIcs",
+  "name": "CALENDARIO · ICS",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "calendario",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "aegora-ics-01",
+      "name": "Webhook · GET /calendario",
+      "webhookId": "aegora-calendario-ics"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "k1",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "__DIRECTUS_BASE_URL__"
+            },
+            {
+              "id": "k2",
+              "name": "webhook_public_url",
+              "type": "string",
+              "value": "__WEBHOOK_PUBLIC_URL__"
+            },
+            {
+              "id": "k3",
+              "name": "negocio",
+              "type": "string",
+              "value": "__TENANT_DISPLAY_NAME__"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        200,
+        0
+      ],
+      "id": "aegora-ics-02",
+      "name": "Config (editar por tenant)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// La clave viene en el enlace (?k=...). Sin la forma exacta no se consulta nada: no\n// hay por qué preguntarle a Directus por una cadena cualquiera que llegue de fuera.\nconst q = ($json.query) || {};\nconst k = String(q.k || '').trim().toLowerCase();\nreturn [{ json: { k, valida: /^[0-9a-f]{32}$/.test(k) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ],
+      "id": "aegora-ics-03",
+      "name": "Code · Clave"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.valida }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        600,
+        0
+      ],
+      "id": "aegora-ics-04",
+      "name": "¿Clave con forma?"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Config (editar por tenant)').first().json.directus_base_url }}/items/employees",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ filter: JSON.stringify({ calendario_token: { _eq: $json.k } }), fields: 'id,first_name,last_name,status', limit: 1 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        800,
+        -100
+      ],
+      "id": "aegora-ics-05",
+      "name": "HTTP · Empleado",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Un empleado dado de baja deja de publicar: su calendario se queda vacío para quien\n// lo tuviera suscrito, en vez de seguir enseñando citas de clientes.\nconst r = $json ?? {};\nif (!(r.statusCode >= 200 && r.statusCode < 300)) {\n  throw new Error('Directus devolvió ' + r.statusCode + ' al buscar el empleado: ' + JSON.stringify(r.body).slice(0, 300));\n}\nconst emp = ((r.body && r.body.data) || [])[0];\nif (!emp || String(emp.status || '').toLowerCase() !== 'active') return [{ json: { existe: false } }];\nconst desde = DateTime.now().minus({ days: 30 }).toUTC().toISO();\nconst hasta = DateTime.now().plus({ days: 180 }).toUTC().toISO();\n// Solo las citas que ATIENDE (recurso `primary`): las que acompaña como participante\n// no son suyas.\nconst filtro = { _and: [\n  { status: { _in: ['scheduled', 'confirmed'] } },\n  { end_at: { _gte: desde } },\n  { start_at: { _lte: hasta } },\n  { recursos: { _some: { role: { _eq: 'primary' }, resource_id: { employee_id: { _eq: emp.id } } } } },\n] };\nreturn [{ json: { existe: true, emp, filtro: JSON.stringify(filtro) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        -100
+      ],
+      "id": "aegora-ics-06",
+      "name": "Code · ¿Existe?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c2",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.existe }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        -100
+      ],
+      "id": "aegora-ics-07",
+      "name": "¿Existe?"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Config (editar por tenant)').first().json.directus_base_url }}/items/appointments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ filter: $json.filtro, sort: 'start_at', limit: -1, fields: ['id','start_at','end_at','title','notes','updated_at','service_id.id','service_id.name','contact_id.first_name','contact_id.last_name','contact_id.company','contact_id.phones.phone_number','recursos.role','recursos.resource_id.id','recursos.resource_id.capacity'].join(',') }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1400,
+        -200
+      ],
+      "id": "aegora-ics-08",
+      "name": "HTTP · Citas del empleado",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// El calendario en formato iCalendar (RFC 5545). Cada vez que el calendario del\n// empleado lo pide se genera entero, así que una cita anulada simplemente deja de\n// estar: no hace falta \"borrar\" nada.\n//\n// Una clase en grupo (recurso con capacidad > 1) es UN evento con la lista de\n// apuntados, igual que en la sincronización con Outlook.\nconst r = $json ?? {};\nif (!(r.statusCode >= 200 && r.statusCode < 300)) {\n  throw new Error('Directus devolvió ' + r.statusCode + ' al leer las citas: ' + JSON.stringify(r.body).slice(0, 300));\n}\nconst citas = (r.body && r.body.data) || [];\nconst emp = $('Code · ¿Existe?').first().json.emp;\nconst negocio = $('Config (editar por tenant)').first().json.negocio;\n\n// Texto de iCalendar: \\ ; , y saltos de línea se escapan.\nconst txt = (s) => String(s ?? '').replace(/\\\\/g, '\\\\\\\\').replace(/;/g, '\\\\;').replace(/,/g, '\\\\,')\n  .replace(/\\r?\\n/g, '\\\\n');\nconst utc = (s) => DateTime.fromISO(s, { zone: 'utc' }).toFormat(\"yyyyLLdd'T'HHmmss'Z'\");\nconst nombre = (ct) => [ct && ct.first_name, ct && ct.last_name].filter(Boolean).join(' ')\n  || (ct && ct.company) || 'Cliente';\nconst telefono = (ct) => ((ct && ct.phones) || []).map((p) => p.phone_number).filter(Boolean)[0] || '';\nconst PIE = 'Reservada con Aegora. Para cambiarla o anularla, hazlo en el panel de Aegora: lo que se cambie aquí no llega al cliente.';\n\n// Las líneas no pueden pasar de 75 OCTETOS (no caracteres): un acento son dos.\nconst plegar = (linea) => {\n  const out = [];\n  let actual = '';\n  for (const ch of linea) {\n    const limite = out.length ? 74 : 75; // las de continuación empiezan con un espacio\n    if (Buffer.byteLength(actual + ch, 'utf8') > limite) { out.push(actual); actual = ch; }\n    else actual += ch;\n  }\n  out.push(actual);\n  return out.map((l, i) => (i ? ' ' + l : l)).join('\\r\\n');\n};\n\nconst eventos = new Map();\nfor (const a of citas) {\n  const rec = Array.isArray(a.recursos) ? a.recursos : [];\n  const prim = rec.find((x) => x.role === 'primary') || rec[0] || {};\n  const res = prim.resource_id || {};\n  const grupo = Number(res.capacity) > 1;\n  const servicio = (a.service_id && a.service_id.name) || a.title || 'Cita';\n  const clave = grupo ? `grupo-${res.id}-${utc(a.start_at)}-${a.service_id && a.service_id.id}` : a.id;\n  if (!eventos.has(clave)) eventos.set(clave, { a, servicio, grupo, citas: [] });\n  eventos.get(clave).citas.push(a);\n}\n\nconst ahora = utc(DateTime.now().toISO());\nconst lineas = [\n  'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Aegora//Calendario de citas//ES',\n  'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',\n  `X-WR-CALNAME:${txt(`Citas de ${emp.first_name || 'mi agenda'} · ${negocio}`)}`,\n  'X-WR-TIMEZONE:Europe/Madrid',\n  // Cada cuánto PEDIMOS que se actualice. Outlook y Google lo ignoran y van a su ritmo\n  // (horas); el calendario del iPhone y otros sí lo respetan.\n  'REFRESH-INTERVAL;VALUE=DURATION:PT15M', 'X-PUBLISHED-TTL:PT15M',\n];\nfor (const [clave, e] of eventos) {\n  let resumen, descripcion;\n  if (e.grupo) {\n    const n = e.citas.length;\n    resumen = `${e.servicio} · ${n} ${n === 1 ? 'apuntado' : 'apuntados'}`;\n    descripcion = 'Apuntados:\\n' + e.citas.map((c) => {\n      const ct = c.contact_id || {};\n      const extra = [ct.company, telefono(ct)].filter(Boolean).join(' · ');\n      return '- ' + nombre(ct) + (extra ? ' — ' + extra : '');\n    }).join('\\n') + '\\n\\n' + PIE;\n  } else {\n    const ct = e.a.contact_id || {};\n    resumen = `${e.servicio} · ${nombre(ct)}`;\n    descripcion = [['Cliente', nombre(ct)], ['Empresa', ct.company], ['Teléfono', telefono(ct)]]\n      .filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join('\\n')\n      + (e.a.notes ? '\\n\\n' + e.a.notes : '') + '\\n\\n' + PIE;\n  }\n  const modificado = e.citas.map((c) => c.updated_at).filter(Boolean).sort().pop();\n  lineas.push(\n    'BEGIN:VEVENT',\n    `UID:${clave}@aegora`,\n    `DTSTAMP:${ahora}`,\n    ...(modificado ? [`LAST-MODIFIED:${utc(modificado)}`] : []),\n    `DTSTART:${utc(e.a.start_at)}`,\n    `DTEND:${utc(e.a.end_at)}`,\n    `SUMMARY:${txt(resumen)}`,\n    `DESCRIPTION:${txt(descripcion)}`,\n    'STATUS:CONFIRMED', 'TRANSP:OPAQUE', 'CATEGORIES:Aegora',\n    'END:VEVENT',\n  );\n}\nlineas.push('END:VCALENDAR');\nreturn [{ json: { ics: lineas.map(plegar).join('\\r\\n') + '\\r\\n', eventos: eventos.size } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        -200
+      ],
+      "id": "aegora-ics-09",
+      "name": "Code · ICS"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.ics }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/calendar; charset=utf-8"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-cache"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1800,
+        -200
+      ],
+      "id": "aegora-ics-10",
+      "name": "Responder calendario"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Este calendario no existe o ya no está disponible.",
+        "options": {
+          "responseCode": 404
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1400,
+        100
+      ],
+      "id": "aegora-ics-11",
+      "name": "Responder 404"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        500
+      ],
+      "id": "aegora-ics-12",
+      "name": "Cada 5 minutos"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "k1",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "__DIRECTUS_BASE_URL__"
+            },
+            {
+              "id": "k2",
+              "name": "webhook_public_url",
+              "type": "string",
+              "value": "__WEBHOOK_PUBLIC_URL__"
+            },
+            {
+              "id": "k3",
+              "name": "negocio",
+              "type": "string",
+              "value": "__TENANT_DISPLAY_NAME__"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        200,
+        500
+      ],
+      "id": "aegora-ics-13",
+      "name": "Config (enlaces)"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.directus_base_url }}/items/employees",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ fields: 'id,calendario_token,calendario_url', limit: -1 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        400,
+        500
+      ],
+      "id": "aegora-ics-14",
+      "name": "HTTP · Empleados",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// El enlace depende de la dirección pública del tenant, que la base de datos no conoce:\n// por eso lo escribe n8n y no el trigger que pone la clave. Solo se tocan los que\n// cambian (empleado nuevo, o clave regenerada para invalidar el enlace anterior).\nconst cfg = $('Config (enlaces)').first().json;\nconst r = $json ?? {};\nif (!(r.statusCode >= 200 && r.statusCode < 300)) {\n  throw new Error('Directus devolvió ' + r.statusCode + ' al leer los empleados: ' + JSON.stringify(r.body).slice(0, 300));\n}\nconst base = String(cfg.webhook_public_url).replace(/\\/$/, '');\nreturn ((r.body && r.body.data) || [])\n  .filter((e) => e.calendario_token)\n  .map((e) => ({ id: e.id, url: `${base}/webhook/calendario?k=${e.calendario_token}`, antes: e.calendario_url }))\n  .filter((e) => e.url !== e.antes)\n  .map((e) => ({ json: { id: e.id, calendario_url: e.url, directus_base_url: cfg.directus_base_url } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        500
+      ],
+      "id": "aegora-ics-15",
+      "name": "Code · Enlaces que cambian"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $json.directus_base_url }}/items/employees/{{ $json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ calendario_url: $json.calendario_url }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        800,
+        500
+      ],
+      "id": "aegora-ics-16",
+      "name": "HTTP · Guardar enlace",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook · GET /calendario": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "Code · Clave",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Clave": {
+      "main": [
+        [
+          {
+            "node": "¿Clave con forma?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Clave con forma?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Empleado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 404",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Empleado": {
+      "main": [
+        [
+          {
+            "node": "Code · ¿Existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · ¿Existe?": {
+      "main": [
+        [
+          {
+            "node": "¿Existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Existe?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Citas del empleado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 404",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Citas del empleado": {
+      "main": [
+        [
+          {
+            "node": "Code · ICS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · ICS": {
+      "main": [
+        [
+          {
+            "node": "Responder calendario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cada 5 minutos": {
+      "main": [
+        [
+          {
+            "node": "Config (enlaces)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (enlaces)": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Empleados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Empleados": {
+      "main": [
+        [
+          {
+            "node": "Code · Enlaces que cambian",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Enlaces que cambian": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Guardar enlace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "timezone": "Europe/Madrid"
+  }
+}

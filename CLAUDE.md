@@ -1382,7 +1382,42 @@ como empresa. El aviso de privacidad de Lucía ya apunta a la política real
 siendo el token `__PRIVACY_POLICY_URL__` por si algún negocio acaba teniendo la
 suya, y entonces se pone `PRIVACY_POLICY_URL` en su `tenant.env`.
 
-## Sincronización Aegora → Outlook: fase 1 construida (7/oct/2026)
+## Calendario de cada empleado como enlace `.ics` — lo que se usa (7/oct/2026)
+**La sincronización por defecto NO es Outlook: es un enlace de suscripción.** Muchos pequeños
+negocios ven el correo en Outlook sin tener Microsoft 365: es un buzón IMAP de su hosting
+(el primer cliente real, `jcaaudiconsult.com`, tiene `MX 10 mx.jcaaudiconsult.com`). Ahí no
+hay calendario en la nube al que escribir. Un `.ics` lo añade cualquier calendario --
+Outlook, Google, iPhone -- sin licencias, permisos ni secretos. Se acepta que sea solo de ida.
+
+- `CALENDARIO · ICS` sirve `GET https://lucia.<dominio>/webhook/calendario?k=<clave>`, con las
+  citas que el empleado ATIENDE (`primary`) desde 30 días atrás hasta 180 adelante. Se genera
+  entero en cada petición: una cita anulada simplemente deja de estar. Una clase en grupo es
+  un evento con los apuntados.
+- `employees.calendario_token` lo pone **la base de datos** (`directus/sql/sync-calendario-ics.sql`,
+  `gen_random_uuid()`): en los Code node no hay criptografía. **Vaciarlo invalida el enlace**
+  y el trigger pone otra clave. Un empleado dado de baja deja de publicar.
+- `employees.calendario_url` lo escribe el mismo workflow cada 5 min, porque depende de la
+  dirección pública del tenant (token `__WEBHOOK_PUBLIC_URL__` = `https://${WEBHOOK_HOST}`), que
+  la base de datos no conoce. Por eso n8n tiene `update` sobre `employees`.
+
+**Lo que hay que decirle al cliente, porque no lo controlamos:** el retraso lo pone su
+calendario, no Aegora. El `.ics` pide refrescar cada 15 min y el iPhone lo respeta, pero
+**Outlook y Google van a su ritmo -- horas, y Google hasta un día --**. Sirve para planificar
+la semana, no para enterarse de una cita reservada hace diez minutos; para eso están el
+panel y el resumen diario de las 8:00.
+
+**Y una cuestión de datos:** quien tenga el enlace ve nombre, empresa y teléfono de los
+clientes del empleado. Al suscribirse desde Outlook.com o Google, son sus servidores los que
+lo descargan. Va en el aviso del campo y es motivo para no reenviar el enlace.
+
+## Sincronización Aegora → Outlook: fase 1 construida y APARCADA (7/oct/2026)
+**Aparcada hasta que haya un cliente con Microsoft 365** (`n8n/aparcados/`, fuera del render).
+Probada hasta el token: sale bien, con `aud` Graph y `roles: Calendars.ReadWrite`, y Graph
+contesta 401 porque el directorio de pruebas no tiene Exchange Online. El interruptor
+`employees.sincronizar_calendario` y la colección `calendar_sync` están ocultos en
+`base.yaml` mientras tanto, y el trigger que marca `calendario_pendiente` sigue activo sin que
+nadie lo lea (es inofensivo). Para reactivarla: `n8n/aparcados/README.md`.
+
 `CALENDARIO · Outlook` deja el calendario de Outlook de cada empleado como dice Aegora. Solo
 en ese sentido: lo que se cambie en Outlook no vuelve (fase 3), y el pie de cada evento lo
 dice para que nadie mueva una cita desde el móvil creyendo que avisa al cliente.
@@ -1424,10 +1459,9 @@ incidente no era prueba de lo contrario: aquellos workflows (los "DESEDE outlook
 eran todos de **Google Calendar** contra un Gmail personal con OAuth delegado; de Microsoft solo
 había un nodo HTTP vacío.
 
-**Como `render-workflows.sh` exige todas las credenciales que usan los workflows, `Microsoft
-Graph` tiene que existir en TODOS los tenants** antes del siguiente render, aunque sea con
-datos de mentira donde no se use: sin ningún empleado con la sincronización activa, el
-workflow no llama nunca a Graph.
+**Como `render-workflows.sh` exige todas las credenciales que usan los workflows, al sacarla
+de `n8n/aparcados/` la credencial `Microsoft Graph` tiene que existir en TODOS los tenants**
+antes del siguiente render. Por eso está aparcada fuera y no simplemente despublicada.
 
 ## En los Code node de n8n NO hay criptografía (n8n 2.31, task runner)
 Dos puertas cerradas, comprobadas ejecutando (en el editor no se ve ninguna):

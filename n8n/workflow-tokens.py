@@ -125,6 +125,9 @@ TOKEN_BOOKING = "__BOOKING_BASE_URL__"
 TOKEN_TENANT = "__TENANT_ID__"
 TOKEN_PRIVACY = "__PRIVACY_POLICY_URL__"
 TOKEN_DISPLAY = "__TENANT_DISPLAY_NAME__"
+# La dirección pública de los webhooks (`https://lucia.<dominio>`), para los enlaces que
+# salen a la calle: el `.ics` de cada empleado. Sin barra final.
+TOKEN_WEBHOOK = "__WEBHOOK_PUBLIC_URL__"
 
 
 def credential_slug(name: str) -> str:
@@ -156,6 +159,7 @@ class Tenant:
         # Demo") y la búsqueda era sensible a mayúsculas. De ahí que el control
         # de residuos de abajo ya no lo sea.
         self.display = env("TENANT_DISPLAY_NAME")
+        self.webhook = env("WEBHOOK_PUBLIC_URL").rstrip("/")
 
     @property
     def pairs(self):
@@ -166,6 +170,8 @@ class Tenant:
         le meta mano por dentro.
         """
         return (
+            # Antes que la regla del tenant: `https://lucia.dev.aegora.es` lleva dentro el id.
+            (TOKEN_WEBHOOK, self.webhook),
             (TOKEN_PRIVACY, self.privacy),
             (TOKEN_DISPLAY, self.display),
             (TOKEN_DIRECTUS, self.directus),

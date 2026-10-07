@@ -114,6 +114,7 @@ export BOOKING_BASE_URL="http://${BOOKING_CONTAINER}:3000"
 export PRIVACY_POLICY_URL="${PRIVACY_POLICY_URL:-https://aegora.es/politica-privacidad}"
 # Con lo que Lucía se presenta: "soy la asistente de ...". Sale de TENANT_NAME.
 export TENANT_DISPLAY_NAME="${TENANT_NAME:?Falta TENANT_NAME en tenant.env}"
+export WEBHOOK_PUBLIC_URL="https://${WEBHOOK_HOST:?Falta WEBHOOK_HOST en tenant.env}"
 
 esperar_healthy "$N8N_CONTAINER"
 

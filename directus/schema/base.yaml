@@ -582,7 +582,7 @@ collections:
       color: null
       display_template: '{{clave}} · {{estado}}'
       group: null
-      hidden: false
+      hidden: true
       icon: event_repeat
       item_duplication_fields: null
       note: 'Qué evento de Outlook corresponde a cada cita. La escribe n8n; no se edita a mano. Si
@@ -8976,7 +8976,7 @@ fields:
       display_options: null
       field: sincronizar_calendario
       group: null
-      hidden: false
+      hidden: true
       interface: boolean
       note: 'Sus citas aparecen en su calendario de Outlook (el buzón de su correo). Necesita el email relleno y la conexión con Microsoft 365 del negocio.'
       options: null
@@ -9039,6 +9039,90 @@ fields:
       data_type: boolean
       default_value: false
       max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: employees
+    field: calendario_token
+    type: string
+    meta:
+      collection: employees
+      conditions: null
+      display: null
+      display_options: null
+      field: calendario_token
+      group: null
+      hidden: false
+      interface: input
+      note: 'Lo que hace secreto el enlace del calendario. Para invalidar el enlace (se ha compartido con quien no debía), vacía este campo y guarda: se genera otro y el anterior deja de funcionar.'
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 9
+      special: null
+      translations: 
+        - language: es-ES
+          translation: 'Clave del calendario'
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: calendario_token
+      table: employees
+      data_type: character varying
+      default_value: null
+      max_length: 64
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: true
+      is_indexed: true
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: employees
+    field: calendario_url
+    type: string
+    meta:
+      collection: employees
+      conditions: null
+      display: null
+      display_options: null
+      field: calendario_url
+      group: null
+      hidden: false
+      interface: input
+      note: 'Su calendario de citas, para suscribirse desde Outlook, Google, el iPhone o cualquier calendario ("Agregar calendario" -> "Desde Internet"). Solo lectura: lo que cambies allí no vuelve a Aegora. Quien tenga el enlace ve las citas: no lo compartas.'
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 10
+      special: null
+      translations: 
+        - language: es-ES
+          translation: 'Enlace del calendario'
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: calendario_url
+      table: employees
+      data_type: character varying
+      default_value: null
+      max_length: 255
       numeric_precision: null
       numeric_scale: null
       is_nullable: true

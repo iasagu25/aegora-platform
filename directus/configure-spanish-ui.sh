@@ -503,6 +503,8 @@ const fieldTranslations = {
     phone_normalized: 'Teléfono normalizado',
     whatsapp_notifications: 'Notificaciones por WhatsApp',
     sincronizar_calendario: 'Sincronizar calendario',
+    calendario_token: 'Clave del calendario',
+    calendario_url: 'Enlace del calendario',
     status: 'Estado',
     role: 'Puesto / función',
     directus_user_id: 'Usuario Directus',

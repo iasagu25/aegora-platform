@@ -345,7 +345,8 @@ Permissions:
 
   solo lectura (config de booking, KB y personal):
   services · resources · service_resources · availability_rules
-  availability_exceptions · calendars · locations · knowledge · employees
+  availability_exceptions · calendars · locations · knowledge
+  employees              read / update   (update = el enlace .ics de cada uno)
 
 Not granted:
   delete (salvo conversation_sessions, que lo purga SESSION · Cleanup)
@@ -441,8 +442,10 @@ const permissionModel = {
   // La rama `knowledge` del cerebro la lee entera (context-stuffing, sin RAG).
   knowledge: ['read'],
   // Personal del negocio: se lee para asignar una tarea a quien nombra el cliente
-  // ("dile a Arturo que me llame"). Solo lectura: el id lo resuelve la tool, nunca el LLM.
-  employees: ['read'],
+  // ("dile a Arturo que me llame"); el id lo resuelve la tool, nunca el LLM.
+  // update: solo para escribir `calendario_url` (CALENDARIO · ICS), que depende de la
+  // dirección pública del tenant y la base de datos no conoce.
+  employees: ['read', 'update'],
   // Estado de conversación de la capa omnicanal. OJO: declarar TODAS las acciones que
   // necesita -- el bloque de saneo de abajo borra las acciones no listadas de una colección
   // que sí esté declarada. `delete` lo usa SESSION · Cleanup para purgar sesiones viejas.
