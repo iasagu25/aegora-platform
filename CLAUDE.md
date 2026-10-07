@@ -485,6 +485,18 @@ corren de arriba abajo --, así que sale antes de que Entry empiece y no le suma
 **Solo con la sesión en `auto`**: en `humano` el indicador prometería una respuesta que puede
 tardar una hora, y además marcaría como leído algo que ninguna persona ha leído.
 
+**Audios de WhatsApp (7/oct/2026).** Un mensaje `audio` ya no recibe el "solo puedo leer
+texto": el adapter contesta 200 a Meta al momento (transcribir tarda segundos y Meta reenvía
+si no contestas), enseña "escribiendo…" y `WHATSAPP · Transcribir audio` lo descarga de Graph
+(URL temporal + el mismo token de WhatsApp) y lo pasa por `gpt-4o-mini-transcribe` en
+español, con la credencial `OpenAI account` que ya existía. El texto entra a Entry como un
+mensaje normal **con 🎤 delante**: el gestor ve en la bandeja que es lo que entendimos y no
+lo que dijo, y el prompt (sección AUDIOS) le dice a Lucía que confirme horas, números y
+nombres dudosos. Si no se entiende, se pide por escrito -- nunca se le pasa a Lucía un texto
+vacío. Trampa que ya está resuelta en `Code · Nombre del fichero`: OpenAI deduce el formato
+por la EXTENSIÓN y la URL de Meta no la trae, así que sin renombrar a `audio.ogg` contesta
+"Unrecognized file format" a una nota de voz válida.
+
 **Insertar un nodo en una cadena cambia `$json` para todo lo que va detrás**, y el fallo
 sale lejos del cambio. Pasó **cuatro veces el 21/sep/2026**: el gestor de memoria delante
 de `Salida relevo humano`, el guardado de mensajes delante de `Salida Entry`, la consulta

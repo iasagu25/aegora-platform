@@ -1,0 +1,384 @@
+{
+  "id": "aegoraWhatsappTranscribir",
+  "name": "WHATSAPP · Transcribir audio",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "media_id"
+            },
+            {
+              "name": "mime_type"
+            },
+            {
+              "name": "graph_version"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "aegora-aud-01",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const i = $json ?? {};\nconst media_id = String(i.media_id || '').trim();\nreturn [{ json: {\n  valido: /^[0-9A-Za-z_-]{5,}$/.test(media_id),\n  media_id,\n  mime_type: String(i.mime_type || 'audio/ogg'),\n  graph_version: String(i.graph_version || 'v21.0'),\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        0
+      ],
+      "id": "aegora-aud-02",
+      "name": "Code · Entrada"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "a1",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.valido }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        400,
+        0
+      ],
+      "id": "aegora-aud-03",
+      "name": "¿Hay audio?"
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/{{ $json.graph_version }}/{{ $json.media_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        600,
+        -100
+      ],
+      "id": "aegora-aud-04",
+      "name": "HTTP · Dónde está el audio",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_WHATSAPP__",
+          "name": "WhatsApp"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Meta da primero una URL temporal (unos minutos) y luego se descarga con el mismo\n// token. Un audio de WhatsApp puede llegar a 16 MB; OpenAI acepta hasta 25, así que\n// el límite real es el de Meta y aquí solo se protege de algo raro.\nconst r = $json ?? {};\nconst ok = r.statusCode >= 200 && r.statusCode < 300 && r.body && r.body.url;\nconst tam = Number((r.body && r.body.file_size) || 0);\nif (!ok) return [{ json: { descargar: false, motivo: 'meta_no_da_el_audio',\n  detalle: `HTTP ${r.statusCode}: ${JSON.stringify(r.body).slice(0, 200)}` } }];\nif (tam > 20 * 1024 * 1024) return [{ json: { descargar: false, motivo: 'audio_demasiado_largo' } }];\nreturn [{ json: { descargar: true, url: r.body.url, mime_type: r.body.mime_type || $('Code · Entrada').first().json.mime_type } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        -100
+      ],
+      "id": "aegora-aud-05",
+      "name": "Code · ¿Se puede descargar?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "a2",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.descargar }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1000,
+        -100
+      ],
+      "id": "aegora-aud-06",
+      "name": "¿Descargar?"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1200,
+        -200
+      ],
+      "id": "aegora-aud-07",
+      "name": "HTTP · Descargar audio",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_WHATSAPP__",
+          "name": "WhatsApp"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// OpenAI deduce el formato por la EXTENSIÓN del fichero, y la URL de Meta no la trae:\n// sin esto contesta \"Unrecognized file format\" a un audio perfectamente válido.\n// Las notas de voz de WhatsApp son OGG/Opus, que OpenAI acepta tal cual.\nconst EXT = { 'audio/ogg': 'ogg', 'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'audio/aac': 'm4a',\n              'audio/amr': 'amr', 'audio/webm': 'webm', 'audio/wav': 'wav' };\nconst mime = String($('Code · ¿Se puede descargar?').first().json.mime_type || 'audio/ogg').split(';')[0].trim();\nconst ext = EXT[mime] || 'ogg';\nconst items = $input.all();\nfor (const it of items) {\n  if (!it.binary || !it.binary.data) return [{ json: { _sin_binario: true } }];\n  it.binary.data.fileName = `audio.${ext}`;\n  it.binary.data.fileExtension = ext;\n  it.binary.data.mimeType = mime === 'audio/amr' ? 'audio/amr' : mime;\n}\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        -200
+      ],
+      "id": "aegora-aud-08",
+      "name": "Code · Nombre del fichero"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/audio/transcriptions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "model",
+              "value": "gpt-4o-mini-transcribe"
+            },
+            {
+              "name": "language",
+              "value": "es"
+            },
+            {
+              "name": "response_format",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1600,
+        -200
+      ],
+      "id": "aegora-aud-09",
+      "name": "HTTP · Transcribir",
+      "credentials": {
+        "openAiApi": {
+          "id": "__CRED_OPENAI_ACCOUNT__",
+          "name": "OpenAI account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Una sola salida para todos los caminos, para que el adaptador no tenga que saber por\n// dónde ha ido: { ok, texto } o { ok: false, motivo }. Si el audio no se entiende, el\n// adaptador lo dice y pide que lo escriban -- nunca se le pasa a Lucía un texto vacío.\nlet r;\ntry { r = $json ?? {}; } catch (e) { r = {}; }\nif (r.descargar === false) return [{ json: { ok: false, motivo: r.motivo, detalle: r.detalle || null } }];\nif (r.valido === false) return [{ json: { ok: false, motivo: 'sin_audio' } }];\nif (r._sin_binario) return [{ json: { ok: false, motivo: 'descarga_fallida' } }];\nconst ok = r.statusCode >= 200 && r.statusCode < 300;\nconst texto = ok && r.body ? String(r.body.text || '').trim() : '';\nif (!texto) {\n  const e = r.body && r.body.error;\n  return [{ json: { ok: false, motivo: ok ? 'audio_sin_palabras' : 'transcripcion_fallida',\n    detalle: e ? `${e.code || ''} ${e.message || ''}`.trim().slice(0, 300) : (ok ? null : `HTTP ${r.statusCode}`) } }];\n}\nreturn [{ json: { ok: true, texto } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        -100
+      ],
+      "id": "aegora-aud-10",
+      "name": "Code · Salida"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code · Entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Entrada": {
+      "main": [
+        [
+          {
+            "node": "¿Hay audio?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay audio?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Dónde está el audio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Dónde está el audio": {
+      "main": [
+        [
+          {
+            "node": "Code · ¿Se puede descargar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · ¿Se puede descargar?": {
+      "main": [
+        [
+          {
+            "node": "¿Descargar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Descargar?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Descargar audio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Descargar audio": {
+      "main": [
+        [
+          {
+            "node": "Code · Nombre del fichero",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Nombre del fichero": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Transcribir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Transcribir": {
+      "main": [
+        [
+          {
+            "node": "Code · Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

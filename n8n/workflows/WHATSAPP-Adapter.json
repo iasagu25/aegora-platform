@@ -79,7 +79,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Dos triggers posibles (GET de verificación / POST de eventos): Config ya mezcló\n// sus campos hacia aquí (includeOtherFields), así que basta con $json.\nconst cfg = $json;\nconst q = cfg.query || {};\nconst headers = cfg.headers || {};\n\n// --- 1) Verificación del webhook (GET de Meta) ---\nif (q['hub.mode'] || q['hub.challenge']) {\n  const ok = q['hub.verify_token'] === cfg.verify_token;\n  // El GET de verificación de Meta no viene firmado: nunca se le exige firma.\n  return [{ json: { tipo: ok ? 'verificacion' : 'ignorar',\n    challenge: ok ? String(q['hub.challenge'] ?? '') : '',\n    motivo: ok ? null : 'verify_token no coincide',\n    firma: 'no_aplica', firma_motivo: null,\n    _raw: '', _sig: '', _app_secret: '', _require_signature: false } }];\n}\n\n// --- 2) Cuerpo ---\n// Meta firma los BYTES EXACTOS que envía, así que re-serializar el JSON ya\n// parseado no sirve: un espacio de diferencia y el HMAC no cuadra. O tenemos el\n// crudo o la firma no se puede comprobar, y punto.\n//\n// `rawBody: true` lo entrega de formas distintas según la versión de n8n\n// (string, Buffer serializado, binario aparte). Se aceptan todas y se anota\n// CUÁL apareció: así, si algún día deja de cuadrar, el dato está a la vista en\n// vez de haber que deducirlo.\nlet raw = null, body = null, forma_cuerpo = 'ausente';\n\n// De dónde se saca el cuerpo: del WEBHOOK, no de $json. $json es lo que dejó el\n// nodo `Config`, que es un Set -- y un Set puede descartar la parte binaria, que\n// es justo donde `rawBody` deja los bytes. Leyéndolo del origen ese eslabón\n// desaparece. Si el nodo no corrió (llegó por el trigger GET), se cae al $json\n// de siempre.\nlet b = cfg.body;\nlet origen_cuerpo = 'config';\ntry {\n  const hook = $('Webhook · WhatsApp (POST)').first();\n  if (hook) {\n    origen_cuerpo = 'webhook';\n    if (hook.json && hook.json.body !== undefined) b = hook.json.body;\n    const bin = hook.binary || {};\n    const dato = bin.data || bin.body || Object.values(bin)[0];\n    // El binario manda: si existe, son los bytes tal cual llegaron.\n    if (dato && dato.data) {\n      try {\n        raw = (typeof Buffer !== 'undefined')\n          ? Buffer.from(dato.data, 'base64').toString('utf8')\n          : new TextDecoder().decode(Uint8Array.from(atob(dato.data), ch => ch.charCodeAt(0)));\n        forma_cuerpo = 'binario_webhook';\n      } catch (e) { /* seguimos con b */ }\n    }\n  }\n} catch (e) { /* el POST no corrió en esta ejecución */ }\n\nif (raw) {\n  // ya resuelto desde el binario del webhook\n} else if (typeof b === 'string') {\n  forma_cuerpo = 'string';\n  raw = b;\n} else if (b && typeof b === 'object' && b.type === 'Buffer' && Array.isArray(b.data)) {\n  forma_cuerpo = 'buffer_json';\n  try { raw = Buffer.from(b.data).toString('utf8'); } catch (e) { raw = null; }\n} else if (typeof Buffer !== 'undefined' && Buffer.isBuffer && Buffer.isBuffer(b)) {\n  forma_cuerpo = 'buffer';\n  try { raw = b.toString('utf8'); } catch (e) { raw = null; }\n} else if (b && typeof b === 'object') {\n  // Ya viene parseado: el crudo se perdió por el camino y no hay firma posible.\n  forma_cuerpo = 'objeto_parseado';\n  body = b;\n}\n\n// n8n puede dejar el cuerpo en la parte binaria en lugar de en $json.\nif (!raw && !body) {\n  try {\n    const bin = $input.first().binary || {};\n    const dato = bin.data || bin.body || Object.values(bin)[0];\n    if (dato && dato.data) {\n      forma_cuerpo = 'binario';\n      raw = Buffer.from(dato.data, 'base64').toString('utf8');\n    }\n  } catch (e) { /* no hay binario */ }\n}\n\nif (raw && !body) { try { body = JSON.parse(raw); } catch (e) { body = null; } }\nif (!body) return [{ json: { tipo: 'ignorar', motivo: 'cuerpo no parseable', forma_cuerpo, origen_cuerpo, firma: 'no_comprobada', firma_motivo: 'cuerpo no parseable', _raw: '', _sig: '', _app_secret: '', _require_signature: false } }];\n\n// --- 3) Ingredientes de la firma ---\n// El HMAC NO se calcula aquí: el sandbox del task runner no tiene criptografía\n// (ni require('crypto') ni globalThis.crypto), así que lo hace el nodo `Crypto`\n// que va detrás, que corre en el proceso principal de n8n. Este nodo solo deja\n// preparado lo que necesita, y `Code · Verificar firma` cierra el círculo.\nconst sigHeader = headers['x-hub-signature-256'] || headers['X-Hub-Signature-256'] || '';\nconst firma = 'pendiente';\nconst firma_motivo = null;\nconst _sig = sigHeader;\nconst _app_secret = cfg.app_secret || '';\nconst _raw = raw || '';\nconst _require_signature = cfg.require_signature === true;\n\n// --- 4) Normalizar el payload de Meta ---\nconst value = body?.entry?.[0]?.changes?.[0]?.value || {};\nconst msg = value?.messages?.[0];\n// Los avisos de estado (sent/delivered/read) llegan al mismo webhook: se ignoran.\nif (!msg) return [{ json: { tipo: 'ignorar', motivo: value.statuses ? 'status' : 'sin mensajes', firma, firma_motivo, forma_cuerpo, origen_cuerpo, _raw, _sig, _app_secret, _require_signature } }];\n\nconst pnid = value?.metadata?.phone_number_id || null;\nif (pnid && cfg.phone_number_id && !String(cfg.phone_number_id).startsWith('REPLACE_')\n    && pnid !== cfg.phone_number_id) {\n  return [{ json: { tipo: 'ignorar', motivo: 'phone_number_id ajeno: ' + pnid, firma, firma_motivo, forma_cuerpo, origen_cuerpo, _raw, _sig, _app_secret, _require_signature } }];\n}\n\nconst from = msg.from || null;                       // E.164 sin '+'\nconst perfil = value?.contacts?.[0]?.profile?.name || null;\nconst texto = msg.type === 'text' ? (msg.text?.body || '') : '';\n\nreturn [{ json: {\n  tipo: msg.type === 'text' ? 'mensaje' : 'no_texto',\n  firma, firma_motivo, forma_cuerpo, origen_cuerpo,\n  _raw, _sig, _app_secret, _require_signature,\n  wamid: msg.id || null,\n  from,\n  entry: {\n    canal: 'whatsapp',\n    session_key: 'whatsapp:' + from,\n    message: texto,\n    from: { phone: from ? '+' + from : null, name: perfil },\n    tenant: cfg.tenant || '__TENANT_ID__',\n    reply_to: { phone_number_id: cfg.phone_number_id },\n    client_message_id: msg.id || null,\n  },\n} }];"
+        "jsCode": "// Dos triggers posibles (GET de verificación / POST de eventos): Config ya mezcló\n// sus campos hacia aquí (includeOtherFields), así que basta con $json.\nconst cfg = $json;\nconst q = cfg.query || {};\nconst headers = cfg.headers || {};\n\n// --- 1) Verificación del webhook (GET de Meta) ---\nif (q['hub.mode'] || q['hub.challenge']) {\n  const ok = q['hub.verify_token'] === cfg.verify_token;\n  // El GET de verificación de Meta no viene firmado: nunca se le exige firma.\n  return [{ json: { tipo: ok ? 'verificacion' : 'ignorar',\n    challenge: ok ? String(q['hub.challenge'] ?? '') : '',\n    motivo: ok ? null : 'verify_token no coincide',\n    firma: 'no_aplica', firma_motivo: null,\n    _raw: '', _sig: '', _app_secret: '', _require_signature: false } }];\n}\n\n// --- 2) Cuerpo ---\n// Meta firma los BYTES EXACTOS que envía, así que re-serializar el JSON ya\n// parseado no sirve: un espacio de diferencia y el HMAC no cuadra. O tenemos el\n// crudo o la firma no se puede comprobar, y punto.\n//\n// `rawBody: true` lo entrega de formas distintas según la versión de n8n\n// (string, Buffer serializado, binario aparte). Se aceptan todas y se anota\n// CUÁL apareció: así, si algún día deja de cuadrar, el dato está a la vista en\n// vez de haber que deducirlo.\nlet raw = null, body = null, forma_cuerpo = 'ausente';\n\n// De dónde se saca el cuerpo: del WEBHOOK, no de $json. $json es lo que dejó el\n// nodo `Config`, que es un Set -- y un Set puede descartar la parte binaria, que\n// es justo donde `rawBody` deja los bytes. Leyéndolo del origen ese eslabón\n// desaparece. Si el nodo no corrió (llegó por el trigger GET), se cae al $json\n// de siempre.\nlet b = cfg.body;\nlet origen_cuerpo = 'config';\ntry {\n  const hook = $('Webhook · WhatsApp (POST)').first();\n  if (hook) {\n    origen_cuerpo = 'webhook';\n    if (hook.json && hook.json.body !== undefined) b = hook.json.body;\n    const bin = hook.binary || {};\n    const dato = bin.data || bin.body || Object.values(bin)[0];\n    // El binario manda: si existe, son los bytes tal cual llegaron.\n    if (dato && dato.data) {\n      try {\n        raw = (typeof Buffer !== 'undefined')\n          ? Buffer.from(dato.data, 'base64').toString('utf8')\n          : new TextDecoder().decode(Uint8Array.from(atob(dato.data), ch => ch.charCodeAt(0)));\n        forma_cuerpo = 'binario_webhook';\n      } catch (e) { /* seguimos con b */ }\n    }\n  }\n} catch (e) { /* el POST no corrió en esta ejecución */ }\n\nif (raw) {\n  // ya resuelto desde el binario del webhook\n} else if (typeof b === 'string') {\n  forma_cuerpo = 'string';\n  raw = b;\n} else if (b && typeof b === 'object' && b.type === 'Buffer' && Array.isArray(b.data)) {\n  forma_cuerpo = 'buffer_json';\n  try { raw = Buffer.from(b.data).toString('utf8'); } catch (e) { raw = null; }\n} else if (typeof Buffer !== 'undefined' && Buffer.isBuffer && Buffer.isBuffer(b)) {\n  forma_cuerpo = 'buffer';\n  try { raw = b.toString('utf8'); } catch (e) { raw = null; }\n} else if (b && typeof b === 'object') {\n  // Ya viene parseado: el crudo se perdió por el camino y no hay firma posible.\n  forma_cuerpo = 'objeto_parseado';\n  body = b;\n}\n\n// n8n puede dejar el cuerpo en la parte binaria en lugar de en $json.\nif (!raw && !body) {\n  try {\n    const bin = $input.first().binary || {};\n    const dato = bin.data || bin.body || Object.values(bin)[0];\n    if (dato && dato.data) {\n      forma_cuerpo = 'binario';\n      raw = Buffer.from(dato.data, 'base64').toString('utf8');\n    }\n  } catch (e) { /* no hay binario */ }\n}\n\nif (raw && !body) { try { body = JSON.parse(raw); } catch (e) { body = null; } }\nif (!body) return [{ json: { tipo: 'ignorar', motivo: 'cuerpo no parseable', forma_cuerpo, origen_cuerpo, firma: 'no_comprobada', firma_motivo: 'cuerpo no parseable', _raw: '', _sig: '', _app_secret: '', _require_signature: false } }];\n\n// --- 3) Ingredientes de la firma ---\n// El HMAC NO se calcula aquí: el sandbox del task runner no tiene criptografía\n// (ni require('crypto') ni globalThis.crypto), así que lo hace el nodo `Crypto`\n// que va detrás, que corre en el proceso principal de n8n. Este nodo solo deja\n// preparado lo que necesita, y `Code · Verificar firma` cierra el círculo.\nconst sigHeader = headers['x-hub-signature-256'] || headers['X-Hub-Signature-256'] || '';\nconst firma = 'pendiente';\nconst firma_motivo = null;\nconst _sig = sigHeader;\nconst _app_secret = cfg.app_secret || '';\nconst _raw = raw || '';\nconst _require_signature = cfg.require_signature === true;\n\n// --- 4) Normalizar el payload de Meta ---\nconst value = body?.entry?.[0]?.changes?.[0]?.value || {};\nconst msg = value?.messages?.[0];\n// Los avisos de estado (sent/delivered/read) llegan al mismo webhook: se ignoran.\nif (!msg) return [{ json: { tipo: 'ignorar', motivo: value.statuses ? 'status' : 'sin mensajes', firma, firma_motivo, forma_cuerpo, origen_cuerpo, _raw, _sig, _app_secret, _require_signature } }];\n\nconst pnid = value?.metadata?.phone_number_id || null;\nif (pnid && cfg.phone_number_id && !String(cfg.phone_number_id).startsWith('REPLACE_')\n    && pnid !== cfg.phone_number_id) {\n  return [{ json: { tipo: 'ignorar', motivo: 'phone_number_id ajeno: ' + pnid, firma, firma_motivo, forma_cuerpo, origen_cuerpo, _raw, _sig, _app_secret, _require_signature } }];\n}\n\nconst from = msg.from || null;                       // E.164 sin '+'\nconst perfil = value?.contacts?.[0]?.profile?.name || null;\nconst texto = msg.type === 'text' ? (msg.text?.body || '') : '';\n\nreturn [{ json: {\n  // Un audio (nota de voz o archivo de audio) se transcribe y entra como texto. El resto\n  // de tipos (fotos, documentos, ubicaciones...) siguen con el aviso de solo texto.\n  tipo: msg.type === 'text' ? 'mensaje' : (msg.type === 'audio' ? 'audio' : 'no_texto'),\n  audio: msg.type === 'audio' ? { id: msg.audio?.id || null, mime_type: msg.audio?.mime_type || null } : null,\n  firma, firma_motivo, forma_cuerpo, origen_cuerpo,\n  _raw, _sig, _app_secret, _require_signature,\n  wamid: msg.id || null,\n  from,\n  entry: {\n    canal: 'whatsapp',\n    session_key: 'whatsapp:' + from,\n    message: texto,\n    from: { phone: from ? '+' + from : null, name: perfil },\n    tenant: cfg.tenant || '__TENANT_ID__',\n    reply_to: { phone_number_id: cfg.phone_number_id },\n    client_message_id: msg.id || null,\n  },\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -165,6 +165,30 @@
               },
               "renameOutput": true,
               "outputKey": "no_texto"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "sw-audio",
+                    "leftValue": "={{ $json.tipo }}",
+                    "rightValue": "audio",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "audio"
             }
           ]
         },
@@ -493,6 +517,100 @@
       "name": "Execute · Escribiendo",
       "onError": "continueRegularOutput",
       "notes": "Sin esperar y por ENCIMA de Entry en el lienzo: con executionOrder v1 las ramas de una misma salida corren de arriba abajo, así que se dispara antes de que Entry empiece y no le añade latencia."
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1140,
+        660
+      ],
+      "id": "wa-audio-01",
+      "name": "Responder 200 (audio)",
+      "notes": "Meta tiene que recibir el 200 YA: transcribir tarda unos segundos y, si no contestamos, reenvía el mensaje."
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraWhatsappTranscribir",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "media_id": "={{ $('Code · Clasificar y normalizar').item.json.audio.id }}",
+            "mime_type": "={{ $('Code · Clasificar y normalizar').item.json.audio.mime_type }}",
+            "graph_version": "={{ $('Config (editar por tenant)').item.json.graph_version }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1360,
+        660
+      ],
+      "id": "wa-audio-02",
+      "name": "Execute · Transcribir audio",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// El audio ya es texto: a partir de aquí sigue el mismo camino que un mensaje escrito.\n// Va con 🎤 delante para que se sepa en la bandeja (el gestor lee lo que entendimos, no\n// lo que dijo) y para que Lucía sepa que puede haber palabras mal entendidas.\nconst norm = $('Code · Clasificar y normalizar').item.json;\nconst r = $json ?? {};\nif (r.ok === true && r.texto) {\n  return [{ json: { ...norm, tipo: 'mensaje', _audio: true,\n    entry: { ...norm.entry, message: '🎤 ' + r.texto } } }];\n}\n// No se entendió: se dice y se pide por escrito. Nunca se le pasa a Lucía un texto\n// vacío -- contestaría a nada.\nconst cfg = $('Config (editar por tenant)').item.json;\nreturn [{ json: {\n  _audio_fallido: true, motivo: r.motivo || 'transcripcion_fallida', detalle: r.detalle || null,\n  _url: `https://graph.facebook.com/${cfg.graph_version || 'v21.0'}/${cfg.phone_number_id}/messages`,\n  _body: { messaging_product: 'whatsapp', recipient_type: 'individual', to: norm.from, type: 'text',\n           text: { preview_url: false, body: 'No he podido escuchar bien el audio. ¿Me lo escribes?' } },\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1580,
+        660
+      ],
+      "id": "wa-audio-03",
+      "name": "Code · Audio a texto"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "wa-aud-ok",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json._audio === true }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1800,
+        660
+      ],
+      "id": "wa-audio-04",
+      "name": "¿Audio entendido?"
     }
   ],
   "connections": {
@@ -537,6 +655,13 @@
         [
           {
             "node": "Code · Solo texto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 200 (audio)",
             "type": "main",
             "index": 0
           }
@@ -648,6 +773,62 @@
         [
           {
             "node": "Switch · tipo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder 200 (audio)": {
+      "main": [
+        [
+          {
+            "node": "Execute · Escribiendo",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Execute · Transcribir audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · Transcribir audio": {
+      "main": [
+        [
+          {
+            "node": "Code · Audio a texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Audio a texto": {
+      "main": [
+        [
+          {
+            "node": "¿Audio entendido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Audio entendido?": {
+      "main": [
+        [
+          {
+            "node": "Execute · AGENT-Lucia-Entry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP · WhatsApp sendText",
             "type": "main",
             "index": 0
           }
