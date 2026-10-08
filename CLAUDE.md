@@ -1420,6 +1420,12 @@ Outlook, Google, iPhone -- sin licencias, permisos ni secretos. Se acepta que se
   citas que el empleado ATIENDE (`primary`) desde 30 días atrás hasta 180 adelante. Se genera
   entero en cada petición: una cita anulada simplemente deja de estar. Una clase en grupo es
   un evento con los apuntados.
+- **Quién atiende la cita se decide en código, no con un filtro de Directus.** El primero
+  usaba `recursos._some -> resource_id.employee_id`, y Directus lo **ignoraba sin dar
+  error**: los filtros de estado y fecha sí se aplicaban, así que la respuesta parecía buena,
+  pero cada enlace llevaba las citas de todo el negocio. Se vio porque una demo cuyo recurso
+  no tiene empleado salió en el calendario de Arturo (8/oct/2026). Un filtro relacional
+  sobre una O2M no se da por bueno sin ver que de verdad excluye algo.
 - `employees.calendario_token` lo pone **la base de datos** (`directus/sql/sync-calendario-ics.sql`,
   `gen_random_uuid()`): en los Code node no hay criptografía. **Vaciarlo invalida el enlace**
   y el trigger pone otra clave. Un empleado dado de baja deja de publicar.
