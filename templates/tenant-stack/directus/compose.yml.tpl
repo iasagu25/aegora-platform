@@ -37,6 +37,18 @@ services:
 
     stop_grace_period: 30s
 
+    # Límites de recursos (13/oct/2026). La VPS no tiene swap: sin límites, un tenant
+    # que se dispara hace que el OOM killer del sistema mate un contenedor -- y lo elige
+    # él, puede ser el de OTRO cliente. Con límite, el que se pasa se reinicia solo
+    # (restart: unless-stopped) y los demás ni se enteran.
+    # memswap_limit igual que mem_limit: sin swap de verdad, que no cuente con ella.
+    # Directus: 230-265 MiB medidos bajo carga. 768 MiB y no 512 porque apply-schema y
+    # snapshot-schema ejecutan el CLI DENTRO de este contenedor, y cuentan en el mismo
+    # límite que el servidor en marcha.
+    mem_limit: 768m
+    memswap_limit: 768m
+    cpus: 1.0
+
 networks:
   tenant_backend:
     external: true

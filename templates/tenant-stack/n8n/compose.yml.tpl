@@ -37,6 +37,18 @@ services:
 
     stop_grace_period: 60s
 
+    # Límites de recursos (13/oct/2026). La VPS no tiene swap: sin límites, un tenant
+    # que se dispara hace que el OOM killer del sistema mate un contenedor -- y lo elige
+    # él, puede ser el de OTRO cliente. Con límite, el que se pasa se reinicia solo
+    # (restart: unless-stopped) y los demás ni se enteran.
+    # memswap_limit igual que mem_limit: sin swap de verdad, que no cuente con ella.
+    # n8n: ~430 MiB en reposo + ~12 MiB por conversación simultánea (medido el
+    # 18/sep/2026 con 40 conversaciones a la vez: pico de 942 MiB). 1,5 GiB deja margen
+    # por encima de eso. CPU: es el que más trabaja (agente, tools, transcripción).
+    mem_limit: 1536m
+    memswap_limit: 1536m
+    cpus: 2.0
+
 networks:
   tenant_backend:
     external: true

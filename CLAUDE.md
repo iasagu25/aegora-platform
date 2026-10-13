@@ -579,12 +579,17 @@ bueno:
     ANTES del onboarding, y después el orden real de `dev` (esquema, `configure-*`,
     credenciales n8n, `render-workflows.sh` completo).
   - Migrar build A → imagen en GHCR (CI en `aegora-booking`).
-  - **Límites de recursos en las plantillas** (`mem_limit`, `cpus` en los tres
-    `compose.yml.tpl`). Hoy no hay ninguno y no hay swap: un tenant que se
-    dispare hace que el OOM killer mate a otro, y elige él la víctima. Con el
-    modelo medido los números ya se saben: ~1,5 GiB para n8n y ~512 MiB para
-    Directus dejan margen sobre lo observado. Es lo que convierte "caben 11" en
-    una garantía en vez de un promedio.
+  - **Límites de recursos en las plantillas: puestos (13/oct/2026)**, fijos en los tres
+    `compose.yml.tpl` y con el porqué de cada número al lado: n8n 1536m / 2 CPU, Directus
+    768m / 1 CPU (no 512: apply-schema y snapshot-schema ejecutan el CLI dentro del mismo
+    contenedor y cuentan en el mismo límite), booking 384m / 1 CPU. `memswap_limit` igual
+    que `mem_limit` porque no hay swap. Son techos, no reservas: cuatro tenants llenos a la
+    vez serían ~10,6 GiB de 15. Llegan a los tenants ya creados con
+    `render-tenant-config.sh` + **recrear** (`up -d --force-recreate`, no `restart`); un
+    tenant nuevo nace con ellos. Se comprueba con
+    `docker inspect <contenedor> --format '{{.HostConfig.Memory}}'` (bytes; 0 = sin límite).
+    Si un tenant concreto necesitara más, entonces se convierten en variables de
+    `tenant.env`; hasta que pase, una sola cifra para todos.
   - **Medir la latencia del agente con `--concurrency 1`**
     (`scripts/loadtest/webchat-load.sh --tenant demo --concurrency 1 --rounds 5`).
     Con 5 conversaciones simultáneas el p50 ya es de 7 s, y hace falta saber
