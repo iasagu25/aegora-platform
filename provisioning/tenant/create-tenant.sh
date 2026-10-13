@@ -724,6 +724,11 @@ POSTGRES_CONNECTED_TO_NETWORK=true
 # Export templates
 # =============================================================================
 
+# Cada ${VAR} de las plantillas que se renderizan aquí tiene que estar en esta lista.
+# Faltaba TENANT_SECRETS_DIR (la usa backup.manifest.json.tpl desde el 20/sep/2026) y
+# NINGÚN tenant nuevo se podía crear: falló con jca, el primero desde entonces, en el
+# paso del manifiesto y con rollback. Comprobación rápida: cruzar los ${...} de
+# templates/tenant-stack/ con esta lista.
 export \
   TENANT_ID \
   TENANT_NAME \
@@ -732,6 +737,7 @@ export \
   TENANT_CONFIG_ROOT \
   TENANT_DATA_ROOT \
   TENANT_COMPOSE_ROOT \
+  TENANT_SECRETS_DIR \
   TENANT_BACKEND_NETWORK \
   DIRECTUS_VERSION \
   DIRECTUS_CONTAINER \
