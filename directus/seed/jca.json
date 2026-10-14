@@ -1,0 +1,135 @@
+{
+  "_nota": [
+    "Primera carga de JCA Audiconsult SL (tenant `jca`, 14/oct/2026). Se carga con",
+    "directus/seed/load-seed.sh --tenant jca --set jca. Nunca modifica lo que ya existe,",
+    "así que lo que el cliente ajuste después desde el panel no se pisa al recargar.",
+    "",
+    "Provisional y a confirmar con el cliente: el horario (L-V 9:00-18:00, el mismo para",
+    "los dos), que los dos presten los tres servicios, las duraciones y la antelación.",
+    "La base de conocimiento sale literal de jcaaudiconsult.com: no lleva dirección ni",
+    "precios porque la web no los da, y Lucía dirá que no tiene ese dato.",
+    "",
+    "Los empleados van sin apellidos ni email hasta tenerlos. `last_name` va como cadena",
+    "vacía y no null: es parte de la clave natural del seed, y un filtro por null no",
+    "encontraría la fila al recargar y la duplicaría."
+  ],
+  "employees": [
+    { "_ref": "arturo", "first_name": "Arturo", "last_name": "", "status": "active" },
+    { "_ref": "cifuentes", "first_name": "Cifuentes", "last_name": "", "status": "active" }
+  ],
+  "resources": [
+    { "_ref": "r_arturo", "name": "Arturo", "resource_type": "person", "employee_id": "@arturo", "capacity": 1, "active": true },
+    { "_ref": "r_cifuentes", "name": "Cifuentes", "resource_type": "person", "employee_id": "@cifuentes", "capacity": 1, "active": true }
+  ],
+  "services": [
+    {
+      "_ref": "s_fiscal",
+      "name": "Planificación fiscal y mercantil",
+      "description": "Optimización de la carga tributaria, reestructuración societaria, planificación patrimonial y sucesoria, y defensa ante inspecciones.",
+      "duration_minutes": 60,
+      "booking_mode": "fixed_duration",
+      "buffer_before_minutes": 0,
+      "buffer_after_minutes": 15,
+      "minimum_notice_minutes": 1440,
+      "maximum_booking_days": 60,
+      "requires_confirmation": false,
+      "active": true
+    },
+    {
+      "_ref": "s_auditoria",
+      "name": "Auditoría",
+      "description": "Auditoría de contabilidad y cuentas anuales, control interno y gestión de riesgos, informes para socios y entidades financieras, y due diligence.",
+      "duration_minutes": 60,
+      "booking_mode": "fixed_duration",
+      "buffer_before_minutes": 0,
+      "buffer_after_minutes": 15,
+      "minimum_notice_minutes": 1440,
+      "maximum_booking_days": 60,
+      "requires_confirmation": false,
+      "active": true
+    },
+    {
+      "_ref": "s_concursal",
+      "name": "Concursal y reestructuración",
+      "description": "Análisis de viabilidad y opciones preconcursales, concurso de acreedores, negociación con acreedores, planes de continuidad y defensa de administradores.",
+      "duration_minutes": 60,
+      "booking_mode": "fixed_duration",
+      "buffer_before_minutes": 0,
+      "buffer_after_minutes": 15,
+      "minimum_notice_minutes": 1440,
+      "maximum_booking_days": 60,
+      "requires_confirmation": false,
+      "active": true
+    }
+  ],
+  "service_resources": [
+    { "service_id": "@s_fiscal", "resource_id": "@r_arturo" },
+    { "service_id": "@s_fiscal", "resource_id": "@r_cifuentes" },
+    { "service_id": "@s_auditoria", "resource_id": "@r_arturo" },
+    { "service_id": "@s_auditoria", "resource_id": "@r_cifuentes" },
+    { "service_id": "@s_concursal", "resource_id": "@r_arturo" },
+    { "service_id": "@s_concursal", "resource_id": "@r_cifuentes" }
+  ],
+  "availability_rules": [
+    { "resource_id": "@r_arturo", "day_of_week": 1, "start_time": "09:00:00", "end_time": "18:00:00", "active": true },
+    { "resource_id": "@r_arturo", "day_of_week": 2, "start_time": "09:00:00", "end_time": "18:00:00", "active": true },
+    { "resource_id": "@r_arturo", "day_of_week": 3, "start_time": "09:00:00", "end_time": "18:00:00", "active": true },
+    { "resource_id": "@r_arturo", "day_of_week": 4, "start_time": "09:00:00", "end_time": "18:00:00", "active": true },
+    { "resource_id": "@r_arturo", "day_of_week": 5, "start_time": "09:00:00", "end_time": "18:00:00", "active": true },
+    { "resource_id": "@r_cifuentes", "day_of_week": 1, "start_time": "09:00:00", "end_time": "18:00:00", "active": true },
+    { "resource_id": "@r_cifuentes", "day_of_week": 2, "start_time": "09:00:00", "end_time": "18:00:00", "active": true },
+    { "resource_id": "@r_cifuentes", "day_of_week": 3, "start_time": "09:00:00", "end_time": "18:00:00", "active": true },
+    { "resource_id": "@r_cifuentes", "day_of_week": 4, "start_time": "09:00:00", "end_time": "18:00:00", "active": true },
+    { "resource_id": "@r_cifuentes", "day_of_week": 5, "start_time": "09:00:00", "end_time": "18:00:00", "active": true }
+  ],
+  "knowledge": [
+    {
+      "sort": 1,
+      "active": true,
+      "title": "Quiénes somos",
+      "body": "JCA Audiconsult SL es una firma de planificación fiscal y mercantil, auditoría y servicios concursales.\n\nOptimizamos la fiscalidad, garantizamos la transparencia financiera y protegemos la continuidad de su empresa. Trabajamos en tres áreas especializadas que se coordinan entre sí para cubrir todas sus necesidades fiscales, financieras y legales."
+    },
+    {
+      "sort": 2,
+      "active": true,
+      "title": "Planificación fiscal y mercantil",
+      "body": "Optimizamos la carga tributaria y anticipamos escenarios futuros. Establecemos la estrategia fiscal necesaria.\n\n- Optimización de impuestos.\n- Reestructuración societaria.\n- Planificación patrimonial y sucesoria, con protocolo familiar.\n- Defensa ante inspecciones."
+    },
+    {
+      "sort": 3,
+      "active": true,
+      "title": "Auditoría",
+      "body": "Garantizamos la fiabilidad de la información contable y financiera.\n\n- Auditoría de contabilidad y de cuentas anuales.\n- Control interno y gestión de riesgos.\n- Informes para socios y entidades financieras.\n- Due diligence en operaciones corporativas."
+    },
+    {
+      "sort": 4,
+      "active": true,
+      "title": "Concursal y reestructuración",
+      "body": "Soluciones eficaces ante dificultades empresariales y financieras.\n\n- Análisis de viabilidad y opciones preconcursales.\n- Preparación y gestión del concurso de acreedores.\n- Negociación con acreedores.\n- Planes de continuidad empresarial.\n- Defensa de administradores."
+    },
+    {
+      "sort": 5,
+      "active": true,
+      "title": "Nuestro enfoque",
+      "body": "Aportamos transparencia y confianza para la toma de decisiones. Trabajamos para aportar seguridad, estabilidad y crecimiento a su empresa.\n\n- Visión estratégica y preventiva.\n- Coordinación multidisciplinar.\n- Cumplimiento normativo riguroso.\n- Orientación a resultados."
+    },
+    {
+      "sort": 6,
+      "active": true,
+      "title": "Horario de atención",
+      "body": "De lunes a viernes, de 9:00 a 18:00."
+    },
+    {
+      "sort": 7,
+      "active": true,
+      "title": "Contacto por área",
+      "body": "- Planificación fiscal: 662 458 117 · fiscal@jcaaudiconsult.com\n- Auditoría: 606 090 103 · auditoria@jcaaudiconsult.com\n- Concursal: 620 290 771 · concursal@jcaaudiconsult.com\n\nWeb: https://jcaaudiconsult.com"
+    },
+    {
+      "sort": 8,
+      "active": true,
+      "title": "Reuniones",
+      "body": "Se puede reservar una reunión de una hora para cualquiera de las tres áreas, de lunes a viernes. Las reuniones se piden con al menos un día de antelación.\n\nSi necesita hablar antes con una persona del equipo, se lo hacemos saber y le llamamos."
+    }
+  ]
+}
