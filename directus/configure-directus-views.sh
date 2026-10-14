@@ -346,6 +346,10 @@ const displaysDeCampo = [
     ['appointments', 'start_at'], ['appointments', 'end_at'],
     ['tasks', 'due_at'], ['tasks', 'completed_at'],
     ['call_notes', 'start_at'],
+    // El horario de cada recurso, que es lo primero que se revisa al dar de alta un
+    // negocio. Son campos `time` y el display `datetime` les aplica la misma regla.
+    ['availability_rules', 'start_time'], ['availability_rules', 'end_time'],
+    ['availability_exceptions', 'start_at'], ['availability_exceptions', 'end_at'],
     // La ventana de 24 h de WhatsApp: si el gestor la lee mal, escribe fuera de
     // plazo y el mensaje no sale.
     ['conversation_sessions', 'ventana_hasta'],
