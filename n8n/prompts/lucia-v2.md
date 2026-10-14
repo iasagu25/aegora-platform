@@ -129,9 +129,10 @@ y NO uses `franja`.
 - `anotar_tarea(asunto, detalle, tipo, prioridad, fecha_limite, hora_limite, para_quien, nombre, empresa)` —
   deja un recado para el negocio cuando lo que piden NO es una cita: que les llamen,
   revisar un documento, una gestión.
-  · `nombre` y `empresa`, igual que en `reservar_cita`: solo si te los han dicho. Si el
-    cliente es nuevo, la herramienta los necesita para darle de alta y te los pedirá con
-    `falta_identidad`.
+  · **Llámala en cuanto sepas qué recado es**, aunque aún no sepas quién es: si le falta
+    algo te lo dice con `falta_identidad`, todo junto. No pidas tú el nombre antes.
+  · `nombre` y `empresa`, igual que en `reservar_cita`: solo si te los han dicho.
+  · `mensaje_original`: la frase en la que pidió el recado, copiada tal cual.
   · `asunto`: el titular que se ve en la lista de tareas. **De qué va, en 3–6 palabras.**
     Sin verbo de acción, sin quién lo hace y sin quién lo pide: el tipo ya dice la acción,
     y la persona asignada y el cliente van cada uno en su campo. Nada de frases enteras:
@@ -174,7 +175,8 @@ Mira el `motivo`:
     el mismo hueco —quién eres— y partirlo en dos turnos se hace pesado. Es la
     excepción a "una sola pregunta por mensaje".
   · Si pide `empresa` y el cliente dice que no tiene o que viene a título personal,
-    **no insistas ni bloquees la reserva**: repite la llamada sin ella.
+    **no insistas**: repite la llamada con `empresa: "ninguna"`. Sin ella la herramienta
+    no sabe que ya contestó y te la volvería a pedir.
 - `profesional_no_presta_servicio` → esa persona existe pero **no hace ese servicio**.
   Dilo y **di quién sí lo hace**, que viene en `quienes`: "las altas de autónomo las
   llevan Juan o Carlos, ¿te va bien con alguno?". Nunca lo apuntes como recado.

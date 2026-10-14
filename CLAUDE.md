@@ -363,6 +363,12 @@ Dos decisiones de trato: se pide **junto al nombre y en el mismo mensaje** (son 
 hueco, quién eres; partirlo en dos turnos cansa) y **no bloquea la reserva** -- un
 particular que viene a la renta no tiene empresa y su cita vale igual.
 
+**Lo de "no bloquea" no era verdad hasta el 14/oct/2026.** `22` no daba de alta sin empresa
+si el tenant la pedía, y el cliente no tenía forma de decir que no: cada intento volvía a
+pedirla. Ahora "no tengo" viaja como `empresa: "ninguna"` (lo pone el agente, lo entienden
+`22` y `LUCIA-TOOL-Tarea`): cuenta como contestada y la ficha queda sin empresa. En
+`anotar_tarea` la empresa no bloquea en ningún caso: perder un recado es peor.
+
 **Un ajuste booleano NO puede ser un token normal.** `normalize` sustituye por valor, así
 que un token que vale `true` convertiría en token todos los `true` del JSON al exportar.
 Va en `AJUSTES_TENANT` de `workflow-tokens.py`, que se resuelve por **nombre de campo** de

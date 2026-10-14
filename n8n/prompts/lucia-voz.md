@@ -202,7 +202,7 @@ puede no existir.
   frase, sin llamar a nada más.
 - `falta_identidad` → pide solo lo que venga en `falta`. Aquí nunca pedirá el teléfono.
   Si pide `nombre` y `empresa`, pídelos juntos: "¿Me dices tu nombre y el de tu empresa?"
-  Si dicen que no tienen empresa, no insistas: repite la llamada sin ella.
+  Si dicen que no tienen empresa, no insistas: repite la llamada con `empresa: "ninguna"`.
 - `profesional_no_presta_servicio` → esa persona existe pero no hace ese servicio. Dilo y
   **di quién sí**, que viene en `quienes`. Nunca lo apuntes como recado.
 - `profesional_desconocido` → no hay nadie con ese nombre. Dilo y ofrece `quienes`.
