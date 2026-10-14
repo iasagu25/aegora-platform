@@ -4,21 +4,16 @@
     "directus/seed/load-seed.sh --tenant jca --set jca. Nunca modifica lo que ya existe,",
     "así que lo que el cliente ajuste después desde el panel no se pisa al recargar.",
     "",
-    "Provisional y a confirmar con el cliente: el horario (L-V 9:00-18:00, el mismo para",
-    "los dos), que los dos presten los tres servicios, las duraciones y la antelación.",
-    "La base de conocimiento sale literal de jcaaudiconsult.com: no lleva dirección ni",
-    "precios porque la web no los da, y Lucía dirá que no tiene ese dato.",
-    "",
-    "Los empleados van sin apellidos ni email hasta tenerlos. `last_name` es parte de la",
-    "clave natural: load-seed.sh busca un campo vacío con `_empty`, no con `_eq`."
+    "Provisional y a confirmar con el cliente: el horario (L-V 9:00-18:00), las",
+    "duraciones y la antelación. Un solo profesional, Arturo Cifuentes, que da los tres",
+    "servicios. La base de conocimiento sale literal de jcaaudiconsult.com: no lleva",
+    "dirección ni precios porque la web no los da, y Lucía dirá que no tiene ese dato."
   ],
   "employees": [
-    { "_ref": "arturo", "first_name": "Arturo", "last_name": "", "status": "active" },
-    { "_ref": "cifuentes", "first_name": "Cifuentes", "last_name": "", "status": "active" }
+    { "_ref": "arturo", "first_name": "Arturo", "last_name": "Cifuentes", "status": "active" }
   ],
   "resources": [
-    { "_ref": "r_arturo", "name": "Arturo", "resource_type": "person", "employee_id": "@arturo", "capacity": 1, "active": true },
-    { "_ref": "r_cifuentes", "name": "Cifuentes", "resource_type": "person", "employee_id": "@cifuentes", "capacity": 1, "active": true }
+    { "_ref": "r_arturo", "name": "Arturo", "resource_type": "person", "employee_id": "@arturo", "capacity": 1, "active": true }
   ],
   "services": [
     {
@@ -63,23 +58,15 @@
   ],
   "service_resources": [
     { "service_id": "@s_fiscal", "resource_id": "@r_arturo" },
-    { "service_id": "@s_fiscal", "resource_id": "@r_cifuentes" },
     { "service_id": "@s_auditoria", "resource_id": "@r_arturo" },
-    { "service_id": "@s_auditoria", "resource_id": "@r_cifuentes" },
-    { "service_id": "@s_concursal", "resource_id": "@r_arturo" },
-    { "service_id": "@s_concursal", "resource_id": "@r_cifuentes" }
+    { "service_id": "@s_concursal", "resource_id": "@r_arturo" }
   ],
   "availability_rules": [
     { "resource_id": "@r_arturo", "day_of_week": 1, "start_time": "09:00:00", "end_time": "18:00:00", "active": true },
     { "resource_id": "@r_arturo", "day_of_week": 2, "start_time": "09:00:00", "end_time": "18:00:00", "active": true },
     { "resource_id": "@r_arturo", "day_of_week": 3, "start_time": "09:00:00", "end_time": "18:00:00", "active": true },
     { "resource_id": "@r_arturo", "day_of_week": 4, "start_time": "09:00:00", "end_time": "18:00:00", "active": true },
-    { "resource_id": "@r_arturo", "day_of_week": 5, "start_time": "09:00:00", "end_time": "18:00:00", "active": true },
-    { "resource_id": "@r_cifuentes", "day_of_week": 1, "start_time": "09:00:00", "end_time": "18:00:00", "active": true },
-    { "resource_id": "@r_cifuentes", "day_of_week": 2, "start_time": "09:00:00", "end_time": "18:00:00", "active": true },
-    { "resource_id": "@r_cifuentes", "day_of_week": 3, "start_time": "09:00:00", "end_time": "18:00:00", "active": true },
-    { "resource_id": "@r_cifuentes", "day_of_week": 4, "start_time": "09:00:00", "end_time": "18:00:00", "active": true },
-    { "resource_id": "@r_cifuentes", "day_of_week": 5, "start_time": "09:00:00", "end_time": "18:00:00", "active": true }
+    { "resource_id": "@r_arturo", "day_of_week": 5, "start_time": "09:00:00", "end_time": "18:00:00", "active": true }
   ],
   "knowledge": [
     {
