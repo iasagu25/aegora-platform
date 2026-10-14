@@ -416,7 +416,7 @@ if [[ ${#RECREAR[@]} -gt 0 ]]; then
   mapfile -t UNICOS < <(printf '%s\n' "${RECREAR[@]}" | sort -u)
   printf '\n  HAY QUE RECREAR ESTOS CONTENEDORES, y no lo hago yo:\n\n'
   for entrada in "${UNICOS[@]}"; do
-    printf '    docker compose -f %s/compose.yml up -d --force-recreate   # %s\n' \
+    printf '    sudo docker compose -f %s/compose.yml up -d --force-recreate   # %s\n' \
       "${entrada%%|*}" "${entrada##*|}"
   done
   cat <<'FINAL'
