@@ -861,6 +861,19 @@ minuto ya lo tocan.** El síntoma engaña por partida doble: el nodo del agente 
 Lo de fondo es el nivel de la cuenta (sube con el gasto acumulado y los días desde el primer
 pago) o un modelo con más cupo como principal. Por la voz no pasa: usa el LLM de Retell.
 
+## Migración de gpt-4o a gpt-6-luna (14/oct/2026, en prueba en `dev`)
+OpenAI retira `gpt-4o`, `gpt-4o-mini`, `gpt-4.1` y `gpt-4.1-mini` el **14/ene/2027** y
+propone `gpt-6-luna` para los cuatro; `gpt-4o-mini-transcribe` (audios) se retira el
+**26/feb/2027** y su sustituto es `gpt-transcribe`. Core v2: principal `gpt-6-luna`, respaldo
+`gpt-5-mini` con razonamiento `low` -- un modelo DISTINTO, porque el respaldo existe por el
+límite por minuto, que es por modelo. Precio por millón (entrada/salida): `gpt-4o` $2,50/$10,
+`gpt-6-luna` $0,10/$0,50, unas 25 veces menos por turno.
+
+Lo que hay que mirar al validarlo: que cumpla las reglas que `gpt-4o` ya se saltaba, y la
+**latencia** -- el nodo de n8n solo ofrece `reasoningEffort` a o-series y `gpt-5*` (y sin
+`none`), así que en Luna corre con el razonamiento por defecto. Pendientes de la misma tanda:
+el Core v1 (red de seguridad), la transcripción y el modelo del agente de Retell.
+
 ## Los workflows de n8n no llevan el tenant dentro — resuelto (17/sep/2026)
 
 `$env` **no sirve**: n8n 2.31 lo bloquea en nodos **por defecto** (`access to

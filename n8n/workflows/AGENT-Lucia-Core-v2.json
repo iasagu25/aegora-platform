@@ -114,9 +114,8 @@
       "parameters": {
         "model": {
           "__rl": true,
-          "value": "gpt-4o",
-          "mode": "list",
-          "cachedResultName": "gpt-4o"
+          "value": "gpt-6-luna",
+          "mode": "id"
         },
         "options": {}
       },
@@ -133,17 +132,19 @@
           "id": "__CRED_OPENAI_ACCOUNT__",
           "name": "OpenAI account"
         }
-      }
+      },
+      "notes": "gpt-6-luna desde el 14/oct/2026: OpenAI retira gpt-4o el 14/ene/2027 y propone este. Sin opción de razonamiento a propósito: el nodo de n8n solo la ofrece para o-series y gpt-5, y con valores low/medium/high. Si la latencia sube, es lo primero que mirar en la ejecución."
     },
     {
       "parameters": {
         "model": {
           "__rl": true,
-          "value": "gpt-4o-mini",
-          "mode": "list",
-          "cachedResultName": "gpt-4o-mini"
+          "value": "gpt-5-mini",
+          "mode": "id"
         },
-        "options": {}
+        "options": {
+          "reasoningEffort": "low"
+        }
       },
       "id": "aegora-core-v2-respaldo",
       "name": "OpenAI Chat Model · Respaldo",
@@ -159,7 +160,7 @@
           "name": "OpenAI account"
         }
       },
-      "notes": "Solo entra si gpt-4o falla. Su motivo de existir es el límite por minuto de OpenAI: es por modelo, así que gpt-4o-mini tiene su propio cupo. El nodo de OpenAI de n8n NO reintenta un 429 (su manejador lo lanza en el acto), así que subir maxRetries no lo arregla."
+      "notes": "Solo entra si el principal falla. Su motivo de existir es el límite por minuto de OpenAI: es por modelo, así que un modelo DISTINTO tiene su propio cupo -- por eso no es otro gpt-6-luna. gpt-5-mini no está en la retirada de enero/2027; razonamiento 'low' para no añadir segundos a un turno que ya llega tarde. El nodo de OpenAI de n8n NO reintenta un 429 (su manejador lo lanza en el acto), así que subir maxRetries no lo arregla."
     },
     {
       "parameters": {
