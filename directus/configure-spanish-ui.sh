@@ -1009,17 +1009,26 @@ async function configureFieldTranslations() {
 // Project/User locale
 // =============================================================================
 
+// El nombre del proyecto es el que Directus pone en la pestaña del navegador y en la
+// pantalla de acceso. Por defecto es "Directus": el cliente veía la marca de la
+// herramienta, no la nuestra (14/oct/2026, con jca).
+const PROJECT_NAME = 'Aegora';
+
 async function configureProjectLocale() {
   await request(
     'PATCH',
     '/settings',
     {
       default_language: LANGUAGE,
+      project_name: PROJECT_NAME,
     }
   );
 
   console.log(
     `Project default language: ${LANGUAGE}`
+  );
+  console.log(
+    `Project name: ${PROJECT_NAME}`
   );
 }
 
@@ -1071,6 +1080,12 @@ async function verify() {
   if (settings?.data?.default_language !== LANGUAGE) {
     throw new Error(
       `default_language no quedó en ${LANGUAGE}.`
+    );
+  }
+
+  if (settings?.data?.project_name !== PROJECT_NAME) {
+    throw new Error(
+      `project_name no quedó en ${PROJECT_NAME}.`
     );
   }
 
