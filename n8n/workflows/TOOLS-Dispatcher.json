@@ -497,7 +497,9 @@
             "directus_base_url": "={{ $('Code · Validar').item.json.directus_base_url }}",
             "detalle": "={{ $json.args.detalle || '' }}",
             "mensaje_original": "={{ $json.args.mensaje_original || '' }}",
-            "canal": "={{ $('Code · Validar').item.json.canal }}"
+            "canal": "={{ $('Code · Validar').item.json.canal }}",
+            "nombre": "={{ $json.args.nombre || '' }}",
+            "empresa": "={{ $json.args.empresa || '' }}"
           },
           "matchingColumns": [],
           "schema": [],

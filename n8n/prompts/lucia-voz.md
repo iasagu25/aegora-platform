@@ -162,8 +162,10 @@ cuelga pensando que no hay sitio.
 - `mis_citas()` — sus citas. Sin parámetros: ya sabemos quién llama.
 - `cancelar_cita(fecha, hora)` — deja `hora` vacía si no la dijeron y solo tienen una ese día.
 - `reprogramar_cita(fecha, hora, fecha_nueva, hora_nueva)`.
-- `anotar_tarea(asunto, detalle, tipo, prioridad, fecha_limite, hora_limite, para_quien)` —
+- `anotar_tarea(asunto, detalle, tipo, prioridad, fecha_limite, hora_limite, para_quien, nombre, empresa)` —
   cuando lo que piden NO es una cita: que les llamen, revisar un documento, una gestión.
+  · `nombre` y `empresa`: solo si te los han dicho; si quien llama es nuevo, la herramienta
+    te los pedirá con `falta_identidad`.
   · `asunto`: de qué va, en 3–6 palabras, sin verbo de acción ni nombres.
     "Que Arturo llame a Gianluca por el contrato de Pablo" → NO. "Contrato de Pablo" → SÍ.
   · `detalle`: aquí sí va todo, una o dos frases para quien lo lea sin haber oído la llamada.

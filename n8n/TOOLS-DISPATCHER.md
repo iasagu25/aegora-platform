@@ -78,7 +78,7 @@ si viene en `args`.
 
 | tool | argumentos del modelo |
 |---|---|
-| `anotar_tarea` | `asunto`, `tipo`, `prioridad`, `fecha_limite`, `hora_limite`, `para_quien`, `detalle`, `mensaje_original` |
+| `anotar_tarea` | `asunto`, `tipo`, `prioridad`, `fecha_limite`, `hora_limite`, `para_quien`, `detalle`, `mensaje_original`, `nombre`, `empresa` |
 | `cancelar_cita` | `fecha`, `hora` |
 | `consultar_disponibilidad` | `fecha`, `fecha_hasta`, `franja`, `servicio`, `profesional` |
 | `consultar_info` | `pregunta` |
