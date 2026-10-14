@@ -1296,6 +1296,41 @@ compartidas (no tiene datos de valor por diseño); **`ops` debe llevar credencia
 porque es el único tenant cuyos datos son de Aegora y valiosos. Crear esa llave en Hetzner
 ANTES de lanzar el onboarding, o para en la etapa 7/8.
 
+## Alta de un tenant de cliente: el orden real (jca, 13-14/oct/2026)
+El primer cliente de pago (`jca`, `jca.aegora.es`, JCA Audiconsult) fijó el orden, porque
+`onboard-tenant.sh` sigue sin hacerlo todo:
+
+1. **Antes**: DNS `*.<tenant>.aegora.es A 185.200.244.81` y una clave S3 propia en
+   `/root/<tenant>-s3.env` (600). Hetzner da acceso a TODOS los buckets del proyecto, así
+   que aislar de verdad es un proyecto de Hetzner aparte.
+2. `onboard-tenant.sh --stage prepare --s3-credentials-file ...` (PLAN -> `--apply`). El
+   bucket y la contraseña de restic los crea él.
+3. **Copiar fuera del VPS** `RESTIC_PASSWORD` (`secrets/restic.env`) y la contraseña de admin
+   de Directus (`secrets/directus.env`). El backup va cifrado con la contraseña de restic:
+   si el VPS se pierde, como en abril, sin esa copia los backups no se abren.
+4. `set-tenant-config.sh` con los ajustes del negocio (`CONTACTO_PEDIR_EMPRESA=true` en
+   una gestoría) y los cuatro `configure-*` que el orquestador no lanza: views, presets,
+   tenant-role y n8n-service.
+5. `--stage publish` cuando el DNS responda.
+6. Cuenta de propietario de n8n, las seis credenciales a mano (`Directus`, `Booking API`,
+   `OpenAI account`, `Postgres account`, `Tool Dispatcher`, `WhatsApp` -- esta con un valor
+   provisional si aún no hay número: el render exige que existan todas) y
+   `render-workflows.sh` completo.
+
+Lo que salió por ser el primer tenant creado en semanas: `create-tenant.sh` no exportaba
+`TENANT_SECRETS_DIR`, que usa la plantilla del manifiesto de backup desde el 20/sep, y
+**ningún tenant nuevo se podía crear** -- fallaba con rollback. Al tocar una plantilla de
+`templates/tenant-stack/`, cruzar sus `${...}` con la lista `export` de `create-tenant.sh`.
+
+**OpenAI: una API key por tenant, todas dentro de la cuenta de OpenAI de Aegora** (decidido
+14/oct/2026). Es la forma de ver el coste de cada cliente por separado. Mejor como un
+**Project por tenant** dentro de la organización: el uso y el gasto se ven por proyecto y se
+le puede poner presupuesto y alertas a cada uno. La credencial `OpenAI account` de cada n8n
+lleva la key de su proyecto, nunca una compartida. Ojo con lo que esto NO cambia: **los
+límites por minuto son de la organización**, no de la key, así que separar keys no da más
+cupo -- los 30.000 TPM de `gpt-4o` siguen siendo de todos a la vez (ver "Límite por minuto
+de OpenAI").
+
 ## Datos de demostración por vertical — pedido, sin construir (21/sep/2026)
 Dos conjuntos para enseñar la plataforma a un cliente sin que parezca un tenant vacío:
 
