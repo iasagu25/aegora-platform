@@ -9,9 +9,8 @@
     "La base de conocimiento sale literal de jcaaudiconsult.com: no lleva dirección ni",
     "precios porque la web no los da, y Lucía dirá que no tiene ese dato.",
     "",
-    "Los empleados van sin apellidos ni email hasta tenerlos. `last_name` va como cadena",
-    "vacía y no null: es parte de la clave natural del seed, y un filtro por null no",
-    "encontraría la fila al recargar y la duplicaría."
+    "Los empleados van sin apellidos ni email hasta tenerlos. `last_name` es parte de la",
+    "clave natural: load-seed.sh busca un campo vacío con `_empty`, no con `_eq`."
   ],
   "employees": [
     { "_ref": "arturo", "first_name": "Arturo", "last_name": "", "status": "active" },

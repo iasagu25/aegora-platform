@@ -182,7 +182,13 @@ for (const [coleccion, naturales] of ORDEN) {
 
     // ¿Existe ya? Se busca por su clave natural, no por id.
     const filtro = {};
-    for (const campo of naturales) filtro[campo] = { _eq: fila[campo] };
+    // Un campo vacío no se puede buscar con _eq: Directus rechaza `_eq: ""` con un 400
+    // ("use _empty") y `_eq: null` no encuentra nada, así que la recarga duplicaría la
+    // fila. `_empty` cubre las dos cosas, null y cadena vacía.
+    for (const campo of naturales) {
+      const v = fila[campo];
+      filtro[campo] = (v === null || v === undefined || v === '') ? { _empty: true } : { _eq: v };
+    }
     const params = new URLSearchParams({
       filter: JSON.stringify(filtro),
       fields: 'id',
