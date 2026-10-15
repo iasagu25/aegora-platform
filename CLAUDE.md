@@ -336,11 +336,10 @@ saltó con la regla escrita. `cancelar_cita` lleva `confirmado`: con `false` loc
 y devuelve `falta_confirmacion` con cuál es, sin tocar nada. Solo un `false` explícito
 frena, porque el despachador de voz no manda el campo (allí confirma el prompt de voz).
 
-**Y un `true` no basta: el sí tiene que estar en el mensaje del cliente** (15/oct/2026). Con
-`gpt-6-luna` en `dev`, "deja una nota a Arturo para que me envíe los documentos" acabó en
-*"He cancelado la consulta fiscal del lunes"*. Un agente puede llamar con `false`, recibir
+**Y un `true` no basta: el sí tiene que estar en el mensaje del cliente** (15/oct/2026,
+preventivo: no se ha visto pasar). Un agente puede llamar con `false`, recibir
 `falta_confirmacion` y volver a llamar con `true` **en el mismo turno**, sin haber preguntado
-nada. Ahora `cancelar_cita` recibe el mensaje del turno (`texto_cliente`) y solo acepta
+nada, y la regla que lo impedía vivía solo en el prompt. Ahora `cancelar_cita` recibe el mensaje del turno (`texto_cliente`) y solo acepta
 `true` si es un sí corto ("sí", "vale", "de acuerdo", "cancélala"...). Una petición de
 cancelar ("cancela la del lunes") NO cuenta como sí: primero se pregunta.
 
@@ -877,9 +876,8 @@ propone `gpt-6-luna` para los cuatro; `gpt-4o-mini-transcribe` (audios) se retir
 límite por minuto, que es por modelo. Precio por millón (entrada/salida): `gpt-4o` $2,50/$10,
 `gpt-6-luna` $0,10/$0,50, unas 25 veces menos por turno.
 
-Primera batería en `dev` (15/oct/2026): reserva, reprogramación y empresa "ninguna" bien;
-**una cancelación que nadie pidió** (ver "Confirma antes de cancelar"); lista quince huecos
-en vez de tres o cuatro; y pide los datos en turnos separados por la regla "una sola
+Primera batería en `dev` (15/oct/2026): reserva, reprogramación, recado, cancelación con su
+"no" y su "sí", y empresa "ninguna" bien; lista quince huecos en vez de tres o cuatro; y pide los datos en turnos separados por la regla "una sola
 pregunta por mensaje" del prompt, que ahora excluye lo que la herramienta pide junto.
 
 Lo que hay que mirar al validarlo: que cumpla las reglas que `gpt-4o` ya se saltaba, y la
