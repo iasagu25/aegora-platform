@@ -769,6 +769,66 @@
         760,
         -200
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sin teléfono no se puede dar de alta a nadie ni saber quién es, así que se pide aquí\n// TODO lo que falte de la identidad, en un solo mensaje. Antes se llamaba a 22 igual:\n// devolvía un error de validación, el agente pedía solo el teléfono, y en el turno\n// siguiente 22 pedía nombre y empresa -- dos turnos para una sola pregunta.\nconst inp = $('Code · Entrada').first().json;\nif (inp.telefono) return [{ json: { _identificado: true } }];\nconst falta = ['telefono'];\nif (!inp.nombre) falta.push('nombre');\nif (inp.pedir_empresa && !inp.empresa) falta.push('empresa');\nreturn [{ json: { _identificado: false, ok: false, motivo: 'falta_identidad', falta } }];"
+      },
+      "id": "r-0015",
+      "name": "Code · ¿Sabemos quién es?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1720,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "r-0016-c",
+              "leftValue": "={{ $json._identificado }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "r-0016",
+      "name": "¿Sabemos quién es?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1840,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: $json }];"
+      },
+      "id": "r-0017",
+      "name": "Code · Pedir identidad",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1940,
+        -420
+      ]
     }
   ],
   "connections": {
@@ -856,7 +916,7 @@
       "main": [
         [
           {
-            "node": "Execute · 22 Appointment Create",
+            "node": "Code · ¿Sabemos quién es?",
             "type": "main",
             "index": 0
           }
@@ -896,7 +956,7 @@
       "main": [
         [
           {
-            "node": "Execute · 22 Appointment Create",
+            "node": "Code · ¿Sabemos quién es?",
             "type": "main",
             "index": 0
           }
@@ -973,6 +1033,35 @@
         [
           {
             "node": "¿Tenemos nombre?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · ¿Sabemos quién es?": {
+      "main": [
+        [
+          {
+            "node": "¿Sabemos quién es?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Sabemos quién es?": {
+      "main": [
+        [
+          {
+            "node": "Execute · 22 Appointment Create",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Pedir identidad",
             "type": "main",
             "index": 0
           }
