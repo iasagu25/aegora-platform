@@ -490,6 +490,19 @@ mensaje y ~1320 en los de dos, y una espera antes del primero pondría TODOS por
 1200. Ese ~1 s de base es firma + clasificación + el viaje a `graph.facebook.com`, y no
 hay nada que recortar ahí.
 
+**Desde el 1/oct/2026 Meta cobra los mensajes de servicio** (los de texto libre dentro de
+la ventana de 24 h, gratis desde nov/2024) **y las plantillas de utilidad aunque la ventana
+esté abierta**. Cada número de teléfono tiene **1.000 mensajes de servicio gratis al mes**,
+que no se acumulan. Comprobado en la documentación de precios de Meta el 20/oct/2026; la
+tarifa por país está en su tabla de precios, no en esa página. Consecuencias para nosotros:
+- **Un turno de Lucía es UN mensaje**, y eso ya era así por diseño (el Core produce un único
+  texto). Lo que añade mensajes: el aviso de privacidad (uno por sesión), las respuestas
+  del gestor en un relevo y las plantillas (confirmación de voz, resumen diario de las 8:00).
+- No partir una respuesta en varios envíos: ahora cada trozo se paga.
+- Un negocio pequeño cabe probablemente en los 1.000 gratis; `demo` y `dev` comparten
+  número de pruebas y suman entre los dos. Se mide contando los salientes de
+  `conversation_messages` por mes.
+
 **"Escribiendo…" en WhatsApp (25/sep/2026).** `WHATSAPP · Escribiendo` manda a Meta
 `status: read` + `typing_indicator` con el `wamid` del mensaje entrante; Meta lo quita solo al
 llegar la respuesta o a los 25 s. El adapter lo dispara **sin esperar** y colocado **por
