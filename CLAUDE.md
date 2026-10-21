@@ -1491,6 +1491,11 @@ como empresa. El aviso de privacidad de Lucía ya apunta a la política real
 (`https://aegora.es/politica-privacidad`), la misma para todos los tenants; sigue
 siendo el token `__PRIVACY_POLICY_URL__` por si algún negocio acaba teniendo la
 suya, y entonces se pone `PRIVACY_POLICY_URL` en su `tenant.env`.
+**La web de `aegora.es` se migra desde GoHighLevel a un repo propio** (`aegora-web`, Astro
+estático servido por el Caddy de plataforma; decidido 21/oct/2026). Esa ruta
+`/politica-privacidad` tiene que sobrevivir a la migración tal cual: la enlazan todos los
+tenants. Lo que la web necesita de aquí (volumen y bloque en Caddy, tenant `ops`, webhooks
+públicos para reservar la demo) está escrito en el `CLAUDE.md` de ese repo.
 
 ## Calendario de cada empleado como enlace `.ics` — lo que se usa (7/oct/2026)
 **La sincronización por defecto NO es Outlook: es un enlace de suscripción.** Muchos pequeños
