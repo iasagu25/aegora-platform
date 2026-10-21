@@ -1,0 +1,20 @@
+# Web pública de Aegora (repo aegora-web), servida como estático.
+#
+# El volumen monta /opt/aegora/web ENTERO en /srv/aegora-web y el root es `current`, un enlace
+# relativo a releases/<sha> que cambia scripts/deploy.sh de aegora-web. Montar `current`
+# directamente no sirve: Docker resuelve el enlace al arrancar el contenedor y seguiría
+# sirviendo la release vieja después de cada despliegue.
+#
+# De momento solo la previsualización. Cuando se cambie el DNS de aegora.es, el bloque de
+# producción va aquí: aegora.es + redirección de www + 301 de /politica-privacidad-step, y sin
+# el noindex.
+
+web.dev.aegora.es {
+	root * /srv/aegora-web/current
+	# El build sale con build.format 'file' (politica-privacidad.html, sin carpeta).
+	try_files {path} {path}.html
+	encode zstd gzip
+	# Que Google no indexe la versión de prueba.
+	header X-Robots-Tag "noindex"
+	file_server
+}

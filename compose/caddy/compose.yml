@@ -27,6 +27,10 @@ services:
       # Sitios generados dinámicamente para tenants
       - /opt/aegora/data/caddy/sites:/etc/caddy/runtime-sites:ro
 
+      # Web pública (repo aegora-web). La carpeta entera, no `current`: ver
+      # sites/aegora-web.caddy.
+      - /opt/aegora/web:/srv/aegora-web:ro
+
       # Estado persistente de Caddy
       - /opt/aegora/data/caddy/data:/data
       - /opt/aegora/data/caddy/config:/config
