@@ -1,0 +1,650 @@
+{
+  "id": "aegoraWebReservar",
+  "name": "WEB · Reservar",
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "web-reservar",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "wr-0001",
+      "name": "Webhook · POST /web-reservar",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -420,
+        0
+      ],
+      "webhookId": "aegora-web-reservar"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "w1",
+              "name": "tenant",
+              "type": "string",
+              "value": "__TENANT_ID__"
+            },
+            {
+              "id": "w2",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "__DIRECTUS_BASE_URL__"
+            },
+            {
+              "id": "w3",
+              "name": "booking_base_url",
+              "type": "string",
+              "value": "__BOOKING_BASE_URL__"
+            },
+            {
+              "id": "w4",
+              "name": "tenant_timezone",
+              "type": "string",
+              "value": "Europe/Madrid"
+            },
+            {
+              "id": "w5",
+              "name": "servicio_web",
+              "type": "string",
+              "value": "__WEB_SERVICIO__"
+            },
+            {
+              "id": "w6",
+              "name": "origenes_web",
+              "type": "string",
+              "value": "__WEB_ORIGENES__"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "wr-0002",
+      "name": "Config (editar por tenant)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -200,
+        0
+      ],
+      "notes": "Los dos los rellena render-workflows.sh desde tenant.env (WEB_SERVICIO, WEB_ORIGENES). servicio_web: nombre EXACTO del único servicio que se reserva desde la web. origenes_web: orígenes permitidos, separados por comas."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Valida la petición de reserva. Contrato: n8n/WEB-RESERVAS.md.\nconst hook = $('Webhook · POST /web-reservar').first().json;\nconst VENTANA_MS = 60 * 60 * 1000;\nconst MAXIMO = 5;\n\nconst cfg = $('Config (editar por tenant)').first().json;\nconst tz = cfg.tenant_timezone || 'Europe/Madrid';\nconst headers = hook.headers || {};\nconst fallo = (http, motivo, extra = {}) =>\n  [{ json: { _ok: false, _http: http, body: { ok: false, motivo, ...extra } } }];\n\n// Origen permitido: ajuste WEB_ORIGENES del tenant (el de desarrollo añade el servidor\n// local de Astro). Este 403 es lo que hace cumplir la regla; el CORS del webhook va abierto.\nconst ORIGENES = String(cfg.origenes_web || '').split(',').map(s => s.trim()).filter(Boolean);\nconst origen = String(headers.origin || '').trim();\nif (!ORIGENES.includes(origen)) return fallo(403, 'origen_no_permitido');\n\n// Límite por IP, en los datos estáticos del workflow (solo persisten en ejecuciones de\n// producción, no al probar desde el editor). La IP es la primera de X-Forwarded-For: la\n// pone Caddy, que no se fía de la que mande el cliente.\nconst ip = String(headers['x-forwarded-for'] || headers['x-real-ip'] || 'desconocida').split(',')[0].trim();\nlet _limite = 'activo';\ntry {\n  const sd = $getWorkflowStaticData('global');\n  const ahora = Date.now();\n  const rl = sd.rl || {};\n  for (const k of Object.keys(rl)) {\n    rl[k] = rl[k].filter(t => ahora - t < VENTANA_MS);\n    if (!rl[k].length) delete rl[k];\n  }\n  const marcas = rl[ip] || [];\n  if (marcas.length >= MAXIMO) { sd.rl = rl; return fallo(429, 'demasiadas_peticiones'); }\n  marcas.push(ahora);\n  rl[ip] = marcas;\n  sd.rl = rl;\n} catch (e) {\n  // Si los datos estáticos no estuvieran disponibles, la petición sigue pero queda a la\n  // vista en la ejecución: una protección que no se ve no está funcionando.\n  _limite = 'NO DISPONIBLE: ' + (e && e.message ? e.message : String(e));\n}\n\nconst b = hook.body || {};\nconst txt = v => (v === undefined || v === null) ? '' : String(v).trim();\nconst campos = {};\n\nconst inicio = txt(b.inicio);\nconst dt = DateTime.fromISO(inicio, { setZone: true });\nif (!inicio) campos.inicio = 'obligatorio';\nelse if (!dt.isValid || !/(Z|[+-]\\d{2}:?\\d{2})$/.test(inicio)) campos.inicio = 'formato';\n\nconst nombre = txt(b.nombre);\nif (!nombre) campos.nombre = 'obligatorio';\nelse if (nombre.length < 2 || nombre.length > 100) campos.nombre = 'largo';\n\nconst email = txt(b.email).toLowerCase();\nif (!email) campos.email = 'obligatorio';\nelse if (email.length > 254) campos.email = 'largo';\nelse if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$/.test(email)) campos.email = 'formato';\n\n// E.164 sin '+', igual que el resto de la plataforma (WhatsApp lo entrega así), para que\n// quien reserva por la web y luego escribe por WhatsApp sea el mismo contacto.\n// 9 dígitos que empiezan por 6/7/8/9 son españoles; si no, tiene que venir con prefijo.\nconst telCrudo = txt(b.telefono);\nlet telefono = '';\nif (!telCrudo) campos.telefono = 'obligatorio';\nelse {\n  const digitos = telCrudo.replace(/[^\\d]/g, '');\n  if (/^[6789]\\d{8}$/.test(digitos)) telefono = '34' + digitos;\n  else if (/^(\\+|00)/.test(telCrudo)) {\n    const sinCero = digitos.replace(/^00/, '');\n    if (sinCero.length >= 8 && sinCero.length <= 15) telefono = sinCero;\n  }\n  if (!telefono) campos.telefono = 'formato';\n}\n\nconst empresa = txt(b.empresa);\nif (empresa.length > 120) campos.empresa = 'largo';\nconst mensaje = txt(b.mensaje);\nif (mensaje.length > 1000) campos.mensaje = 'largo';\n\nconst id = txt(b.id_solicitud).toLowerCase();\nif (!id) campos.id_solicitud = 'obligatorio';\nelse if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) campos.id_solicitud = 'formato';\n\nif (Object.keys(campos).length) return fallo(400, 'datos_invalidos', { campos });\n\n// Campo trampa: una persona no lo ve y lo deja vacío. Se sigue adelante para contestar\n// lo mismo que a una reserva buena, pero `Code · Preparar` no reserva nada.\nconst trampa = txt(b.sitio_web) !== '';\nreturn [{ json: { _ok: true, _limite, ip, trampa, inicio, nombre, email, telefono, empresa,\n  mensaje, id_solicitud: id, tz } }];\n"
+      },
+      "id": "wr-0003",
+      "name": "Code · Validar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "wr-0004-c",
+              "leftValue": "={{ $json._ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "wr-0004",
+      "name": "¿Válida?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config (editar por tenant)').first().json.directus_base_url }}/items/services",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ filter: JSON.stringify({ name: { _eq: $('Config (editar por tenant)').first().json.servicio_web }, active: { _eq: true } }), fields: 'id,name,duration_minutes', limit: 2 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "wr-0005",
+      "name": "HTTP · Servicio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        460,
+        -100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Servicio resuelto -> lo que va a la reserva, y la cita tal y como se le enseña a la web.\nconst v = $('Code · Validar').first().json;\nconst r = $json ?? {};\nconst filas = (r.body && r.body.data) || [];\nif ((r.statusCode ?? 0) >= 300 || filas.length !== 1) {\n  return [{ json: { _reservar: false, _http: 503, body: { ok: false, motivo: 'no_disponible' },\n    _causa: filas.length > 1 ? 'hay varios servicios activos con ese nombre'\n                             : 'servicio no encontrado o Directus no responde' } }];\n}\nconst s = filas[0];\nconst dt = DateTime.fromISO(v.inicio, { setZone: true }).setZone(v.tz);\nconst cita = {\n  inicio: v.inicio,\n  fecha_label: dt.setLocale('es').toFormat(\"cccc d 'de' LLLL\"),\n  hora: dt.toFormat('HH:mm'),\n  duracion_minutos: s.duration_minutes,\n  servicio: s.name,\n};\nif (v.trampa) {\n  return [{ json: { _reservar: false, _http: 200, body: { ok: true, motivo: 'reservada', cita },\n    _trampa: 'campo sitio_web relleno: no se ha reservado nada' } }];\n}\n// La empresa también va en las notas: si el contacto ya existía, su ficha no se toca y es\n// el único sitio donde queda lo que dijo en el formulario.\nconst notas = [\n  'Reservada desde la web.',\n  v.empresa ? 'Empresa: ' + v.empresa : '',\n  v.mensaje ? 'Qué quiere resolver: ' + v.mensaje : '',\n].filter(Boolean).join('\\n');\nreturn [{ json: { _reservar: true, service_id: s.id, cita, notas, fecha: dt.toFormat('yyyy-LL-dd') } }];\n"
+      },
+      "id": "wr-0006",
+      "name": "Code · Preparar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "wr-0007-c",
+              "leftValue": "={{ $json._reservar }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "wr-0007",
+      "name": "¿Reservar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        900,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "TN8UZBnpGC9HKjqq",
+          "mode": "list",
+          "cachedResultName": "22 · TOOL · Appointment Create"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "",
+            "phone": "={{ $('Code · Validar').first().json.telefono }}",
+            "email": "={{ $('Code · Validar').first().json.email }}",
+            "query": "={{ $('Code · Validar').first().json.nombre }}",
+            "service_id": "={{ $('Code · Preparar').first().json.service_id }}",
+            "start_at": "={{ $('Code · Validar').first().json.inicio }}",
+            "primary_resource_id": "",
+            "title": "",
+            "notes": "={{ $('Code · Preparar').first().json.notas }}",
+            "source": "manual",
+            "idempotency_key": "={{ 'web:' + $('Code · Validar').first().json.id_solicitud }}",
+            "empresa": "={{ $('Code · Validar').first().json.empresa }}",
+            "pedir_empresa": "false"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "query",
+              "displayName": "query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "service_id",
+              "displayName": "service_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "start_at",
+              "displayName": "start_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "primary_resource_id",
+              "displayName": "primary_resource_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "idempotency_key",
+              "displayName": "idempotency_key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "empresa",
+              "displayName": "empresa",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "pedir_empresa",
+              "displayName": "pedir_empresa",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "wr-0008",
+      "name": "Execute · 22 Appointment Create",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1120,
+        -200
+      ],
+      "onError": "continueRegularOutput",
+      "notes": "22 busca el contacto por teléfono: si existe lo reutiliza SIN modificarlo; si no, lo crea con nombre, email y empresa."
+    },
+    {
+      "parameters": {
+        "jsCode": "// La respuesta de 22 -> contrato público. Por nombre de nodo, no por $json de nadie más.\nconst p = $('Code · Preparar').first().json;\nconst r = $json ?? {};\nif (r.ok === true) {\n  const ya = String(r.message || '').includes('idempotente');\n  return [{ json: { _conflicto: false, _http: 200,\n    body: { ok: true, motivo: ya ? 'ya_estaba_reservada' : 'reservada', cita: p.cita } } }];\n}\nconst st = String(r.status || r.error || '');\nif (['slot_taken', 'slot_conflict', 'no_free_resource'].includes(st)) {\n  return [{ json: { _conflicto: true, fecha: p.fecha, service_id: p.service_id } }];\n}\nreturn [{ json: { _conflicto: false, _http: 500, body: { ok: false, motivo: 'error' },\n  _status_origen: st || null, _detalle: r.message || null } }];\n"
+      },
+      "id": "wr-0009",
+      "name": "Code · Resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "wr-0010-c",
+              "leftValue": "={{ $json._conflicto }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "wr-0010",
+      "name": "¿Conflicto?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1560,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config (editar por tenant)').first().json.booking_base_url }}/api/availability",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ service_id: $json.service_id, date: $json.fecha, timezone: $('Code · Validar').first().json.tz }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "wr-0011",
+      "name": "HTTP · Huecos del día",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1780,
+        -300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_BOOKING_API__",
+          "name": "Booking API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// El hueco se llenó entre consultar y reservar: se devuelven los que quedan ese día para\n// que la web ofrezca otro sin volver a pedir los datos.\nconst tz = $('Code · Validar').first().json.tz;\nconst r = $json ?? {};\nconst b = r.body || {};\nconst huecos_del_dia = ((r.statusCode ?? 0) < 300 && b.ok === true ? (b.slots || []) : []).map(s => ({\n  inicio: s.start_at,\n  hora: DateTime.fromISO(s.start_at, { setZone: true }).setZone(tz).toFormat('HH:mm'),\n  plazas: s.seats_left,\n}));\nreturn [{ json: { _http: 409, body: { ok: false, motivo: 'hueco_no_disponible', huecos_del_dia } } }];\n"
+      },
+      "id": "wr-0012",
+      "name": "Code · Conflicto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "responseCode": "={{ $json._http }}"
+        }
+      },
+      "id": "wr-0013",
+      "name": "Responder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2220,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook · POST /web-reservar": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "Code · Validar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Validar": {
+      "main": [
+        [
+          {
+            "node": "¿Válida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Válida?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Servicio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Servicio": {
+      "main": [
+        [
+          {
+            "node": "Code · Preparar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Preparar": {
+      "main": [
+        [
+          {
+            "node": "¿Reservar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Reservar?": {
+      "main": [
+        [
+          {
+            "node": "Execute · 22 Appointment Create",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · 22 Appointment Create": {
+      "main": [
+        [
+          {
+            "node": "Code · Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Resultado": {
+      "main": [
+        [
+          {
+            "node": "¿Conflicto?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Conflicto?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Huecos del día",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Huecos del día": {
+      "main": [
+        [
+          {
+            "node": "Code · Conflicto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Conflicto": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

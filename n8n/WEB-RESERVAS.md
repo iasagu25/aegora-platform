@@ -1,9 +1,16 @@
 # Reservas desde la web — contrato de los webhooks públicos
 
-**Estado: contrato propuesto (21/oct/2026), sin construir.** Lo consume la isla de reservas de
-`aegora-web`; los webhooks viven en el n8n del tenant que recibe las demos de Aegora. Se
-construyen y prueban en `dev` y se promocionan a `ops` cuando exista. En la web solo cambia
-la URL base.
+**Estado: construido el 21/oct/2026, pendiente de probar en `dev`.** Workflows
+`WEB-Disponibilidad.json` (`WEB · Disponibilidad`) y `WEB-Reservar.json` (`WEB · Reservar`). Lo
+consume la isla de reservas de `aegora-web`. Se prueban en `dev` y se promocionan a `ops` cuando
+exista; en la web solo cambia la URL base.
+
+**Dos ajustes de tenant** (`tenant.env`, los resuelve `render-workflows.sh`):
+- `WEB_SERVICIO`: nombre exacto del único servicio reservable. Por defecto `Demo de Aegora`.
+- `WEB_ORIGENES`: orígenes permitidos, separados por comas. Por defecto
+  `https://aegora.es,https://www.aegora.es,https://web.dev.aegora.es`; en `dev` se añade
+  `http://localhost:4321`. Van como ajuste y no escritos en el JSON para que un export no
+  arrastre al repo nombres que coinciden con el id de un tenant (`dev`, `demo`).
 
 | tenant | URL base |
 |---|---|
@@ -149,8 +156,11 @@ Valores de `campos`: `obligatorio`, `formato`, `largo`.
   navegador desde `cita` (no hace falta servidor).
 - Ante `hueco_no_disponible`, enseñar `huecos_del_dia` sin volver a pedir los datos.
 
-## Pendiente antes de construir
+## Pendiente
 - El servicio "Demo de Aegora" existe en `dev` y `demo` creado a mano; **no está en ningún
   seed**. Para `ops` hará falta uno.
 - Cómo se entera Aegora de una reserva nueva: hoy aparece en el panel y en el `.ics` de quien
   la atiende. Si hace falta aviso inmediato, una tarea o un WhatsApp al equipo.
+- **Correo de confirmación con enlace de Google Meet, desde `equipo@aegora.es`** (pedido
+  21/oct/2026). Es lo siguiente: hoy no se manda nada. Encaja después de `Code · Resultado` en
+  `WEB · Reservar`, sin esperar a que termine (la web no debe pagar los segundos del envío).

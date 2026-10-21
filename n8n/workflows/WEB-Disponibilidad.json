@@ -1,0 +1,390 @@
+{
+  "id": "aegoraWebDisponibilidad",
+  "name": "WEB · Disponibilidad",
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "web-disponibilidad",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "wd-0001",
+      "name": "Webhook · GET /web-disponibilidad",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -420,
+        0
+      ],
+      "webhookId": "aegora-web-disponibilidad"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "w1",
+              "name": "tenant",
+              "type": "string",
+              "value": "__TENANT_ID__"
+            },
+            {
+              "id": "w2",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "__DIRECTUS_BASE_URL__"
+            },
+            {
+              "id": "w3",
+              "name": "booking_base_url",
+              "type": "string",
+              "value": "__BOOKING_BASE_URL__"
+            },
+            {
+              "id": "w4",
+              "name": "tenant_timezone",
+              "type": "string",
+              "value": "Europe/Madrid"
+            },
+            {
+              "id": "w5",
+              "name": "servicio_web",
+              "type": "string",
+              "value": "__WEB_SERVICIO__"
+            },
+            {
+              "id": "w6",
+              "name": "origenes_web",
+              "type": "string",
+              "value": "__WEB_ORIGENES__"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "wd-0002",
+      "name": "Config (editar por tenant)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -200,
+        0
+      ],
+      "notes": "Los dos los rellena render-workflows.sh desde tenant.env (WEB_SERVICIO, WEB_ORIGENES). servicio_web: nombre EXACTO del único servicio que se reserva desde la web. origenes_web: orígenes permitidos, separados por comas."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Valida la petición de disponibilidad. Contrato: n8n/WEB-RESERVAS.md.\nconst hook = $('Webhook · GET /web-disponibilidad').first().json;\nconst VENTANA_MS = 10 * 60 * 1000;\nconst MAXIMO = 60;\n\nconst cfg = $('Config (editar por tenant)').first().json;\nconst tz = cfg.tenant_timezone || 'Europe/Madrid';\nconst headers = hook.headers || {};\nconst fallo = (http, motivo, extra = {}) =>\n  [{ json: { _ok: false, _http: http, body: { ok: false, motivo, ...extra } } }];\n\n// Origen permitido: ajuste WEB_ORIGENES del tenant (el de desarrollo añade el servidor\n// local de Astro). Este 403 es lo que hace cumplir la regla; el CORS del webhook va abierto.\nconst ORIGENES = String(cfg.origenes_web || '').split(',').map(s => s.trim()).filter(Boolean);\nconst origen = String(headers.origin || '').trim();\nif (!ORIGENES.includes(origen)) return fallo(403, 'origen_no_permitido');\n\n// Límite por IP, en los datos estáticos del workflow (solo persisten en ejecuciones de\n// producción, no al probar desde el editor). La IP es la primera de X-Forwarded-For: la\n// pone Caddy, que no se fía de la que mande el cliente.\nconst ip = String(headers['x-forwarded-for'] || headers['x-real-ip'] || 'desconocida').split(',')[0].trim();\nlet _limite = 'activo';\ntry {\n  const sd = $getWorkflowStaticData('global');\n  const ahora = Date.now();\n  const rl = sd.rl || {};\n  for (const k of Object.keys(rl)) {\n    rl[k] = rl[k].filter(t => ahora - t < VENTANA_MS);\n    if (!rl[k].length) delete rl[k];\n  }\n  const marcas = rl[ip] || [];\n  if (marcas.length >= MAXIMO) { sd.rl = rl; return fallo(429, 'demasiadas_peticiones'); }\n  marcas.push(ahora);\n  rl[ip] = marcas;\n  sd.rl = rl;\n} catch (e) {\n  // Si los datos estáticos no estuvieran disponibles, la petición sigue pero queda a la\n  // vista en la ejecución: una protección que no se ve no está funcionando.\n  _limite = 'NO DISPONIBLE: ' + (e && e.message ? e.message : String(e));\n}\n\nconst q = hook.query || {};\nconst hoy = DateTime.now().setZone(tz).startOf('day');\nlet desde = hoy;\nconst desdeTxt = String(q.desde || '').trim();\nif (desdeTxt) {\n  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(desdeTxt)) return fallo(400, 'parametros_invalidos');\n  desde = DateTime.fromISO(desdeTxt, { zone: tz });\n  if (!desde.isValid || desde < hoy) return fallo(400, 'parametros_invalidos');\n}\nlet dias = 14;\nconst diasTxt = String(q.dias ?? '').trim();\nif (diasTxt) {\n  dias = Number(diasTxt);\n  if (!Number.isInteger(dias) || dias < 1 || dias > 31) return fallo(400, 'parametros_invalidos');\n}\nconst fechas = [];\nfor (let i = 0; i < dias; i++) fechas.push(desde.plus({ days: i }).toFormat('yyyy-LL-dd'));\nreturn [{ json: { _ok: true, _limite, ip, fechas, tz } }];\n"
+      },
+      "id": "wd-0003",
+      "name": "Code · Validar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "wd-0004-c",
+              "leftValue": "={{ $json._ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "wd-0004",
+      "name": "¿Válida?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config (editar por tenant)').first().json.directus_base_url }}/items/services",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ filter: JSON.stringify({ name: { _eq: $('Config (editar por tenant)').first().json.servicio_web }, active: { _eq: true } }), fields: 'id,name,duration_minutes', limit: 2 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "wd-0005",
+      "name": "HTTP · Servicio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        460,
+        -100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Un item por día: el nodo HTTP de después hace una consulta al Booking API por cada uno.\n// Llamarle directamente y no a `APPOINTMENT Availability` ahorra un sub-workflow por día.\nconst v = $('Code · Validar').first().json;\nconst r = $json ?? {};\nconst filas = (r.body && r.body.data) || [];\nif ((r.statusCode ?? 0) >= 300 || filas.length !== 1) {\n  return [{ json: { _ok: false, _http: 503, body: { ok: false, motivo: 'no_disponible' },\n    _causa: filas.length > 1 ? 'hay varios servicios activos con ese nombre'\n                             : 'servicio no encontrado o Directus no responde',\n    _status_directus: r.statusCode ?? null } }];\n}\nreturn v.fechas.map(fecha => ({ json: { _ok: true, fecha, service_id: filas[0].id, tz: v.tz } }));\n"
+      },
+      "id": "wd-0006",
+      "name": "Code · Expandir días",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "wd-0007-c",
+              "leftValue": "={{ $json._ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "wd-0007",
+      "name": "¿Servicio?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        900,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config (editar por tenant)').first().json.booking_base_url }}/api/availability",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ service_id: $json.service_id, date: $json.fecha, timezone: $json.tz }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "wd-0008",
+      "name": "HTTP · Disponibilidad",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1120,
+        -200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_BOOKING_API__",
+          "name": "Booking API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Respuesta pública: fechas, horas y plazas. Nada de ids de recurso ni de servicio.\nconst tz = $('Code · Validar').first().json.tz;\nconst svc = $('HTTP · Servicio').first().json.body.data[0];\nconst label = f => DateTime.fromISO(f, { zone: tz }).setLocale('es').toFormat(\"cccc d 'de' LLLL\");\nconst dias = [];\nlet errores = 0;\nfor (const it of $input.all()) {\n  const r = it.json ?? {};\n  const b = r.body || {};\n  if ((r.statusCode ?? 0) >= 300 || b.ok !== true) { errores += 1; continue; }\n  const huecos = (b.slots || []).map(s => ({\n    inicio: s.start_at,\n    hora: DateTime.fromISO(s.start_at, { setZone: true }).setZone(tz).toFormat('HH:mm'),\n    plazas: s.seats_left,\n  }));\n  if (huecos.length) dias.push({ fecha: b.date, fecha_label: label(b.date), huecos });\n}\n// Un día que falla no se esconde: una lista con huecos de menos parecería una agenda llena.\nif (errores) return [{ json: { _http: 503, body: { ok: false, motivo: 'no_disponible' }, _dias_con_error: errores } }];\ndias.sort((a, b) => (a.fecha < b.fecha ? -1 : 1));\nreturn [{ json: { _http: 200, body: { ok: true,\n  servicio: { nombre: svc.name, duracion_minutos: svc.duration_minutes }, zona: tz, dias } } }];\n"
+      },
+      "id": "wd-0009",
+      "name": "Code · Salida",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "responseCode": "={{ $json._http }}"
+        }
+      },
+      "id": "wd-0010",
+      "name": "Responder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1560,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook · GET /web-disponibilidad": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "Code · Validar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Validar": {
+      "main": [
+        [
+          {
+            "node": "¿Válida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Válida?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Servicio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Servicio": {
+      "main": [
+        [
+          {
+            "node": "Code · Expandir días",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Expandir días": {
+      "main": [
+        [
+          {
+            "node": "¿Servicio?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Servicio?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Disponibilidad",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Disponibilidad": {
+      "main": [
+        [
+          {
+            "node": "Code · Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Salida": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

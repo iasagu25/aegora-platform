@@ -99,6 +99,13 @@ AJUSTES_TENANT = {
     # Vacío = no hay pasarela y Lucía atiende también a los VIP. Vive en
     # secrets/retell.env junto a la API key, aunque no sea secreto: es de Retell.
     "agente_pasarela": ("__RETELL_AGENTE_PASARELA__", "RETELL_AGENTE_PASARELA", ""),
+    # Reservas desde la web (`WEB · Disponibilidad` y `WEB · Reservar`, contrato en
+    # n8n/WEB-RESERVAS.md). El único servicio que se puede reservar, por su nombre exacto,
+    # y los orígenes a los que se contesta. En el tenant de desarrollo se añade
+    # http://localhost:4321 (el servidor local de Astro).
+    "servicio_web": ("__WEB_SERVICIO__", "WEB_SERVICIO", "Demo de Aegora"),
+    "origenes_web": ("__WEB_ORIGENES__", "WEB_ORIGENES",
+                     "https://aegora.es,https://www.aegora.es,https://web.dev.aegora.es"),
 }
 
 # Formas que delatan un secreto aunque el campo no esté en la lista de arriba.
