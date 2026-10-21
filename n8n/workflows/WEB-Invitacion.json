@@ -1,0 +1,529 @@
+{
+  "id": "aegoraWebInvitacion",
+  "name": "WEB · Invitación con Meet",
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "cita_id"
+            },
+            {
+              "name": "contact_id"
+            },
+            {
+              "name": "service_id"
+            },
+            {
+              "name": "inicio"
+            },
+            {
+              "name": "duracion_minutos"
+            },
+            {
+              "name": "servicio"
+            },
+            {
+              "name": "nombre"
+            },
+            {
+              "name": "email"
+            },
+            {
+              "name": "empresa"
+            },
+            {
+              "name": "mensaje"
+            },
+            {
+              "name": "notas"
+            }
+          ]
+        }
+      },
+      "id": "wi-0001",
+      "name": "Invitación pedida",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -420,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "w1",
+              "name": "tenant",
+              "type": "string",
+              "value": "__TENANT_ID__"
+            },
+            {
+              "id": "w2",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "__DIRECTUS_BASE_URL__"
+            },
+            {
+              "id": "w3",
+              "name": "booking_base_url",
+              "type": "string",
+              "value": "__BOOKING_BASE_URL__"
+            },
+            {
+              "id": "w4",
+              "name": "tenant_timezone",
+              "type": "string",
+              "value": "Europe/Madrid"
+            },
+            {
+              "id": "w5",
+              "name": "servicio_web",
+              "type": "string",
+              "value": "__WEB_SERVICIO__"
+            },
+            {
+              "id": "w6",
+              "name": "origenes_web",
+              "type": "string",
+              "value": "__WEB_ORIGENES__"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "wi-0002",
+      "name": "Config (editar por tenant)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -200,
+        0
+      ],
+      "notes": "Los dos los rellena render-workflows.sh desde tenant.env (WEB_SERVICIO, WEB_ORIGENES). servicio_web: nombre EXACTO del único servicio que se reserva desde la web. origenes_web: orígenes permitidos, separados por comas."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Una invitación de Google Calendar desde la cuenta conectada (equipo@aegora.es), con\n// enlace de Meet. Google manda el correo: no hay servidor de correo propio que mantener.\n//\n// La demo es una sesión EN GRUPO: varias reservas a la misma hora tienen que compartir\n// la misma sala de Meet. Cada persona recibe su propio evento (no ve a los demás\n// invitados ni recibe un correo cada vez que se apunta otro), pero los eventos de un\n// mismo hueco reutilizan la conferencia del primero. Se encuentran por una propiedad\n// privada del evento, `aegoraHueco`.\n//\n// El id del evento sale de la cita (su uuid sin guiones, que es base32hex válido): un\n// reintento choca con el mismo id en vez de duplicar la invitación, y una cancelación\n// futura sabe qué evento borrar sin guardar nada.\nconst i = $('Invitación pedida').first().json;\nconst tz = 'Europe/Madrid';\nconst inicio = DateTime.fromISO(String(i.inicio), { setZone: true });\nconst fin = inicio.plus({ minutes: Number(i.duracion_minutos) || 45 });\nconst evento_id = String(i.cita_id).replace(/-/g, '').toLowerCase();\nconst hueco = String(i.service_id).replace(/-/g, '') + '_' + Math.floor(inicio.toSeconds());\nconst lineas = [\n  'Gracias por reservar la ' + (i.servicio || 'demo') + '. Entra con el enlace de Google Meet de esta invitación a la hora indicada.',\n  i.mensaje ? '\\nLo que nos contaste: ' + i.mensaje : '',\n  '\\nSi necesitas cambiar la hora o no puedes venir, responde a este correo.',\n];\nreturn [{ json: {\n  evento_id, hueco,\n  evento: {\n    id: evento_id,\n    summary: (i.servicio || 'Demo de Aegora') + ' · ' + i.nombre + (i.empresa ? ' (' + i.empresa + ')' : ''),\n    description: lineas.filter(Boolean).join('\\n'),\n    start: { dateTime: inicio.toISO(), timeZone: tz },\n    end: { dateTime: fin.toISO(), timeZone: tz },\n    attendees: [{ email: i.email, displayName: i.nombre }],\n    guestsCanSeeOtherGuests: false,\n    guestsCanInviteOthers: false,\n    extendedProperties: { private: { aegoraHueco: hueco, aegoraCita: String(i.cita_id) } },\n  },\n} }];\n"
+      },
+      "id": "wi-0003",
+      "name": "Code · Preparar evento",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleCalendarOAuth2Api",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        },
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ privateExtendedProperty: 'aegoraHueco=' + $json.hueco, maxResults: 50, showDeleted: false }) }}"
+      },
+      "id": "wi-0004",
+      "name": "HTTP · Buscar sala del hueco",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        240,
+        0
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "__CRED_GOOGLE_CALENDAR__",
+          "name": "Google Calendar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ¿Ya hay sala para este hueco? Si otro evento del mismo hueco tiene Meet, se copia su\n// conferencia; si no, se pide una nueva. Si el evento de ESTA cita ya existe (un\n// reintento), no se crea otro.\nconst p = $('Code · Preparar evento').first().json;\nconst r = $json ?? {};\nconst items = (r.statusCode ?? 0) < 300 && r.body && Array.isArray(r.body.items) ? r.body.items : [];\nconst propio = items.find(e => e.id === p.evento_id);\nif (propio) {\n  return [{ json: { _crear: false, meet: propio.hangoutLink || null, _motivo: 'ya existía el evento de esta cita' } }];\n}\nconst sala = items.find(e => e.conferenceData && e.conferenceData.conferenceId);\nconst evento = { ...p.evento };\nevento.conferenceData = sala\n  ? { conferenceId: sala.conferenceData.conferenceId,\n      conferenceSolution: sala.conferenceData.conferenceSolution,\n      entryPoints: sala.conferenceData.entryPoints }\n  : { createRequest: { requestId: p.evento_id, conferenceSolutionKey: { type: 'hangoutsMeet' } } };\nreturn [{ json: { _crear: true, evento, _sala: sala ? 'reutilizada de ' + sala.id : 'nueva',\n  _busqueda_status: r.statusCode ?? null } }];\n"
+      },
+      "id": "wi-0005",
+      "name": "Code · Construir evento",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "wi-0006-c",
+              "leftValue": "={{ $json._crear }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "wi-0006",
+      "name": "¿Crear?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        680,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleCalendarOAuth2Api",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        },
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ conferenceDataVersion: 1, sendUpdates: 'all' }) }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.evento) }}"
+      },
+      "id": "wi-0007",
+      "name": "HTTP · Crear evento",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        900,
+        -100
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "__CRED_GOOGLE_CALENDAR__",
+          "name": "Google Calendar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Resultado de Google. Un 409 es que el evento con ese id ya existe: un reintento.\nconst r = $json ?? {};\nconst st = r.statusCode ?? 0;\nconst b = r.body || {};\nif (st >= 200 && st < 300) {\n  const video = ((b.conferenceData && b.conferenceData.entryPoints) || []).find(e => e.entryPointType === 'video');\n  return [{ json: { _ok: true, meet: b.hangoutLink || (video && video.uri) || null } }];\n}\nif (st === 409) return [{ json: { _ok: true, meet: null, _motivo: 'evento ya creado (409)' } }];\nreturn [{ json: { _ok: false, _status: st, _error: (b.error && b.error.message) || null } }];\n"
+      },
+      "id": "wi-0008",
+      "name": "Code · Resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "wi-0009-c",
+              "leftValue": "={{ $json._ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "wi-0009",
+      "name": "¿Invitación enviada?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1340,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "wi-0010-c",
+              "leftValue": "={{ !!$json.meet }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "wi-0010",
+      "name": "¿Hay enlace?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1560,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config (editar por tenant)').first().json.directus_base_url }}/items/appointments/{{ $('Invitación pedida').first().json.cita_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ notes: [$('Invitación pedida').first().json.notas, 'Meet: ' + $json.meet].filter(Boolean).join('\\n') }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "wi-0011",
+      "name": "HTTP · Apuntar el Meet en la cita",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1780,
+        -300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      },
+      "notes": "Así el enlace se ve en el panel y en el .ics de quien atiende la demo."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Si la invitación no salió, que lo sepa una persona: la reserva está hecha, pero quien\n// reservó cree que le va a llegar un correo con el enlace.\nconst i = $('Invitación pedida').first().json;\nconst r = $json ?? {};\nconst t = DateTime.fromISO(String(i.inicio), { setZone: true }).setZone('Europe/Madrid').setLocale('es');\nreturn [{ json: { tarea: {\n  title: 'Enviar enlace de Meet a ' + i.nombre,\n  description: 'La demo del ' + t.toFormat(\"cccc d 'de' LLLL 'a las' HH:mm\") + ' se reservó desde la web, '\n    + 'pero la invitación de Google Calendar no se pudo crear (' + (r._error || ('HTTP ' + (r._status || '?'))) + '). '\n    + 'Mándale el enlace a ' + i.email + '.',\n  priority: 'high',\n  source: 'system',\n  contact_id: i.contact_id || null,\n} } }];\n"
+      },
+      "id": "wi-0012",
+      "name": "Code · Tarea por fallo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config (editar por tenant)').first().json.directus_base_url }}/items/tasks",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.tarea) }}",
+        "options": {}
+      },
+      "id": "wi-0013",
+      "name": "HTTP · Crear tarea",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1780,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Invitación pedida": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "Code · Preparar evento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Preparar evento": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Buscar sala del hueco",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Buscar sala del hueco": {
+      "main": [
+        [
+          {
+            "node": "Code · Construir evento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Construir evento": {
+      "main": [
+        [
+          {
+            "node": "¿Crear?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Crear?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Crear evento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "HTTP · Crear evento": {
+      "main": [
+        [
+          {
+            "node": "Code · Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Resultado": {
+      "main": [
+        [
+          {
+            "node": "¿Invitación enviada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Invitación enviada?": {
+      "main": [
+        [
+          {
+            "node": "¿Hay enlace?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Tarea por fallo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay enlace?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Apuntar el Meet en la cita",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Code · Tarea por fallo": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Crear tarea",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

@@ -1,8 +1,10 @@
 # Reservas desde la web — contrato de los webhooks públicos
 
-**Estado: construido el 21/oct/2026, pendiente de probar en `dev`.** Workflows
-`WEB-Disponibilidad.json` (`WEB · Disponibilidad`) y `WEB-Reservar.json` (`WEB · Reservar`). Lo
-consume la isla de reservas de `aegora-web`. Se prueban en `dev` y se promocionan a `ops` cuando
+**Estado: disponibilidad y reserva probadas en `dev` el 21/oct/2026** (reserva, doble envío,
+origen ajeno, límite por IP activo). La invitación con Meet está construida y sin probar.
+Workflows `WEB-Disponibilidad.json` (`WEB · Disponibilidad`), `WEB-Reservar.json`
+(`WEB · Reservar`) y `WEB-Invitacion.json` (`WEB · Invitación con Meet`). Lo consume la isla de
+reservas de `aegora-web`. Se prueban en `dev` y se promocionan a `ops` cuando
 exista; en la web solo cambia la URL base.
 
 **Dos ajustes de tenant** (`tenant.env`, los resuelve `render-workflows.sh`):
@@ -151,9 +153,11 @@ Valores de `campos`: `obligatorio`, `formato`, `largo`.
   la demo y contactar sobre ella) y enlace a `/politica-privacidad`. No hace falta casilla:
   la base es la petición del propio interesado (Art. 6.1.b). Una casilla **aparte y sin marcar**
   solo si algún día hay newsletter.
-- **No hay email de confirmación** todavía: la plataforma no manda correos. La confirmación es
-  la pantalla final. Ofrecer ahí "Añadir a mi calendario" con un `.ics` generado en el
-  navegador desde `cita` (no hace falta servidor).
+- **La confirmación por correo la manda Google**: una invitación de Google Calendar desde
+  `equipo@aegora.es` con el enlace de Meet, que se envía justo después de contestar a la web
+  (ver abajo). La pantalla final puede decirlo: "te hemos enviado una invitación por correo
+  con el enlace de la videollamada". La propia invitación trae el botón de añadir al
+  calendario, así que no hace falta generar un `.ics` en el navegador.
 - Ante `hueco_no_disponible`, enseñar `huecos_del_dia` sin volver a pedir los datos.
 
 ## Pendiente
@@ -161,6 +165,29 @@ Valores de `campos`: `obligatorio`, `formato`, `largo`.
   seed**. Para `ops` hará falta uno.
 - Cómo se entera Aegora de una reserva nueva: hoy aparece en el panel y en el `.ics` de quien
   la atiende. Si hace falta aviso inmediato, una tarea o un WhatsApp al equipo.
-- **Correo de confirmación con enlace de Google Meet, desde `equipo@aegora.es`** (pedido
-  21/oct/2026). Es lo siguiente: hoy no se manda nada. Encaja después de `Code · Resultado` en
-  `WEB · Reservar`, sin esperar a que termine (la web no debe pagar los segundos del envío).
+- **Una cancelación o un cambio de hora no tocan la invitación de Google.** Si la demo se anula
+  desde el panel o por WhatsApp, el evento sigue en el calendario de quien reservó. El id del
+  evento es el uuid de la cita sin guiones, así que borrarlo después no necesita guardar nada.
+
+## La invitación con Meet (`WEB · Invitación con Meet`)
+`WEB · Reservar` la lanza **después** de responder a la web y sin esperarla, y solo en una
+reserva nueva (no en `ya_estaba_reservada` ni con el campo trampa). Crea un evento en el
+calendario de la cuenta conectada a la credencial `Google Calendar` (`equipo@aegora.es`) con
+quien reservó como invitado y `sendUpdates=all`: **el correo lo manda Google**, con el enlace
+de Meet.
+
+- **La demo es en grupo, así que las reservas de un mismo hueco comparten sala.** Cada persona
+  recibe su propio evento (no ve a los demás invitados ni le llega un correo cada vez que se
+  apunta otro), pero todos llevan la conferencia del primero. Se encuentran por una propiedad
+  privada del evento, `aegoraHueco` (servicio + hora de inicio). Dos reservas del mismo hueco
+  en el mismo segundo podrían abrir dos salas: con el tráfico previsto, se acepta.
+- **El id del evento es el de la cita**, así que un reintento no duplica la invitación.
+- El enlace de Meet se apunta en las notas de la cita: se ve en el panel y en el `.ics` de quien
+  atiende la demo.
+- **Si Google falla, se crea una tarea de prioridad alta** ("Enviar enlace de Meet a …") con el
+  motivo y el email. La reserva sigue hecha: lo que falta es avisar a quien la hizo.
+
+**Credencial `Google Calendar`** (tipo *Google Calendar OAuth2 API*), creada a mano en el n8n
+y conectada con `equipo@aegora.es`. Como `render-workflows.sh` exige todas las credenciales que
+usan los workflows, **tiene que existir en todos los tenants**: en los que no reciben demos
+(`demo`, `jca`) basta con crearla sin conectar.
