@@ -1,14 +1,17 @@
 # Reservas desde la web — contrato de los webhooks públicos
 
-**Estado: disponibilidad y reserva probadas en `dev` el 21/oct/2026** (reserva, doble envío,
-origen ajeno, límite por IP activo). La invitación con Meet está construida y sin probar.
+**Estado: probado en `dev` el 21-22/oct/2026**: reserva, doble envío, origen ajeno, límite por
+IP activo, invitación con Meet recibida, y la segunda reserva del mismo hueco con el mismo Meet.
 Workflows `WEB-Disponibilidad.json` (`WEB · Disponibilidad`), `WEB-Reservar.json`
 (`WEB · Reservar`) y `WEB-Invitacion.json` (`WEB · Invitación con Meet`). Lo consume la isla de
 reservas de `aegora-web`. Se prueban en `dev` y se promocionan a `ops` cuando
 exista; en la web solo cambia la URL base.
 
 **Dos ajustes de tenant** (`tenant.env`, los resuelve `render-workflows.sh`):
-- `WEB_SERVICIO`: nombre exacto del único servicio reservable. Por defecto `Demo de Aegora`.
+- `WEB_SERVICIO`: nombre exacto del único servicio reservable. **Vacío por defecto, y vacío es
+  desactivado**: los webhooks contestan `404 no_disponible` a todo. Solo lo ponen `ops` y
+  `dev` (`Demo de Aegora`). Es una herramienta de Aegora para captar clientes, no algo que se
+  ofrezca a los tenants: ellos reservan por Lucía.
 - `WEB_ORIGENES`: orígenes permitidos, separados por comas. Por defecto
   `https://aegora.es,https://www.aegora.es,https://web.dev.aegora.es`; en `dev` se añade
   `http://localhost:4321`. Van como ajuste y no escritos en el JSON para que un export no
@@ -141,6 +144,7 @@ no aprende a esquivarlo. No usar `display:none`, que algunos bots detectan.
 | 400 | `datos_invalidos` | algún campo no cumple su regla | `campos`: `{ "email": "formato", "nombre": "obligatorio" }` |
 | 400 | `parametros_invalidos` | `desde`/`dias` mal en la disponibilidad | — |
 | 403 | `origen_no_permitido` | `Origin` fuera de la lista | — |
+| 404 | `no_disponible` | el tenant no tiene activadas las reservas desde la web | — |
 | 409 | `hueco_no_disponible` | el hueco se llenó entre consultar y reservar | `huecos_del_dia`: los que quedan ese día, mismo formato que en la disponibilidad |
 | 429 | `demasiadas_peticiones` | límite por IP | — |
 | 503 | `no_disponible` | el Booking API o Directus no responden | — |

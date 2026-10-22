@@ -278,7 +278,7 @@ Tokens que se resuelven:
 Ajustes del tenant (de tenant.env; el valor por defecto si no está):
   CONTACTO_PEDIR_EMPRESA  ${CONTACTO_PEDIR_EMPRESA:-false}
   RETELL_AGENTE_PASARELA  ${RETELL_AGENTE_PASARELA:-(vacío: los VIP los atiende Lucía, no se desvían)}
-  WEB_SERVICIO            ${WEB_SERVICIO:-Demo de Aegora (por defecto)}
+  WEB_SERVICIO            ${WEB_SERVICIO:-(vacío: reservas desde la web desactivadas)}
   WEB_ORIGENES            ${WEB_ORIGENES:-https://aegora.es,https://www.aegora.es,https://web.dev.aegora.es (por defecto)}
 
 Credenciales en su n8n:
