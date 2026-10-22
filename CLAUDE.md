@@ -1384,9 +1384,10 @@ se puede olvidar:
 - El token del Booking API nunca sale de n8n; la web solo ve fechas, horas y plazas.
 - La invitación la manda **Google Calendar desde `equipo@aegora.es`** (credencial `Google
   Calendar`, que tiene que existir en TODOS los tenants aunque sea sin conectar, o el render
-  falla). Las reservas de un mismo hueco comparten sala de Meet.
-- **Para producción falta crear `ops`**: poner allí `WEB_SERVICIO`, el servicio de demo (no está
-  en ningún seed), conectar `Google Calendar` y cambiar la URL base en la web.
+  falla). Si el servicio es en grupo, las reservas de un mismo hueco comparten sala de Meet;
+  en `ops` la demo es individual (1 plaza, 30 min, huecos sueltos entre 11:00 y 14:00).
+- **Para producción falta crear `ops`**: poner allí `WEB_SERVICIO`, cargar el servicio de demo
+  (`directus/seed/ops.json`), conectar `Google Calendar` y cambiar la URL base en la web.
 
 ## Datos de demostración por vertical — pedido, sin construir (21/sep/2026)
 Dos conjuntos para enseñar la plataforma a un cliente sin que parezca un tenant vacío:

@@ -74,8 +74,8 @@ dentro de ese margen simplemente no trae huecos.
 }
 ```
 - `dias` solo trae los días **con** huecos, en orden. Lista vacía si no hay ninguno en el rango.
-- `plazas`: las que quedan en ese hueco (la demo es una sesión en grupo). Útil para decir
-  "quedan 2 plazas" cuando sean pocas; no hace falta enseñarlo siempre.
+- `plazas`: las que quedan en ese hueco. En `ops` la demo es **individual** (1 plaza), así que
+  vale siempre 1 y no hace falta enseñarlo; solo tiene sentido si el servicio es en grupo.
 - `inicio` es lo que se manda tal cual a la reserva. `hora` y `fecha_label` son para pintar.
 
 ## 2. `POST /web-reservar`
@@ -180,7 +180,8 @@ calendario de la cuenta conectada a la credencial `Google Calendar` (`equipo@aeg
 quien reservó como invitado y `sendUpdates=all`: **el correo lo manda Google**, con el enlace
 de Meet.
 
-- **La demo es en grupo, así que las reservas de un mismo hueco comparten sala.** Cada persona
+- **Si el servicio es en grupo, las reservas de un mismo hueco comparten sala** (en `dev` lo
+  es; en `ops` la demo es individual y cada hueco tiene una sola reserva). Cada persona
   recibe su propio evento (no ve a los demás invitados ni le llega un correo cada vez que se
   apunta otro), pero todos llevan la conferencia del primero. Se encuentran por una propiedad
   privada del evento, `aegoraHueco` (servicio + hora de inicio). Dos reservas del mismo hueco

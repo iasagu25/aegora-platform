@@ -1,0 +1,57 @@
+{
+  "_nota": [
+    "Tenant `ops`: la operación de la propia Aegora. Se carga con",
+    "directus/seed/load-seed.sh --tenant ops --set ops. Nunca modifica lo que ya existe.",
+    "",
+    "Lleva solo lo que necesita la reserva de demos desde aegora.es (n8n/WEB-RESERVAS.md):",
+    "el servicio que nombra WEB_SERVICIO, su recurso y sus horarios.",
+    "",
+    "La demo es INDIVIDUAL (1 plaza) y de 30 min. Los horarios son pocos y salteados a",
+    "propósito, entre las 11:00 y las 14:00 de lunes a viernes, para que la agenda no",
+    "parezca vacía: cada regla dura exactamente 30 min, así que cada regla es UN hueco (los",
+    "huecos avanzan por duración desde el inicio de la ventana; una ventana más larga daría",
+    "huecos seguidos). El patrón se repite cada semana; para tapar un día concreto, una",
+    "excepción en 'Festivos y excepciones'.",
+    "",
+    "El recurso no tiene empleado a propósito, igual que en dev: es la sesión, no una",
+    "persona, y así Lucía no dice 'te atenderá …'. La invitación sale del calendario de",
+    "equipo@aegora.es."
+  ],
+  "resources": [
+    {
+      "_ref": "r_demo",
+      "name": "Demo Aegora",
+      "resource_type": "generic",
+      "capacity": 1,
+      "active": true
+    }
+  ],
+  "services": [
+    {
+      "_ref": "s_demo",
+      "name": "Demo de Aegora",
+      "description": "Videollamada de 30 minutos: cómo Lucía atiende WhatsApp, teléfono y web, y cómo se gestiona todo desde el panel.",
+      "duration_minutes": 30,
+      "booking_mode": "fixed_duration",
+      "buffer_before_minutes": 0,
+      "buffer_after_minutes": 0,
+      "minimum_notice_minutes": 120,
+      "maximum_booking_days": 30,
+      "requires_confirmation": false,
+      "active": true
+    }
+  ],
+  "service_resources": [
+    { "service_id": "@s_demo", "resource_id": "@r_demo" }
+  ],
+  "availability_rules": [
+    { "resource_id": "@r_demo", "day_of_week": 1, "start_time": "11:00:00", "end_time": "11:30:00", "active": true },
+    { "resource_id": "@r_demo", "day_of_week": 1, "start_time": "12:30:00", "end_time": "13:00:00", "active": true },
+    { "resource_id": "@r_demo", "day_of_week": 2, "start_time": "11:30:00", "end_time": "12:00:00", "active": true },
+    { "resource_id": "@r_demo", "day_of_week": 2, "start_time": "13:00:00", "end_time": "13:30:00", "active": true },
+    { "resource_id": "@r_demo", "day_of_week": 3, "start_time": "12:00:00", "end_time": "12:30:00", "active": true },
+    { "resource_id": "@r_demo", "day_of_week": 4, "start_time": "11:00:00", "end_time": "11:30:00", "active": true },
+    { "resource_id": "@r_demo", "day_of_week": 4, "start_time": "13:30:00", "end_time": "14:00:00", "active": true },
+    { "resource_id": "@r_demo", "day_of_week": 5, "start_time": "12:30:00", "end_time": "13:00:00", "active": true }
+  ]
+}
