@@ -5,13 +5,36 @@
 # directamente no sirve: Docker resuelve el enlace al arrancar el contenedor y seguiría
 # sirviendo la release vieja después de cada despliegue.
 #
-# De momento solo la previsualización. Cuando se cambie el DNS de aegora.es, el bloque de
-# producción va aquí: aegora.es + redirección de www + 301 de /politica-privacidad-step, y sin
-# el noindex.
+# Las dos direcciones sirven LA MISMA release: lo que se ve en web.dev es lo que hay en
+# producción. La previsualización solo se diferencia por el noindex.
+
+aegora.es {
+	root * /srv/aegora-web/current
+	# La URL que enlazaba el pie de GoHighLevel. La buena, /politica-privacidad, es la que
+	# manda Lucía en el aviso de privacidad de TODOS los tenants: no se toca nunca.
+	redir /politica-privacidad-step /politica-privacidad 301
+	# Página vieja de GHL que puede seguir indexada.
+	redir /aegora-salud-702619-5930 / 301
+	# El build sale con build.format 'file' (politica-privacidad.html, sin carpeta).
+	try_files {path} {path}.html
+	encode zstd gzip
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+	file_server
+	handle_errors 404 {
+		rewrite * /404.html
+		file_server
+	}
+}
+
+www.aegora.es {
+	redir https://aegora.es{uri} 301
+}
 
 web.dev.aegora.es {
 	root * /srv/aegora-web/current
-	# El build sale con build.format 'file' (politica-privacidad.html, sin carpeta).
 	try_files {path} {path}.html
 	encode zstd gzip
 	# Que Google no indexe la versión de prueba.
