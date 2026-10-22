@@ -1374,6 +1374,20 @@ límites por minuto son de la organización**, no de la key, así que separar ke
 cupo -- los 30.000 TPM de `gpt-4o` siguen siendo de todos a la vez (ver "Límite por minuto
 de OpenAI").
 
+## Reservas de la demo desde aegora.es (21-22/oct/2026, probado en `dev`)
+Tres workflows (`WEB · Disponibilidad`, `WEB · Reservar`, `WEB · Invitación con Meet`) que usa
+la isla de reservas de `aegora-web`. Contrato y decisiones en `n8n/WEB-RESERVAS.md`. Lo que no
+se puede olvidar:
+- **Desactivado salvo `WEB_SERVICIO`** en `tenant.env`: vacío = `404` a todo. Solo `dev` y `ops`
+  lo ponen. Es una herramienta de Aegora para captar clientes, no algo de los tenants (ellos
+  reservan por Lucía).
+- El token del Booking API nunca sale de n8n; la web solo ve fechas, horas y plazas.
+- La invitación la manda **Google Calendar desde `equipo@aegora.es`** (credencial `Google
+  Calendar`, que tiene que existir en TODOS los tenants aunque sea sin conectar, o el render
+  falla). Las reservas de un mismo hueco comparten sala de Meet.
+- **Para producción falta crear `ops`**: poner allí `WEB_SERVICIO`, el servicio de demo (no está
+  en ningún seed), conectar `Google Calendar` y cambiar la URL base en la web.
+
 ## Datos de demostración por vertical — pedido, sin construir (21/sep/2026)
 Dos conjuntos para enseñar la plataforma a un cliente sin que parezca un tenant vacío:
 
