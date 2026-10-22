@@ -1386,8 +1386,9 @@ se puede olvidar:
   Calendar`, que tiene que existir en TODOS los tenants aunque sea sin conectar, o el render
   falla). Si el servicio es en grupo, las reservas de un mismo hueco comparten sala de Meet;
   en `ops` la demo es individual (1 plaza, 30 min, huecos sueltos entre 11:00 y 14:00).
-- **`ops` probado el 22/oct/2026** (reserva + invitación con Meet). Falta que la web apunte a
-  `https://lucia.ops.aegora.es/webhook` y el paso de `aegora.es` a este VPS.
+- **`ops` probado el 22/oct/2026** (reserva + invitación con Meet), y `aegora.es` ya sale de este
+  VPS. La web se compila con `PUBLIC_RESERVAS_URL=https://lucia.ops.aegora.es/webhook`; como
+  `web.dev.aegora.es` sirve la misma release, la previsualización también reserva en `ops`.
 
 ## Datos de demostración por vertical — pedido, sin construir (21/sep/2026)
 Dos conjuntos para enseñar la plataforma a un cliente sin que parezca un tenant vacío:
@@ -1506,8 +1507,11 @@ como empresa. El aviso de privacidad de Lucía ya apunta a la política real
 (`https://aegora.es/politica-privacidad`), la misma para todos los tenants; sigue
 siendo el token `__PRIVACY_POLICY_URL__` por si algún negocio acaba teniendo la
 suya, y entonces se pone `PRIVACY_POLICY_URL` en su `tenant.env`.
-**La web de `aegora.es` se migra desde GoHighLevel a un repo propio** (`aegora-web`, Astro
-estático servido por el Caddy de plataforma; decidido 21/oct/2026). Esa ruta
+**La web de `aegora.es` sale de este VPS desde el 22/oct/2026** (repo `aegora-web`, Astro
+estático; antes era GoHighLevel). La sirve `compose/caddy/sites/aegora-web.caddy`, la misma
+release en `aegora.es` y en `web.dev.aegora.es` (esta con `noindex`); `www` y las URLs viejas de
+GHL redirigen con 301. **Si el VPS cae, cae también la política de privacidad que enlazan
+todos los tenants**: una réplica del mismo build en un CDN es el paso pendiente para eso. Esa ruta
 `/politica-privacidad` tiene que sobrevivir a la migración tal cual: la enlazan todos los
 tenants. Lo que la web necesita de aquí (volumen y bloque en Caddy, tenant `ops`, webhooks
 públicos para reservar la demo) está escrito en el `CLAUDE.md` de ese repo.
