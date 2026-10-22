@@ -334,6 +334,11 @@ fi
 
 esperar_healthy "$N8N_CONTAINER"
 
+# Lo renderizado lleva los secretos de WhatsApp y Retell en claro. En PLAN se deja para
+# poder revisarlo; con --apply ya no hace falta en cuanto se ha copiado al contenedor, y se
+# borra al salir, también si algo falla a medias (volver a renderizar lo regenera).
+trap 'rm -rf "$OUT"' EXIT
+
 # Si no se pudieron leer, el render fallaría diciendo que faltan las cinco
 # credenciales -- que es falso y manda a crear duplicados. Mejor parar aquí.
 [[ "$CREDS_ESTADO" != ERROR:* ]] ||
@@ -439,7 +444,7 @@ Comprueba que el webhook quedó registrado (404 = no):
     {method:'POST',headers:{'content-type':'application/json'},body:'{}'})\\
     .then(r=>console.log('status',r.status))"
 
-Y borra ${OUT} cuando termines: lleva los secretos de WhatsApp en claro.
+${OUT} ya está borrado: llevaba los secretos de WhatsApp y Retell en claro.
 
 ============================================================
 
