@@ -28,10 +28,11 @@ documentado sigue siendo cierto.
 ## Infraestructura
 - VPS: `vm7423` (LumaDock), IP `185.200.244.81`, usuario `aegora`, EPYC VPS.P5.
 - Repo en VPS: `/opt/aegora/platform`. Tenants en `/opt/aegora/tenants/<tenant>`.
-- Tenants activos: `demo` (demos a clientes) y `dev` (desarrollo). `ops` (la operación de
-  Aegora) está decidido y sin crear. `aegora-internal` se borró el 20/sep/2026. Ver
-  "Tres tenants con alcances separados". El id `aegora` está reservado, no usar para
-  tenants nuevos.
+- Tenants activos: `demo` (demos a clientes), `dev` (desarrollo), `jca` (primer cliente, 13/oct)
+  y `ops` (la operación de Aegora, `ops.aegora.es`, creado el 22/oct/2026 con clave S3 propia;
+  de momento solo recibe las reservas de demo de la web). `aegora-internal` se borró el
+  20/sep/2026. Ver "Tres tenants con alcances separados". El id `aegora` está reservado, no
+  usar para tenants nuevos.
 - Contenedores: `<tenant>-directus`, `<tenant>-n8n`, `<tenant>-booking`. Postgres
   compartido: `aegora-postgres`. BD por tenant: `directus_<tenant>` (que usa también el
   Booking API) y `n8n_<tenant>`. `demo` conserva además un `booking_<tenant>` vacío de
@@ -601,9 +602,8 @@ bueno:
   - `SESSION · Cleanup`: el permiso `delete` ya lo declara
     `configure-n8n-service.sh`; queda probarlo y activarlo.
   - Probar el widget en navegador contra el host público del n8n de `demo`.
-  - **Crear `ops`** (sustituye a `aegora-internal`): credencial S3 dedicada en Hetzner
-    ANTES del onboarding, y después el orden real de `dev` (esquema, `configure-*`,
-    credenciales n8n, `render-workflows.sh` completo).
+  - ~~Crear `ops`~~ — **hecho (22/oct/2026)**, con el orden de jca y siete credenciales (la
+    séptima es `Google Calendar`, conectada con `equipo@aegora.es`).
   - Migrar build A → imagen en GHCR (CI en `aegora-booking`).
   - **Límites de recursos en las plantillas: puestos (13/oct/2026)**, fijos en los tres
     `compose.yml.tpl` y con el porqué de cada número al lado: n8n 1536m / 2 CPU, Directus
@@ -1386,8 +1386,8 @@ se puede olvidar:
   Calendar`, que tiene que existir en TODOS los tenants aunque sea sin conectar, o el render
   falla). Si el servicio es en grupo, las reservas de un mismo hueco comparten sala de Meet;
   en `ops` la demo es individual (1 plaza, 30 min, huecos sueltos entre 11:00 y 14:00).
-- **Para producción falta crear `ops`**: poner allí `WEB_SERVICIO`, cargar el servicio de demo
-  (`directus/seed/ops.json`), conectar `Google Calendar` y cambiar la URL base en la web.
+- **`ops` probado el 22/oct/2026** (reserva + invitación con Meet). Falta que la web apunte a
+  `https://lucia.ops.aegora.es/webhook` y el paso de `aegora.es` a este VPS.
 
 ## Datos de demostración por vertical — pedido, sin construir (21/sep/2026)
 Dos conjuntos para enseñar la plataforma a un cliente sin que parezca un tenant vacío:

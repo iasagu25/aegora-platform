@@ -20,7 +20,7 @@ exista; en la web solo cambia la URL base.
 | tenant | URL base |
 |---|---|
 | `dev` (pruebas, la usa `web.dev.aegora.es`) | `https://lucia.dev.aegora.es/webhook` |
-| `ops` (producción, cuando exista) | `https://lucia.<dominio de ops>/webhook` |
+| `ops` (producción, creado el 22/oct/2026 y probado) | `https://lucia.ops.aegora.es/webhook` |
 
 ## Lo que la web NO hace nunca
 - **No conoce el `BOOKING_API_TOKEN`** ni ningún otro secreto. Con ese token se reserva y se
