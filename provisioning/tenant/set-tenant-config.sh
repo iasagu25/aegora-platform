@@ -116,9 +116,11 @@ for pair in "${PAIRS[@]}"; do
     fail "Clave no válida (se espera MAYUSCULAS_CON_GUION_BAJO): ${key}"
 
   actual="$(current_value "$key")"
+  # El fichero guarda la forma escapada; se compara contra esa.
+  esperado="$(printf '%q' "$value")"
   veces="$(occurrences "$key")"
 
-  if [[ "$actual" == "$value" && "$veces" == "1" ]]; then
+  if [[ "$actual" == "$esperado" && "$veces" == "1" ]]; then
     printf '  %-24s sin cambios (%s)\n' "$key" "$value"
   elif [[ -z "$actual" && "$veces" == "0" ]]; then
     printf '  %-24s (ausente) -> %s\n' "$key" "$value"
@@ -169,7 +171,9 @@ for pair in "${PAIRS[@]}"; do
   # clave duplicada queda saneada en la misma pasada.
   grep -vE "^${key}=" "$tmp" > "${tmp}.new" || true
   mv "${tmp}.new" "$tmp"
-  printf '%s=%s\n' "$key" "$value" >> "$tmp"
+  # Con %q, igual que write_env de create-tenant.sh: tenant.env se carga con `source`,
+  # y un valor con espacios sin escapar ("Demo de Aegora") se ejecuta como un comando.
+  printf '%s=%q\n' "$key" "$value" >> "$tmp"
 done
 
 cat "$tmp" > "$TENANT_ENV"
