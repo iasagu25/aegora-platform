@@ -294,6 +294,7 @@ const ordenDeCampos = {
     ['resumen', 'full'],
     ['requiere_seguimiento', 'half'],
     ['duracion_segundos', 'half'],
+    ['duracion_minutos', 'half'],
     ['direccion', 'half'],
     ['session_key', 'full'],
     ['call_id', 'full'],

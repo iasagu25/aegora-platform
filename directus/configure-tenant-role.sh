@@ -150,6 +150,10 @@ Biblioteca de archivos:
   directus_files         create / read / update   (sin borrar)
   directus_folders       read
 
+Informe (Insights):
+  directus_dashboards    read   (el "Resumen" lo mantiene configure-directus-insights.sh)
+  directus_panels        read
+
 Conversaciones de Lucía:
   conversation_sessions  read / update   (update = coger el hilo con 'modo')
   call_notes             read / update   (update = apagar 'requiere seguimiento')
@@ -277,6 +281,12 @@ const permissionModel = {
   // acumular alguno de más, y no hay papelera de la que recuperarlo.
   directus_files: { create: ALL, read: ALL, update: ALL },
   directus_folders: { read: ALL },
+
+  // --- informe (Insights) -----------------------------------------------------
+  // Solo lectura: el dashboard "Resumen" lo mantiene configure-directus-insights.sh y
+  // se rehace entero cada vez, así que un cambio del gestor se perdería sin avisar.
+  directus_dashboards: { read: ALL },
+  directus_panels: { read: ALL },
 };
 
 // Token estático del usuario técnico de provisioning. NO se usa ADMIN_EMAIL/

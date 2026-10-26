@@ -666,6 +666,7 @@ const fieldTranslations = {
     resumen: 'Resumen',
     requiere_seguimiento: 'Requiere seguimiento',
     duracion_segundos: 'Duración (s)',
+    duracion_minutos: 'Duración (min)',
     direccion: 'Dirección',
     session_key: 'Conversación',
     call_id: 'ID de llamada',

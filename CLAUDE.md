@@ -1887,6 +1887,25 @@ todos, incluido el admin**, a propósito — la hora de una cita la decide el Bo
 editarla a mano en Directus siempre está mal. No es un apaño por no tener permisos por
 campo (ver el quirk de Directus arriba), es dónde está la verdad.
 
+## Informe del gestor en Insights (26/oct/2026, sin probar todavía)
+`directus/configure-directus-insights.sh --tenant X [--apply]` crea (o rehace) el dashboard
+**"Resumen"**: lo que ha hecho Lucía en 30 días (mensajes respondidos, conversaciones, citas
+reservadas, llamadas, minutos al teléfono), lo pendiente ahora (tareas, vencidas, llamadas por
+devolver, hilos esperando a una persona, citas en 7 días), listas de próximas citas y tareas, y
+cuatro gráficas. Decisiones:
+- **Dashboards y paneles no son esquema**: van por API, por tenant, como los presets. El
+  dashboard se encuentra por su nombre y **sus paneles se rehacen enteros** cada vez (no tienen
+  clave natural); un cambio a mano en ese dashboard se pierde. Otro informe, otro dashboard.
+- El gestor lo ve con **sus** permisos: `read` sobre `directus_dashboards` y `directus_panels`
+  en `configure-tenant-role.sh`, y nada más (si pudiera editarlo, perdería sus cambios sin aviso).
+- **Minutos al teléfono**: un panel suma un campo pero no divide, así que `call_notes` tiene
+  `duracion_minutos`, que pone un trigger (`directus/sql/call-notes-minutos.sql`) desde
+  `duracion_segundos`, en minutos enteros hacia arriba.
+- **"Citas reservadas por Lucía" = `appointments.source = 'ai'`**: es lo que pone `22`. Las
+  reservas de la web de Aegora entran como `manual` y no cuentan.
+- Los filtros de Directus solo saben `$NOW` con desplazamiento, no "el principio de hoy": por
+  eso es "próximas citas" y no "citas de hoy".
+
 ## Pendientes de la UI de Directus
 - **Traducciones — completadas** en `configure-spanish-ui.sh` (16/sep/2026): las 16
   colecciones con nombre singular/plural y todos sus campos. Antes solo cubría cinco, y el
