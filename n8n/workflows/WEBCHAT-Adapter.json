@@ -31,7 +31,7 @@
               "id": "w1",
               "name": "allowed_origins",
               "type": "string",
-              "value": "*"
+              "value": "__WEBCHAT_ORIGENES__"
             },
             {
               "id": "w2",
@@ -55,7 +55,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const hook = $('Webhook · POST /webchat').item.json;\nconst cfg = $json;\nconst body = hook.body || {};\nconst headers = hook.headers || {};\nconst clean = v => (v === undefined || v === null) ? null : (String(v).trim() || null);\n// allowlist de Origin\nconst origin = clean(headers.origin);\nconst allow = clean(cfg.allowed_origins) || '*';\nlet _forbidden = false;\nif (allow !== '*') {\n  const list = allow.split(',').map(s => s.trim()).filter(Boolean);\n  _forbidden = !origin || !list.includes(origin);\n}\n// id de hilo: lo genera y guarda el widget; si falta, minteamos uno (se devuelve para que lo persista)\nlet sid = clean(body.session_key) || clean(body.client_session_id) || clean(body.sid);\nlet _minted = false;\nif (!sid) { sid = 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); _minted = true; }\nconst session_key = sid.startsWith('webchat:') ? sid : ('webchat:' + sid);\nconst message = clean(body.message);\nreturn [{ json: {\n  _forbidden, _minted,\n  entry: {\n    canal: 'webchat', session_key, message: message || '',\n    from: {}, tenant: clean(cfg.tenant) || '__TENANT_ID__', reply_to: {},\n  },\n  client_session_id: session_key.replace(/^webchat:/, ''),\n} }];"
+        "jsCode": "const hook = $('Webhook · POST /webchat').item.json;\nconst cfg = $json;\nconst body = hook.body || {};\nconst headers = hook.headers || {};\nconst clean = v => (v === undefined || v === null) ? null : (String(v).trim() || null);\n// allowlist de Origin\nconst origin = clean(headers.origin);\nconst allow = clean(cfg.allowed_origins) || '*';\nlet _forbidden = false;\nif (allow !== '*') {\n  const list = allow.split(',').map(s => s.trim()).filter(Boolean);\n  _forbidden = !origin || !list.includes(origin);\n}\n// id de hilo: lo genera y guarda el widget; si falta, minteamos uno (se devuelve para que lo persista)\nlet sid = clean(body.session_key) || clean(body.client_session_id) || clean(body.sid);\nlet _minted = false;\nif (!sid) { sid = 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); _minted = true; }\nconst session_key = sid.startsWith('webchat:') ? sid : ('webchat:' + sid);\nconst message = clean(body.message);\n\n// Límite por IP: el límite de Entry es por conversación, y desde una web pública cualquiera\n// abre conversaciones nuevas sin fin, cada mensaje con su coste de modelo. 30 mensajes cada\n// 10 minutos por IP sobra para una persona. En los datos estáticos del workflow (solo\n// persisten en ejecuciones de producción); la IP es la primera de X-Forwarded-For, que pone\n// Caddy. Si no hubiera datos estáticos, se deja pasar pero se ve en la ejecución.\nlet _limitado = false, _limite = 'activo';\ntry {\n  const ip = String(headers['x-forwarded-for'] || headers['x-real-ip'] || 'desconocida').split(',')[0].trim();\n  const sd = $getWorkflowStaticData('global');\n  const ahora = Date.now(), VENTANA = 10 * 60 * 1000, MAXIMO = 30;\n  const rl = sd.rl || {};\n  for (const k of Object.keys(rl)) { rl[k] = rl[k].filter(t => ahora - t < VENTANA); if (!rl[k].length) delete rl[k]; }\n  const marcas = rl[ip] || [];\n  if (marcas.length >= MAXIMO) _limitado = true; else { marcas.push(ahora); rl[ip] = marcas; }\n  sd.rl = rl;\n} catch (e) {\n  _limite = 'NO DISPONIBLE: ' + (e && e.message ? e.message : String(e));\n}\nreturn [{ json: {\n  _forbidden, _minted, _limitado, _limite,\n  entry: {\n    canal: 'webchat', session_key, message: message || '',\n    from: {}, tenant: clean(cfg.tenant) || '__TENANT_ID__', reply_to: {},\n  },\n  client_session_id: session_key.replace(/^webchat:/, ''),\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -238,6 +238,56 @@
       ],
       "id": "wca-0008",
       "name": "Responder 403"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "l",
+              "leftValue": "={{ $json._limitado }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        780,
+        -160
+      ],
+      "id": "wca-0009",
+      "name": "¿Dentro del límite?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { reply: 'Estoy recibiendo muchos mensajes ahora mismo. Vuelve a escribirme en unos minutos.', needs_user_reply: false } }}",
+        "options": {
+          "responseCode": 429
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1000,
+        -260
+      ],
+      "id": "wca-0010",
+      "name": "Responder 429"
     }
   ],
   "connections": {
@@ -278,7 +328,7 @@
       "main": [
         [
           {
-            "node": "Execute · AGENT-Lucia-Entry",
+            "node": "¿Dentro del límite?",
             "type": "main",
             "index": 0
           }
@@ -308,6 +358,24 @@
         [
           {
             "node": "Responder 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Dentro del límite?": {
+      "main": [
+        [
+          {
+            "node": "Execute · AGENT-Lucia-Entry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 429",
             "type": "main",
             "index": 0
           }

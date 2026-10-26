@@ -271,6 +271,10 @@ Orden de sospechas cuando no hay huecos y "debería haberlos" (16/sep/2026: fue 
   conversación vive en `Postgres Chat Memory` del Core (`n8n_<tenant>`).
   Entry es dueño de `canal` + `session_key`; `sessionID` del Core === `session_key`.
 - Rate-limit por `session_key` en Entry (`state.rl`); allowlist de `Origin` en el adapter.
+  **Desde el 26/oct/2026 el adapter de webchat limita además por IP** (30 mensajes cada 10 min,
+  `429` con un `reply` amable) y sus orígenes son un ajuste de tenant, `WEBCHAT_ORIGENES` (por
+  defecto `*`). Hacía falta para ponerlo en `aegora.es`: el límite por conversación no frena a
+  quien abre conversaciones nuevas sin fin, y cada mensaje cuesta modelo.
 - Widget en `n8n/webchat/` (`widget.js` sin dependencias + `demo.html`).
 
 #### Lucía v2 — reescritura del Core en curso (decidida el 15/sep/2026)

@@ -106,6 +106,10 @@ AJUSTES_TENANT = {
     "servicio_web": ("__WEB_SERVICIO__", "WEB_SERVICIO", ""),
     "origenes_web": ("__WEB_ORIGENES__", "WEB_ORIGENES",
                      "https://aegora.es,https://www.aegora.es,https://web.dev.aegora.es"),
+    # Orígenes desde los que se acepta el webchat (`WEBCHAT · Adapter`), separados por comas.
+    # Por defecto `*`, como hasta ahora; un tenant con el chat en una web pública pone aquí
+    # sus dominios (`ops`: los de aegora.es).
+    "allowed_origins": ("__WEBCHAT_ORIGENES__", "WEBCHAT_ORIGENES", "*"),
 }
 
 # Formas que delatan un secreto aunque el campo no esté en la lista de arriba.
