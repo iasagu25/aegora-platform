@@ -113,6 +113,9 @@ Dashboard "Resumen", de arriba abajo:
 
 Si el dashboard ya existe, sus paneles se rehacen enteros.
 
+CSS del proyecto: un bloque marcado para que la leyenda de las gráficas siga el tema
+(en modo oscuro no se veía). El resto del CSS propio, si lo hay, no se toca.
+
 Modo:
   $([[ "$APPLY" == true ]] && echo apply || echo plan)
 
@@ -260,6 +263,26 @@ if (existentes.length) {
 
 await api('POST', '/panels', paneles.map(p => ({ ...p, dashboard: id })));
 console.log(`${paneles.length} paneles creados.`);
+
+// La leyenda del donut sale en un gris fijo que la librería de gráficas (ApexCharts) pone
+// en línea y que no sigue el tema: en modo oscuro casi no se ve. Se le da el color de texto
+// del tema con el CSS propio del proyecto. Solo se toca NUESTRO bloque, entre marcas, para
+// no pisar CSS que alguien haya puesto a mano en Ajustes.
+const INI = '/* aegora-insights:inicio */', FIN = '/* aegora-insights:fin */';
+const CSS = `${INI}
+.apexcharts-legend-text { color: var(--theme--foreground) !important; }
+${FIN}`;
+const actual = ((await api('GET', '/settings?fields=custom_css')).data || {}).custom_css || '';
+const sinBloque = actual.includes(INI) && actual.includes(FIN)
+  ? (actual.slice(0, actual.indexOf(INI)) + actual.slice(actual.indexOf(FIN) + FIN.length)).trim()
+  : actual.trim();
+const nuevo = [sinBloque, CSS].filter(Boolean).join('\n\n');
+if (nuevo !== actual) {
+  await api('PATCH', '/settings', { custom_css: nuevo });
+  console.log('CSS del proyecto: leyenda de las gráficas con el color del tema.');
+} else {
+  console.log('CSS del proyecto: ya estaba.');
+}
 NODE
 
 cat <<EOF
