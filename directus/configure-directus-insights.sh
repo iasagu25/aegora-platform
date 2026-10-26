@@ -139,14 +139,20 @@ const ACTIVAS = { status: { _in: ['scheduled', 'confirmed'] } };
 const DE_LUCIA = [{ direccion: { _eq: 'saliente' } }, { autor: { _eq: 'lucia' } }];
 const y = (...c) => ({ _and: c });
 
-// Un número grande. Con `alerta`, se pone rojo cuando hay algo (vencidas, por devolver).
+// Un número grande, del color de su tema (azul conversaciones, verde citas, morado
+// llamadas, naranja tareas). Con `alerta`, verde a cero y rojo en cuanto hay algo. En el
+// panel de Directus gana la ÚLTIMA regla que cumple, por eso el rojo va detrás.
+// Los nombres son cortos a propósito: el panel mide 12 de ancho y corta con "…" lo que no
+// cabe junto al icono de la nota. El detalle va en la nota.
 const metrica = (x, yy, name, icon, color, note, options, alerta = false) => ({
   type: 'metric', name, icon, color, note, show_header: true,
   position_x: x, position_y: yy, width: 12, height: 6,
   options: {
     function: 'count', field: 'id', numberStyle: 'decimal', notation: 'standard',
     maximumFractionDigits: 0, fontSize: 'auto', fontWeight: '800', textAlign: 'center',
-    ...(alerta ? { conditionalFormatting: [{ operator: '>', value: '0', color: ROJO }] } : {}),
+    conditionalFormatting: alerta
+      ? [{ operator: '>=', value: '0', color: VERDE }, { operator: '>', value: '0', color: ROJO }]
+      : [{ operator: '>=', value: '0', color }],
     ...options,
   },
 });
@@ -163,53 +169,58 @@ const serie = (x, yy, name, icon, color, collection, dateField, filter) => ({
 
 const paneles = [
   // --- Lucía, últimos 30 días ------------------------------------------------
-  metrica(1, 1, 'Mensajes respondidos por Lucía', 'chat', AZUL, 'Últimos 30 días, todos los canales.',
+  metrica(1, 1, 'Mensajes de Lucía', 'chat', AZUL, 'Mensajes que ha respondido Lucía en los últimos 30 días, en todos los canales.',
     { collection: 'conversation_messages', filter: y(...DE_LUCIA, { created_at: { _gte: DIAS30 } }) }),
-  metrica(13, 1, 'Conversaciones atendidas', 'forum', AZUL, 'Hilos con algún mensaje de un cliente en los últimos 30 días.',
+  metrica(13, 1, 'Conversaciones', 'forum', AZUL, 'Conversaciones con algún mensaje de un cliente en los últimos 30 días.',
     { collection: 'conversation_messages', function: 'countDistinct', field: 'session_id',
       filter: y({ direccion: { _eq: 'entrante' } }, { created_at: { _gte: DIAS30 } }) }),
-  metrica(25, 1, 'Citas reservadas por Lucía', 'event_available', VERDE, 'Últimos 30 días, por WhatsApp, chat o teléfono.',
+  metrica(25, 1, 'Citas de Lucía', 'event_available', VERDE, 'Citas que ha reservado Lucía en los últimos 30 días, por WhatsApp, chat o teléfono.',
     { collection: 'appointments', filter: y({ source: { _eq: 'ai' } }, { created_at: { _gte: DIAS30 } }) }),
-  metrica(37, 1, 'Llamadas atendidas', 'call', MORADO, 'Últimos 30 días.',
+  metrica(37, 1, 'Llamadas', 'call', MORADO, 'Llamadas atendidas en los últimos 30 días.',
     { collection: 'call_notes', filter: { start_at: { _gte: DIAS30 } } }),
-  metrica(49, 1, 'Minutos al teléfono', 'timer', MORADO, 'Últimos 30 días. Cada llamada cuenta por minutos enteros, redondeando hacia arriba.',
+  metrica(49, 1, 'Minutos al teléfono', 'timer', MORADO, 'Minutos de llamada en los últimos 30 días. Cada llamada cuenta por minutos enteros, redondeando hacia arriba.',
     { collection: 'call_notes', function: 'sum', field: 'duracion_minutos', suffix: ' min',
       filter: { start_at: { _gte: DIAS30 } } }),
 
   // --- lo que está pendiente ahora --------------------------------------------
-  metrica(1, 7, 'Tareas pendientes', 'task_alt', NARANJA, null,
+  metrica(1, 7, 'Tareas pendientes', 'task_alt', NARANJA, 'Tareas sin terminar, de todo el equipo.',
     { collection: 'tasks', filter: { status: { _eq: 'pending' } } }),
   metrica(13, 7, 'Tareas vencidas', 'alarm', NARANJA, 'Pendientes con la fecha límite ya pasada.',
     { collection: 'tasks', filter: y({ status: { _eq: 'pending' } }, { due_at: { _lt: '$NOW' } }) }, true),
-  metrica(25, 7, 'Llamadas por devolver', 'phone_callback', MORADO, 'Llamadas marcadas con "requiere seguimiento".',
+  metrica(25, 7, 'Por devolver', 'phone_callback', MORADO, 'Llamadas marcadas con "requiere seguimiento": alguien tiene que devolverlas.',
     { collection: 'call_notes', filter: { requiere_seguimiento: { _eq: true } } }, true),
-  metrica(37, 7, 'Esperando a una persona', 'support_agent', AZUL, 'Conversaciones en modo humano: Lucía no contesta hasta que alguien las devuelva.',
+  metrica(37, 7, 'En manos del equipo', 'support_agent', AZUL, 'Conversaciones en modo humano: Lucía no contesta en ellas hasta que alguien las devuelva a automático.',
     { collection: 'conversation_sessions', filter: { modo: { _eq: 'humano' } } }, true),
-  metrica(49, 7, 'Citas en los próximos 7 días', 'calendar_month', VERDE, null,
+  metrica(49, 7, 'Citas en 7 días', 'calendar_month', VERDE, 'Citas programadas o confirmadas desde ahora hasta dentro de 7 días.',
     { collection: 'appointments', filter: y(ACTIVAS, { start_at: { _gte: '$NOW' } }, { start_at: { _lte: '$NOW(+7 days)' } }) }),
 
   // --- listas -----------------------------------------------------------------
   { type: 'list', name: 'Próximas citas', icon: 'event', color: VERDE, show_header: true,
-    position_x: 1, position_y: 13, width: 30, height: 18,
+    position_x: 1, position_y: 13, width: 30, height: 14,
     options: { collection: 'appointments', limit: 10, sortField: 'start_at', sortDirection: 'asc',
       displayTemplate: '{{start_at}} · {{contact_id.first_name}} {{contact_id.last_name}} · {{service_id.name}}',
       linkToItem: true, filter: y(ACTIVAS, { start_at: { _gte: '$NOW' } }) } },
   { type: 'list', name: 'Tareas pendientes', icon: 'checklist', color: NARANJA, show_header: true,
-    position_x: 31, position_y: 13, width: 30, height: 18,
-    note: 'Por fecha límite: las que vencen antes, arriba; las que no tienen fecha, al final.',
+    position_x: 31, position_y: 13, width: 30, height: 14,
+    note: 'Ordenadas por fecha límite: las que vencen antes, arriba; las que no tienen plazo, al final.',
     options: { collection: 'tasks', limit: 10, sortField: 'due_at', sortDirection: 'asc',
-      displayTemplate: '{{title}} · {{due_at}}', linkToItem: true, filter: { status: { _eq: 'pending' } } } },
+      displayTemplate: '{{title}}', linkToItem: true, filter: { status: { _eq: 'pending' } } } },
 
   // --- gráficas, últimos 30 días ---------------------------------------------------
-  serie(1, 31, 'Mensajes de Lucía por día', 'show_chart', AZUL, 'conversation_messages', 'created_at', y(...DE_LUCIA)),
+  serie(1, 27, 'Mensajes de Lucía por día', 'show_chart', AZUL, 'conversation_messages', 'created_at', y(...DE_LUCIA)),
   { type: 'pie-chart', name: 'Conversaciones por canal', icon: 'donut_large', color: AZUL, show_header: true,
-    position_x: 31, position_y: 31, width: 30, height: 16,
+    position_x: 31, position_y: 27, width: 30, height: 16,
     note: 'Mensajes de clientes en los últimos 30 días, por canal.',
     options: { collection: 'conversation_messages', column: 'canal', function: 'count', donut: true,
-      showLabels: true, legend: 'bottom',
+      showLabels: true, legend: 'right',
+      conditionalFill: [
+        { operator: '=', value: 'whatsapp', color: '#25D366' },
+        { operator: '=', value: 'webchat', color: AZUL },
+        { operator: '=', value: 'voz', color: MORADO },
+      ],
       filter: y({ direccion: { _eq: 'entrante' } }, { created_at: { _gte: DIAS30 } }) } },
-  serie(1, 47, 'Citas reservadas por Lucía, por día', 'event_available', VERDE, 'appointments', 'created_at', { source: { _eq: 'ai' } }),
-  serie(31, 47, 'Llamadas por día', 'call', MORADO, 'call_notes', 'start_at', null),
+  serie(1, 43, 'Citas de Lucía por día', 'event_available', VERDE, 'appointments', 'created_at', { source: { _eq: 'ai' } }),
+  serie(31, 43, 'Llamadas por día', 'call', MORADO, 'call_notes', 'start_at', null),
 ];
 
 async function api(method, path, body) {
