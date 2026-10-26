@@ -1,0 +1,119 @@
+{
+  "_nota": [
+    "GENERADO con directus/seed/kb-desde-md.py desde aegora-web/docs/kb/aegora-ops.md. No editar a mano:",
+    "se cambia el Markdown y se vuelve a generar.",
+    "load-seed.sh no modifica filas que ya existan (busca por título): un texto cambiado",
+    "en una sección que ya está cargada se actualiza en el panel, o se borra la fila y se",
+    "vuelve a cargar."
+  ],
+  "knowledge": [
+    {
+      "sort": 1,
+      "active": true,
+      "title": "Quiénes somos",
+      "body": "Aegora es una empresa española que instala en gestorías y asesorías a **Lucía**, una asistente de\ninteligencia artificial que atiende a sus clientes por WhatsApp, por el chat de la web y por\nteléfono, filtra las consultas y gestiona la agenda de citas del despacho.\n\nLa idea es sencilla: una gestoría no necesita más personal, necesita contestar a tiempo. Lucía\ncontesta al momento y el equipo del despacho solo interviene cuando de verdad hace falta.\n\nAegora está en Madrid y trabaja con gestorías y asesorías en España."
+    },
+    {
+      "sort": 2,
+      "active": true,
+      "title": "Qué hace Lucía",
+      "body": "- **Contesta al momento**, a cualquier hora, por WhatsApp, por el chat de la web del despacho y en\n  las llamadas.\n- **Se presenta** como asistente de inteligencia artificial del despacho desde el primer mensaje.\n- **Entiende lo que le piden**, aunque esté mal escrito o a medias, y responde las preguntas\n  habituales del despacho: horarios, servicios, cómo funciona una cita.\n- **Separa lo urgente** de lo que puede esperar.\n- **Da, cambia y anula citas** directamente en la agenda del despacho, y si es un cliente nuevo,\n  crea su ficha.\n- **Pasa al equipo lo que necesita a una persona**, con un resumen de la conversación. Si es una\n  llamada, la pasa al móvil del gestor o del empleado que corresponda, y solo cuando hace falta.\n\nLo único que cambia para el despacho es quién contesta primero: sus clientes siguen escribiendo y\nllamando como siempre."
+    },
+    {
+      "sort": 3,
+      "active": true,
+      "title": "Cómo funciona, paso a paso",
+      "body": "1. **El cliente escribe o llama, como siempre.** Por WhatsApp, por el chat de la web o por\n   teléfono. No tiene que descargar nada ni aprender nada nuevo.\n2. **Lucía contesta al momento.** Se presenta como asistente de inteligencia artificial del\n   despacho y responde lo habitual.\n3. **Lo resuelve, o lo pasa.** Gestiona las citas en la agenda; si la consulta necesita a una\n   persona, se la pasa al equipo con un resumen.\n4. **El despacho lo ve todo** desde el Panel de Aegora, y puede responder cualquier mensaje cuando\n   quiera."
+    },
+    {
+      "sort": 4,
+      "active": true,
+      "title": "WhatsApp",
+      "body": "Lucía contesta el WhatsApp del despacho al momento, también fuera de horario, con el nombre del\ndespacho. Se conecta por la vía oficial que WhatsApp ofrece a las empresas, y Aegora la deja\npreparada con el despacho. El despacho solo elige con qué número atender:\n\n- **Con su número de siempre.** Los clientes siguen escribiendo al mismo número y no notan ningún\n  cambio, salvo que ahora les contestan al momento. Ese número pasa a atenderse desde el Panel de\n  Aegora, así que deja de usarse en la app de WhatsApp del móvil.\n- **Con un número nuevo.** El WhatsApp de siempre se queda en el móvil tal y como está, y Lucía\n  atiende el número nuevo.\n\nLas dos opciones funcionan igual de bien. En el diagnóstico gratuito se ve cuál encaja mejor con\ncada despacho."
+    },
+    {
+      "sort": 5,
+      "active": true,
+      "title": "Llamadas",
+      "body": "Lucía también atiende las llamadas del despacho:\n\n- **Coge la llamada primero** y entiende qué necesita el cliente.\n- **Resuelve lo habitual** y da, cambia o anula la cita, igual que por WhatsApp.\n- **Solo pasa la llamada cuando hace falta una persona**, al móvil del gestor o del empleado que\n  corresponda.\n\nEl móvil del gestor deja de sonar por todo. **No hay que cambiar de número:** las llamadas llegan\na Lucía desviando el teléfono actual del despacho, y los clientes siguen llamando al de siempre."
+    },
+    {
+      "sort": 6,
+      "active": true,
+      "title": "El Panel de Aegora",
+      "body": "El despacho sigue teniendo la última palabra. Desde el Panel de Aegora:\n\n- ve cada conversación y todo lo que ha hecho Lucía;\n- responde él mismo cualquier mensaje, cuando quiera;\n- tiene las citas y los clientes en un mismo sitio.\n\nLucía trabaja para el equipo del despacho, no en su lugar."
+    },
+    {
+      "sort": 7,
+      "active": true,
+      "title": "Qué se configura con cada despacho",
+      "body": "Lucía no viene con respuestas genéricas. Aegora la deja preparada con cómo trabaja cada despacho:\n\n- sus horarios y sus servicios;\n- su agenda, quién atiende qué y a qué móvil se pasa cada llamada;\n- las respuestas que el equipo da una y otra vez;\n- el tono con el que habla a sus clientes."
+    },
+    {
+      "sort": 8,
+      "active": true,
+      "title": "Lo que no cambia en el despacho",
+      "body": "- **Su programa de gestión.** Lucía no se conecta a la contabilidad ni al programa de gestión del\n  despacho, y no ve declaraciones, nóminas ni expedientes.\n- **Su forma de trabajar.** El equipo sigue haciendo lo mismo, sin interrupciones constantes.\n- **La confianza de sus clientes.** Saben desde el primer momento que hablan con una asistente de\n  inteligencia artificial, y cuando hace falta, Lucía les pasa con una persona."
+    },
+    {
+      "sort": 9,
+      "active": true,
+      "title": "Para quién es",
+      "body": "Para gestorías y asesorías que:\n\n- reciben consultas por WhatsApp a cualquier hora;\n- tienen el teléfono interrumpiendo el trabajo varias veces al día;\n- responden las mismas preguntas una y otra vez;\n- en campaña (renta, trimestres, cierres) dejan alguna consulta sin contestar;\n- quieren atender mejor sin contratar más personal."
+    },
+    {
+      "sort": 10,
+      "active": true,
+      "title": "Clientes",
+      "body": "JCA Audiconsult ya trabaja con Aegora."
+    },
+    {
+      "sort": 11,
+      "active": true,
+      "title": "Precio y garantía",
+      "body": "- **Desde 203 € al mes + IVA.**\n- **Garantía del primer mes:** si el primer mes no convence, Aegora devuelve lo que se haya pagado."
+    },
+    {
+      "sort": 12,
+      "active": true,
+      "title": "Diagnóstico gratuito",
+      "body": "Es el primer paso para empezar con Aegora: una **videollamada individual de 30 minutos, gratis y\nsin compromiso**. En ella se ve cómo atiende hoy el despacho, cuántas consultas se repiten y cuáles\npodría resolver Lucía sola, con las propias consultas del despacho. El despacho se queda con el\ndiagnóstico aunque no siga adelante.\n\nSe reserva en la web, en **https://aegora.es/#reservar**: se elige día y hora entre los huecos\nlibres de los próximos días laborables, y se dejan nombre, email y teléfono (el nombre del despacho\ny qué le gustaría resolver son opcionales). Al reservar llega por correo una invitación de\ncalendario desde equipo@aegora.es con el enlace de la videollamada. Para cambiarla o anularla, hay\nque escribir a equipo@aegora.es."
+    },
+    {
+      "sort": 13,
+      "active": true,
+      "title": "Datos y confidencialidad: lo esencial",
+      "body": "- Lucía **no entra** en la contabilidad ni en el programa de gestión del despacho, ni ve\n  declaraciones, nóminas o expedientes. Lo sujeto a sigilo profesional se queda en los sistemas\n  del despacho.\n- Lucía solo trabaja con lo necesario para atender: lo que los clientes le escriben o le dicen por\n  teléfono, sus datos de contacto y la agenda de citas.\n- Las fichas, las citas y las conversaciones se guardan **en servidores en España**, administrados\n  por el propio equipo de Aegora, con **copia de seguridad cifrada en Alemania**.\n- Cada despacho tiene **su propio entorno**: su base de datos y sus automatizaciones, separadas de\n  las del resto de clientes de Aegora."
+    },
+    {
+      "sort": 14,
+      "active": true,
+      "title": "Datos: qué se procesa fuera de España",
+      "body": "Como cualquier servicio en la nube, Lucía se apoya en servicios especializados que trabajan por\ncuenta de Aegora, con contrato de encargo del tratamiento, y solo reciben lo necesario para su\nparte:\n\n- los servidores de la plataforma, en España;\n- las copias de seguridad cifradas, en Alemania;\n- el modelo de lenguaje que redacta las respuestas de Lucía, en Estados Unidos;\n- la mensajería de WhatsApp, en la Unión Europea, con posible acceso desde Estados Unidos;\n- la telefonía y la transcripción de las llamadas, en Estados Unidos.\n\n**La base de datos del despacho no sale de la Unión Europea.** Lo que se procesa en Estados Unidos\nes el texto de cada mensaje, para redactar la respuesta, y en las llamadas, el audio y su\ntranscripción. Esas transferencias se amparan en las garantías del RGPD, y ningún proveedor usa los\ndatos para entrenar sus modelos. Quién es cada proveedor está en la política de privacidad:\nhttps://aegora.es/politica-privacidad"
+    },
+    {
+      "sort": 15,
+      "active": true,
+      "title": "RGPD",
+      "body": "- **El despacho es el responsable** de los datos de sus clientes: decide para qué se usan.\n- **Aegora es la encargada del tratamiento:** solo los trata para prestar el servicio, siguiendo\n  las instrucciones del despacho. **Aegora firma con cada despacho el contrato de encargo del\n  tratamiento** antes de empezar.\n- Si un cliente del despacho quiere ejercer sus derechos (acceso, rectificación, supresión…),\n  Aegora ayuda al despacho a atenderlo.\n- Lucía se presenta como asistente de inteligencia artificial desde el primer mensaje y enlaza la\n  política de privacidad, como pide la normativa europea de inteligencia artificial."
+    },
+    {
+      "sort": 16,
+      "active": true,
+      "title": "Seguridad",
+      "body": "- Comunicaciones cifradas.\n- Acceso a los datos solo para quien lo necesita.\n- Copias de seguridad cifradas en otra ubicación.\n- Registro de accesos.\n- Si hubiera una brecha de seguridad que afectara a los clientes de un despacho, Aegora le\n  avisaría para que pueda cumplir sus obligaciones (artículos 33 y 34 del RGPD)."
+    },
+    {
+      "sort": 17,
+      "active": true,
+      "title": "Equipo",
+      "body": "- **Ángela de Rueda**, cofundadora y responsable de Desarrollo de Negocio. Lidera la estrategia de\n  Aegora. LinkedIn: https://www.linkedin.com/in/angeladerueda/\n- **Gianluca Moranda**, asesor técnico. Asesora en el diseño e implementación de los sistemas de\n  Aegora. LinkedIn: https://www.linkedin.com/in/gianluca-moranda-b79a74142"
+    },
+    {
+      "sort": 18,
+      "active": true,
+      "title": "Contacto y enlaces",
+      "body": "- Email: equipo@aegora.es\n- Web: https://aegora.es\n- Reservar el diagnóstico gratuito: https://aegora.es/#reservar\n- Cómo funciona: https://aegora.es/como-funciona\n- WhatsApp para gestorías: https://aegora.es/whatsapp-para-gestorias\n- Seguridad y datos: https://aegora.es/seguridad-y-datos\n- Política de privacidad: https://aegora.es/politica-privacidad\n- Aviso legal: https://aegora.es/aviso-legal\n- Instagram: https://instagram.com/aegora.es"
+    }
+  ]
+}
