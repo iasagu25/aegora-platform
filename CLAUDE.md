@@ -1916,6 +1916,11 @@ cuatro gráficas. Decisiones:
   menú mezclaba "Citas" con "Appointment Resources". **Si se añade una colección o un campo,
   su traducción va en ese script**, nunca clicada en la UI: lo que se clica se pierde en el
   próximo tenant.
+- **La KB de cada tenant se mantiene en su panel, y solo ahí** (decidido 10/nov/2026). Un seed
+  (`directus/seed/*.json`, o `kb-desde-md.py` desde Markdown) sirve para la primera carga y nada
+  más: no actualiza secciones existentes, así que un fichero que se siguiera editando acabaría
+  contradiciendo al panel. Vale también para `ops` (la de Aegora), aunque la web diga cosas
+  parecidas: la KB habla en primera persona del plural ("te devolvemos"), la web es otro texto.
 - **KB en secciones — decidido (16/sep/2026), se mantienen.** Para el agente da igual:
   `LUCÍA · TOOL · Info` concatena las filas como `## título\nbody`, así que ya recibe un
   único documento. La diferencia es para quien la mantiene, y ahí ganan las secciones:

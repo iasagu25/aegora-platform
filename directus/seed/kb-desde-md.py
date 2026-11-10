@@ -7,9 +7,9 @@ Formato de entrada: cada `## Título` es una fila (`title`); su texto hasta el s
 es el `body` (Markdown, tal cual); `sort` es el orden en el fichero; `active` siempre true.
 Los comentarios HTML (`<!-- ... -->`) no se cargan.
 
-Existe porque la KB de Aegora (tenant `ops`) vive en el repo `aegora-web`, junto a los
-textos de la web que resume: un cambio en la web y en la KB se ven en el mismo commit. El
-VPS solo tiene este repo, así que aquí va el JSON GENERADO, que no se edita a mano.
+Sirve para una PRIMERA carga escrita en Markdown (así se hizo la de `ops`). Después de
+cargarla, la fuente única es el panel del tenant: el seed no actualiza filas que ya existen,
+así que mantener también el Markdown solo crearía dos versiones que acaban discrepando.
 """
 
 import json

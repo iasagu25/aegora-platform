@@ -1,10 +1,10 @@
 {
   "_nota": [
-    "GENERADO con directus/seed/kb-desde-md.py desde aegora-web/docs/kb/aegora-ops.md. No editar a mano:",
-    "se cambia el Markdown y se vuelve a generar.",
-    "load-seed.sh no modifica filas que ya existan (busca por título): un texto cambiado",
-    "en una sección que ya está cargada se actualiza en el panel, o se borra la fila y se",
-    "vuelve a cargar."
+    "CARGA INICIAL de la base de conocimiento de Aegora en el tenant `ops` (26/oct/2026),",
+    "generada una sola vez con directus/seed/kb-desde-md.py desde un borrador de la web.",
+    "Ya está cargada: desde entonces la fuente única es el panel de `ops`",
+    "(Información del negocio), como en cualquier cliente. Este fichero no se mantiene al día",
+    "y no hay que volver a cargarlo: solo sirve para reconstruir un tenant desde cero."
   ],
   "knowledge": [
     {
