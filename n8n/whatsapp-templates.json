@@ -232,6 +232,32 @@
           }
         ]
       }
+    },
+    {
+      "cuando": "Por teléfono el cliente pide que le mandemos algo que no se puede dictar (una dirección, un horario, un enlace). La manda la tool de voz enviar_por_whatsapp, siempre al número desde el que llama. Es UTILITY porque responde a una petición concreta del cliente; el contenido lo redacta el agente a partir de consultar_info, en una sola línea (Meta no admite saltos de línea en una variable).",
+      "variables": [
+        "de qué trata",
+        "la información, en una línea"
+      ],
+      "meta": {
+        "name": "aegora_info_llamada",
+        "language": "es",
+        "category": "UTILITY",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Hola, aquí tienes la información que nos pediste por teléfono sobre {{1}}:\n\n{{2}}\n\nSi tienes alguna duda, responde a este mensaje y te ayudamos.",
+            "example": {
+              "body_text": [
+                [
+                  "el horario y la dirección",
+                  "De lunes a viernes de 9:00 a 14:00 y de 16:00 a 19:00 · Calle Mayor 12, Madrid"
+                ]
+              ]
+            }
+          }
+        ]
+      }
     }
   ],
   "_retiradas": [

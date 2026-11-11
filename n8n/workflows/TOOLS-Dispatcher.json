@@ -77,7 +77,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Una sola puerta para las siete tools. Quien llama es una plataforma de voz\n// (Retell, ElevenLabs, la que sea), no el modelo: el modelo decide QUÉ tool y con\n// qué argumentos, pero DE PARTE DE QUIÉN lo decide el servidor.\n//\n// Esa es la misma regla que WhatsApp: el teléfono lo pone el canal y no se\n// pregunta nunca. Si algún día se cablea al revés, cualquiera que llame puede\n// operar sobre las citas de otro.\nconst cfg = $('Config (editar por tenant)').item.json;\nconst body = ($json.body ?? $json) || {};\n\nconst TOOLS = [\n  'consultar_disponibilidad', 'reservar_cita', 'consultar_info', 'mis_citas',\n  'cancelar_cita', 'reprogramar_cita', 'anotar_tarea',\n];\n\nconst limpio = (v) => (v === undefined || v === null) ? null : (String(v).trim() || null);\n\n// DOS DIALECTOS, LA MISMA REGLA.\n//  - El nuestro: { tool, args, identidad }. Lo usan las pruebas y cualquier\n//    cliente propio, que sí controla lo que envía.\n//  - El de Retell: { name, args, call }. En una custom function NO se puede\n//    plantillar el cuerpo -- solo se declara el esquema de lo que rellena el\n//    modelo --, así que la identidad no puede viajar en `identidad`: llega\n//    dentro de `call`, que lo pone la plataforma y no el LLM.\nconst llamada = (body.call && typeof body.call === 'object') ? body.call : {};\nconst identidad = (body.identidad && typeof body.identidad === 'object') ? body.identidad : {};\n\nconst tool = limpio(body.tool) || limpio(body.name);\nconst args = (body.args && typeof body.args === 'object') ? body.args : {};\n\n// El teléfono SIEMPRE del canal, NUNCA de `args`, aunque el modelo lo cuele ahí.\n// Orden: lo que manda un cliente propio, el número real de la llamada, y por\n// último las variables dinámicas -- que las fija quien CREA la llamada en el\n// servidor (webcall de pruebas), no el modelo.\nconst dinamicas = (llamada.retell_llm_dynamic_variables && typeof llamada.retell_llm_dynamic_variables === 'object')\n  ? llamada.retell_llm_dynamic_variables : {};\nconst metadatos = (llamada.metadata && typeof llamada.metadata === 'object') ? llamada.metadata : {};\n\nconst crudo = limpio(identidad.telefono)\n  || limpio(llamada.from_number)\n  || limpio(dinamicas.telefono)\n  || limpio(metadatos.telefono);\n\n\n// Un número español se dice y se teclea sin el 34 la mitad de las veces. En una\n// llamada de teléfono `from_number` viene en E.164, pero una variable dinámica,\n// un formulario o un webchat no: si eso entra tal cual, la clave del hilo cambia\n// (`voz:683187144` en vez de `voz:34683187144`) y el contacto guardado como\n// +34... deja de encontrarse. Pasó en demo y no dio ningún error: simplemente\n// nadie quedó enlazado.\n//\n// Regla explícita y deliberadamente estrecha: 9 dígitos que empiezan por 6, 7, 8\n// o 9 son un número español. Todo lo demás se deja como viene.\nconst aE164 = (digitos) => {\n  if (/^[6789]\\d{8}$/.test(digitos)) return `34${digitos}`;\n  return digitos;\n};\n\n// E.164 sin '+', igual que lo entrega WhatsApp, para que un mismo cliente sea el\n// mismo contacto llame o escriba.\nconst telefono = aE164((crudo || '').replace(/[^\\d]/g, '')) || null;\n\nlet error = null;\nif (!tool) error = 'falta_tool';\nelse if (!TOOLS.includes(tool)) error = 'herramienta_desconocida';\nelse if (!telefono) error = 'falta_identidad';\n\nreturn [{ json: {\n  _error: error,\n  tool: tool || '',\n  args,\n  telefono,\n  // Un hilo por número y canal, igual que en los adapters. Así una llamada y un\n  // WhatsApp del mismo cliente son conversaciones distintas pero el MISMO contacto.\n  session_key: limpio(identidad.session_key) || (`${cfg.canal || 'voz'}:${telefono}`),\n  canal: cfg.canal || 'voz',\n  directus_base_url: cfg.directus_base_url,\n  booking_base_url: cfg.booking_base_url,\n  tenant_timezone: cfg.tenant_timezone,\n} }];\n"
+        "jsCode": "// Una sola puerta para las ocho tools. Quien llama es una plataforma de voz\n// (Retell, ElevenLabs, la que sea), no el modelo: el modelo decide QUÉ tool y con\n// qué argumentos, pero DE PARTE DE QUIÉN lo decide el servidor.\n//\n// Esa es la misma regla que WhatsApp: el teléfono lo pone el canal y no se\n// pregunta nunca. Si algún día se cablea al revés, cualquiera que llame puede\n// operar sobre las citas de otro.\nconst cfg = $('Config (editar por tenant)').item.json;\nconst body = ($json.body ?? $json) || {};\n\nconst TOOLS = [\n  'consultar_disponibilidad', 'reservar_cita', 'consultar_info', 'mis_citas',\n  'cancelar_cita', 'reprogramar_cita', 'anotar_tarea', 'enviar_por_whatsapp',\n];\n\nconst limpio = (v) => (v === undefined || v === null) ? null : (String(v).trim() || null);\n\n// DOS DIALECTOS, LA MISMA REGLA.\n//  - El nuestro: { tool, args, identidad }. Lo usan las pruebas y cualquier\n//    cliente propio, que sí controla lo que envía.\n//  - El de Retell: { name, args, call }. En una custom function NO se puede\n//    plantillar el cuerpo -- solo se declara el esquema de lo que rellena el\n//    modelo --, así que la identidad no puede viajar en `identidad`: llega\n//    dentro de `call`, que lo pone la plataforma y no el LLM.\nconst llamada = (body.call && typeof body.call === 'object') ? body.call : {};\nconst identidad = (body.identidad && typeof body.identidad === 'object') ? body.identidad : {};\n\nconst tool = limpio(body.tool) || limpio(body.name);\nconst args = (body.args && typeof body.args === 'object') ? body.args : {};\n\n// El teléfono SIEMPRE del canal, NUNCA de `args`, aunque el modelo lo cuele ahí.\n// Orden: lo que manda un cliente propio, el número real de la llamada, y por\n// último las variables dinámicas -- que las fija quien CREA la llamada en el\n// servidor (webcall de pruebas), no el modelo.\nconst dinamicas = (llamada.retell_llm_dynamic_variables && typeof llamada.retell_llm_dynamic_variables === 'object')\n  ? llamada.retell_llm_dynamic_variables : {};\nconst metadatos = (llamada.metadata && typeof llamada.metadata === 'object') ? llamada.metadata : {};\n\nconst crudo = limpio(identidad.telefono)\n  || limpio(llamada.from_number)\n  || limpio(dinamicas.telefono)\n  || limpio(metadatos.telefono);\n\n\n// Un número español se dice y se teclea sin el 34 la mitad de las veces. En una\n// llamada de teléfono `from_number` viene en E.164, pero una variable dinámica,\n// un formulario o un webchat no: si eso entra tal cual, la clave del hilo cambia\n// (`voz:683187144` en vez de `voz:34683187144`) y el contacto guardado como\n// +34... deja de encontrarse. Pasó en demo y no dio ningún error: simplemente\n// nadie quedó enlazado.\n//\n// Regla explícita y deliberadamente estrecha: 9 dígitos que empiezan por 6, 7, 8\n// o 9 son un número español. Todo lo demás se deja como viene.\nconst aE164 = (digitos) => {\n  if (/^[6789]\\d{8}$/.test(digitos)) return `34${digitos}`;\n  return digitos;\n};\n\n// E.164 sin '+', igual que lo entrega WhatsApp, para que un mismo cliente sea el\n// mismo contacto llame o escriba.\nconst telefono = aE164((crudo || '').replace(/[^\\d]/g, '')) || null;\n\nlet error = null;\nif (!tool) error = 'falta_tool';\nelse if (!TOOLS.includes(tool)) error = 'herramienta_desconocida';\nelse if (!telefono) error = 'falta_identidad';\n\nreturn [{ json: {\n  _error: error,\n  tool: tool || '',\n  args,\n  telefono,\n  // Un hilo por número y canal, igual que en los adapters. Así una llamada y un\n  // WhatsApp del mismo cliente son conversaciones distintas pero el MISMO contacto.\n  session_key: limpio(identidad.session_key) || (`${cfg.canal || 'voz'}:${telefono}`),\n  canal: cfg.canal || 'voz',\n  directus_base_url: cfg.directus_base_url,\n  booking_base_url: cfg.booking_base_url,\n  tenant_timezone: cfg.tenant_timezone,\n} }];\n"
       },
       "id": "d0000003-0000-4000-8000-000000000003",
       "name": "Code · Validar",
@@ -259,6 +259,30 @@
               },
               "renameOutput": true,
               "outputKey": "anotar_tarea"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "sw-7",
+                    "leftValue": "={{ $json._error ? '' : $json.tool }}",
+                    "rightValue": "enviar_por_whatsapp",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "enviar_por_whatsapp"
             }
           ]
         },
@@ -540,7 +564,7 @@
       "typeVersion": 2,
       "position": [
         700,
-        560
+        700
       ]
     },
     {
@@ -560,7 +584,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Confirmación por WhatsApp de lo que se acaba de hacer POR TELÉFONO. Va después de\n// `Responder` a propósito: Retell ya tiene su respuesta y la voz no espera ni un\n// milisegundo a que salga el mensaje.\n//\n// Solo por voz: en WhatsApp Lucía lo acaba de confirmar en el mismo hilo, y mandar\n// una plantilla ahí sería decirlo dos veces. Y solo cuando la tool dice que SE HIZO\n// (`ok: true`) -- nunca un \"ya estaba reservada\", que ya tuvo su confirmación.\nconst v = $('Code · Validar').first().json;\nconst r = $('Code · Respuesta').first().json || {};\nconst PLANTILLA = {\n  reservada: 'aegora_cita_confirmada',\n  reprogramada: 'aegora_cita_confirmada',\n  cancelada: 'aegora_cita_anulada',\n};\nconst plantilla = PLANTILLA[r.motivo];\nif (v.canal !== 'voz' || r.ok !== true || !plantilla) {\n  return [{ json: { _confirmar: false, motivo: 'no_aplica', tool: v.tool, resultado: r.motivo || null } }];\n}\nconst c = r.cita || {};\n// Al reprogramar, la cita nueva no trae el servicio: está en la de antes.\nconst servicio = c.servicio || (r.antes && r.antes.servicio) || null;\nconst parametros = [servicio, c.fecha_label || c.fecha, c.hora];\nif (parametros.some((x) => !x)) {\n  // Mejor no mandar nada que una plantilla con un hueco. Queda escrito por qué.\n  return [{ json: { _confirmar: false, motivo: 'faltan_datos_de_la_cita', parametros } }];\n}\nreturn [{ json: { _confirmar: true, telefono: v.telefono, plantilla,\n  parametros: JSON.stringify(parametros), contact_id: r.contact_id || '' } }];"
+        "jsCode": "// Confirmación por WhatsApp de lo que se acaba de hacer POR TELÉFONO. Va después de\n// `Responder` a propósito: Retell ya tiene su respuesta y la voz no espera ni un\n// milisegundo a que salga el mensaje.\n//\n// Solo por voz: en WhatsApp Lucía lo acaba de confirmar en el mismo hilo, y mandar\n// una plantilla ahí sería decirlo dos veces. Y solo cuando la tool dice que SE HIZO\n// (`ok: true`) -- nunca un \"ya estaba reservada\", que ya tuvo su confirmación.\nconst v = $('Code · Validar').first().json;\nconst r = $('Code · Respuesta').first().json || {};\n\n// enviar_por_whatsapp: no es una confirmación, es la información que pidieron. Los\n// parámetros, ya aplanados, salen del nodo que los validó: así lo que se manda es\n// exactamente lo que se comprobó, sin volver a limpiar `args` aquí.\nif (v.tool === 'enviar_por_whatsapp') {\n  if (r.ok !== true) return [{ json: { _confirmar: false, motivo: 'no_aplica', tool: v.tool, resultado: r.motivo || null } }];\n  let p = null;\n  try { p = $('Code · enviar_por_whatsapp').first().json._parametros; } catch (e) { p = null; }\n  if (!Array.isArray(p) || p.some((x) => !x)) {\n    return [{ json: { _confirmar: false, motivo: 'faltan_datos_de_la_informacion' } }];\n  }\n  return [{ json: { _confirmar: true, telefono: v.telefono, plantilla: 'aegora_info_llamada',\n    parametros: JSON.stringify(p), contact_id: '' } }];\n}\nconst PLANTILLA = {\n  reservada: 'aegora_cita_confirmada',\n  reprogramada: 'aegora_cita_confirmada',\n  cancelada: 'aegora_cita_anulada',\n};\nconst plantilla = PLANTILLA[r.motivo];\nif (v.canal !== 'voz' || r.ok !== true || !plantilla) {\n  return [{ json: { _confirmar: false, motivo: 'no_aplica', tool: v.tool, resultado: r.motivo || null } }];\n}\nconst c = r.cita || {};\n// Al reprogramar, la cita nueva no trae el servicio: está en la de antes.\nconst servicio = c.servicio || (r.antes && r.antes.servicio) || null;\nconst parametros = [servicio, c.fecha_label || c.fecha, c.hora];\nif (parametros.some((x) => !x)) {\n  // Mejor no mandar nada que una plantilla con un hueco. Queda escrito por qué.\n  return [{ json: { _confirmar: false, motivo: 'faltan_datos_de_la_cita', parametros } }];\n}\nreturn [{ json: { _confirmar: true, telefono: v.telefono, plantilla,\n  parametros: JSON.stringify(parametros), contact_id: r.contact_id || '' } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -639,6 +663,19 @@
       "id": "aegora-td-wa3",
       "name": "Execute · WhatsApp plantilla",
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// enviar_por_whatsapp: lo que por teléfono no se puede dictar (una dirección, un horario,\n// un enlace) se manda por WhatsApp. Aquí solo se COMPRUEBA y se contesta a la plataforma de\n// voz; el envío sale después de `Responder`, sin hacer esperar a la llamada.\n//\n// Siempre al número desde el que llaman, que pone el canal: el modelo no elige\n// destinatario, ni aunque se lo pidan. Si pudiera, cualquiera que llame mandaría mensajes\n// nuestros, pagados por el negocio, a quien quisiera.\n//\n// Va como plantilla (`aegora_info_llamada`) porque quien llama casi nunca tiene abierta la\n// ventana de 24 h. Meta no admite saltos de línea, tabuladores ni 4+ espacios dentro de una\n// variable, así que el contenido se aplana a una línea con \" · \".\nconst v = $('Code · Validar').item.json;\nconst a = v.args || {};\n// Cada línea pierde su viñeta o número de lista y su markdown (en WhatsApp un `**` sale\n// tal cual), y las líneas se unen con \" · \".\nconst plano = (s, max) => {\n  let t = String(s ?? '').split(/[\\r\\n]+/)\n    .map((l) => l.replace(/\\t/g, ' ').replace(/\\*\\*|__|`/g, '').trim()\n      .replace(/^#+\\s*/, '').replace(/^([-•+*]|\\d+[.)])\\s+/, '').trim())\n    .filter(Boolean).join(' · ').replace(/\\s{2,}/g, ' ').trim();\n  if (t.length > max) t = t.slice(0, max - 1).replace(/\\s+\\S*$/, '') + '…';\n  return t;\n};\nconst tema = plano(a.tema, 60);\nconst contenido = plano(a.contenido, 700);\n\nconst fuera = (motivo, extra) => [{ json: { ok: false, motivo, ...(extra || {}) } }];\nif (v.canal !== 'voz') return fuera('solo_por_telefono');\n// Un fijo español no tiene WhatsApp: Meta lo rechazaría y el cliente se quedaría esperando.\nif (/^34[89]\\d{8}$/.test(v.telefono || '')) return fuera('telefono_fijo');\nconst falta = [!tema && 'tema', !contenido && 'contenido'].filter(Boolean);\nif (falta.length) return fuera('faltan_datos', { falta });\n\n// Tope por número y día. Cada envío lo paga el negocio, y un modelo convencido de que\n// \"no le ha llegado\" lo repetiría. Si el almacén estático no estuviera disponible, se\n// sigue sin tope: mejor eso que dejar sin la información a quien la pidió.\nconst TOPE = 3;\nlet limite = 'no_disponible';\ntry {\n  const st = $getWorkflowStaticData('global');\n  const hoy = DateTime.now().setZone(v.tenant_timezone || 'Europe/Madrid').toISODate();\n  const previo = (st.envios_whatsapp && st.envios_whatsapp.dia === hoy) ? st.envios_whatsapp.cuenta : {};\n  const n = previo[v.telefono] || 0;\n  if (n >= TOPE) return fuera('demasiados_envios', { tope: TOPE });\n  st.envios_whatsapp = { dia: hoy, cuenta: { ...previo, [v.telefono]: n + 1 } };\n  limite = `${n + 1}/${TOPE}`;\n} catch (e) { limite = 'no_disponible'; }\n\nreturn [{ json: { ok: true, motivo: 'enviando', destino: 'el mismo número desde el que llama',\n  tema, _parametros: [tema, contenido], _limite: limite } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        560
+      ],
+      "id": "aegora-td-enviar-wa",
+      "name": "Code · enviar_por_whatsapp"
     }
   ],
   "connections": {
@@ -722,6 +759,13 @@
         [
           {
             "node": "Execute · anotar_tarea",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · enviar_por_whatsapp",
             "type": "main",
             "index": 0
           }
@@ -866,6 +910,17 @@
           }
         ],
         []
+      ]
+    },
+    "Code · enviar_por_whatsapp": {
+      "main": [
+        [
+          {
+            "node": "Code · Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },

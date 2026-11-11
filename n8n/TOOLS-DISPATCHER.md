@@ -82,6 +82,7 @@ si viene en `args`.
 | `cancelar_cita` | `fecha`, `hora` |
 | `consultar_disponibilidad` | `fecha`, `fecha_hasta`, `franja`, `servicio`, `profesional` |
 | `consultar_info` | `pregunta` |
+| `enviar_por_whatsapp` | `tema`, `contenido` |
 | `mis_citas` | — |
 | `reprogramar_cita` | `fecha`, `hora`, `fecha_nueva`, `hora_nueva` |
 | `reservar_cita` | `fecha`, `hora`, `servicio`, `profesional`, `nombre`, `empresa` |
@@ -131,7 +132,27 @@ Después de `Responder` -- con la respuesta ya entregada a la plataforma de voz 
 | `reservar_cita` → `ok: true, motivo: reservada` | `aegora_cita_confirmada` |
 | `reprogramar_cita` → `ok: true, motivo: reprogramada` | `aegora_cita_confirmada` (servicio de `antes`, día y hora de `cita`) |
 | `cancelar_cita` → `ok: true, motivo: cancelada` | `aegora_cita_anulada` |
+| `enviar_por_whatsapp` → `ok: true, motivo: enviando` | `aegora_info_llamada` (`[tema, contenido]`) |
 | cualquier otra cosa, o `canal` distinto de `voz` | nada (`no_aplica`) |
 
 Parámetros: `[servicio, fecha_label, hora]`. Si falta alguno no se envía nada y la
 ejecución dice por qué.
+
+## `enviar_por_whatsapp` (11/nov/2026)
+
+Lo que por teléfono no se dicta (una dirección, un horario, un enlace) se manda con la
+plantilla `aegora_info_llamada`, porque quien llama casi nunca tiene abierta la ventana de
+24 h. `Code · enviar_por_whatsapp` solo comprueba y contesta; el envío sale después de
+`Responder`, por el mismo camino que las confirmaciones.
+
+- **Siempre al número de la llamada.** El modelo no elige destinatario: si pudiera,
+  cualquiera que llame mandaría mensajes nuestros, pagados por el negocio, a quien quisiera.
+- Solo `canal: voz` (`solo_por_telefono`). Un fijo español da `telefono_fijo`.
+- **Tope de 3 por número y día** (`demasiados_envios`), en el almacén estático del
+  workflow, que solo persiste en ejecuciones de producción. Si no estuviera disponible se
+  sigue sin tope (`_limite: no_disponible` en la respuesta).
+- El contenido se aplana a una línea: Meta no admite saltos de línea, tabuladores ni 4+
+  espacios en una variable. Se quitan viñetas y markdown y las líneas se unen con " · ".
+  Máximo 60 caracteres el tema y 700 el contenido.
+- `ok: true` significa que **se va a enviar**, no que Meta lo haya aceptado: si falla,
+  queda `fallido` en la bandeja, como cualquier plantilla.

@@ -1173,6 +1173,18 @@ reintenta solo**, igual que en `HUMANO · Enviar pendientes`. Un tenant sin
 rompe nada, pero el prompt de voz NO debe prometer la confirmación hasta que estén
 aprobadas: es el mismo fallo que las tools que no existían.
 
+**"Mándamelo por WhatsApp" (11/nov/2026, en prueba en `dev`).** Octava tool de voz,
+`enviar_por_whatsapp(tema, contenido)`: lo que no se puede dictar (dirección, horario,
+enlace) sale con la plantilla `aegora_info_llamada`, porque quien llama casi nunca tiene la
+ventana de 24 h abierta. **Siempre al número de la llamada** -- el modelo no elige
+destinatario --, solo por voz, nunca a un fijo, y como mucho 3 por número y día. El
+contenido lo copia el agente de `consultar_info` y se aplana a una línea (Meta no admite
+saltos de línea en una variable). Detalle en `n8n/TOOLS-DISPATCHER.md`. Sirve también
+para lo que estaba pendiente de mandar la política de privacidad: es "información que
+pidió", con el enlace dentro. **Hasta que Meta apruebe la plantilla, el prompt de voz la
+nombra pero los envíos salen `fallido`**: dar de alta la función en Retell después de la
+aprobación, no antes.
+
 ### VIP y números bloqueados: se decide ANTES de descolgar (25/sep/2026)
 `VOZ · Llamada entrante` (`POST /webhook/retell-inbound`) es el *inbound webhook* de Retell.
 Bloqueado (`numeros_bloqueados`) -> se rechaza. `contacts.trato = vip` con `gestor_id`
