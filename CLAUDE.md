@@ -1212,6 +1212,24 @@ Decisiones:
 - El `Execute Workflow` va con **`mode: each`**. Por defecto manda todos los items a UNA
   ejecución del sub-workflow, que lee uno solo: con tres empleados le llegaría al primero.
 
+### Aviso al equipo cuando Lucía anota una tarea (11/nov/2026, en prueba en `dev`)
+Hasta aquí, lo que Lucía no podía resolver acababa en una tarea que **nadie veía hasta abrir
+el panel**: sin aviso, y fuera del resumen de las 8:00 si no estaba asignada (que es lo
+normal: solo se asigna cuando el cliente nombra a alguien). Ahora `anotar_tarea`
+(`LUCIA-TOOL-Tarea`) lanza `AVISO · Tarea al equipo` en cuanto 19 crea la tarea, **sin
+esperar** (ni el turno del chat ni una llamada pagan el envío), y manda la plantilla
+`aegora_aviso_tarea`: quién, por qué canal y el asunto.
+- **A quién**: a la persona asignada si recibe avisos; si no hay nadie asignado o esa
+  persona no los recibe, **a todos los que los reciben**. "Recibir avisos" es el mismo
+  interruptor que el resumen (`employees.whatsapp_notifications` + activo + teléfono): no
+  hay ajuste nuevo. Mejor uno de más que nadie.
+- **El resumen de las 8:00 cuenta ahora también las tareas sin asignar**, para todos.
+- Vale para WhatsApp, webchat y voz (el despachador llama a la misma tool). El Core v1 no
+  avisa: crea las tareas por 19 directamente.
+- `Code · Salida` tiene que seguir siendo **el último nodo** de la tool: lo que devuelve es
+  lo que recibe el agente. Por eso el aviso va DELANTE de él y no detrás.
+- Si una consulta a Directus falla, el aviso falla a la vista, como el resumen.
+
 **Hueco conocido, a propósito:** si el empleado CONTESTA a la plantilla, su mensaje entra
 por el adapter de WhatsApp como si fuera un cliente y le responde Lucía. No rompe nada, pero
 es feo. La siguiente fase es reconocer los teléfonos de los empleados en el adapter y

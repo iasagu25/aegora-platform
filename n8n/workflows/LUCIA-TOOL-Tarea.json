@@ -251,14 +251,14 @@
     },
     {
       "parameters": {
-        "jsCode": "// Por nombre y no por $json: aquí se llega por tres caminos (19 a la primera, 19 tras el\n// alta, o el alta fallida).\nconst altaHecha = $('Execute · 01 Contact Upsert').isExecuted;\nconst alta = altaHecha ? ($('Execute · 01 Contact Upsert').first().json ?? {}) : null;\nconst r = $('Execute · 19 Task Create (tras alta)').isExecuted\n  ? ($('Execute · 19 Task Create (tras alta)').first().json ?? {})\n  : ($('Execute · 19 Task Create').first().json ?? {});\nconst inp = $('Code · Entrada').first().json;\nconst asg = $('Code · Resolver empleado').first().json;\nconst tarea = { asunto: inp.asunto, prioridad: inp.priority,\n                fecha_limite_label: inp.fecha_limite_label,\n                asignada_a: asg.asignada_a || null,\n                asignacion: asg.asignacion,\n                candidatos: asg.candidatos || undefined };\nif (alta && alta.status !== 'resolved') {\n  return [{ json: { ok: false, motivo: alta.status === 'ambiguous' ? 'contacto_ambiguo' : 'error_tarea',\n    detalle: alta.message || null } }];\n}\nif (r.ok === true) {\n  return [{ json: { ok: true, motivo: 'anotada', tarea, telefono_usado: inp.telefono } }];\n}\nconst st = r.status || 'error';\nif (st === 'not_found') {\n  // El contacto no existe y no tenemos nombre para darlo de alta: se pide, con la empresa\n  // en el mismo mensaje si el tenant la quiere.\n  const falta = ['nombre'];\n  if (inp.pedir_empresa && !inp.empresa && !inp.sin_empresa) falta.push('empresa');\n  return [{ json: { ok: false, motivo: 'falta_identidad', falta } }];\n}\nif (st === 'multiple') return [{ json: { ok: false, motivo: 'contacto_ambiguo',\n  detalle: r.message || null } }];\nreturn [{ json: { ok: false, motivo: 'error_tarea',\n  status_origen: st, detalle: r.message || null } }];"
+        "jsCode": "// Por nombre y no por $json: aquí se llega por varios caminos (19 a la primera, 19 tras el\n// alta, el alta fallida, y detrás del aviso al equipo). TIENE que ser el último nodo que\n// se ejecuta: lo que devuelve es lo que recibe el agente.\nconst altaHecha = $('Execute · 01 Contact Upsert').isExecuted;\nconst alta = altaHecha ? ($('Execute · 01 Contact Upsert').first().json ?? {}) : null;\nconst r = $('Execute · 19 Task Create (tras alta)').isExecuted\n  ? ($('Execute · 19 Task Create (tras alta)').first().json ?? {})\n  : ($('Execute · 19 Task Create').first().json ?? {});\nconst inp = $('Code · Entrada').first().json;\nconst asg = $('Code · Resolver empleado').first().json;\nconst tarea = { asunto: inp.asunto, prioridad: inp.priority,\n                fecha_limite_label: inp.fecha_limite_label,\n                asignada_a: asg.asignada_a || null,\n                asignacion: asg.asignacion,\n                candidatos: asg.candidatos || undefined };\nif (alta && alta.status !== 'resolved') {\n  return [{ json: { ok: false, motivo: alta.status === 'ambiguous' ? 'contacto_ambiguo' : 'error_tarea',\n    detalle: alta.message || null } }];\n}\nif (r.ok === true) {\n  return [{ json: { ok: true, motivo: 'anotada', tarea, telefono_usado: inp.telefono } }];\n}\nconst st = r.status || 'error';\nif (st === 'not_found') {\n  // El contacto no existe y no tenemos nombre para darlo de alta: se pide, con la empresa\n  // en el mismo mensaje si el tenant la quiere.\n  const falta = ['nombre'];\n  if (inp.pedir_empresa && !inp.empresa && !inp.sin_empresa) falta.push('empresa');\n  return [{ json: { ok: false, motivo: 'falta_identidad', falta } }];\n}\nif (st === 'multiple') return [{ json: { ok: false, motivo: 'contacto_ambiguo',\n  detalle: r.message || null } }];\nreturn [{ json: { ok: false, motivo: 'error_tarea',\n  status_origen: st, detalle: r.message || null } }];"
       },
       "id": "t-0005",
       "name": "Code · Salida",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1940,
+        2600,
         -120
       ]
     },
@@ -681,6 +681,86 @@
         1720,
         -360
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ¿Hay tarea nueva de la que avisar al equipo? Solo si 19 la creó de verdad, por\n// cualquiera de los dos caminos (a la primera o tras dar de alta al contacto).\n// Por nombre y no por $json: aquí se llega por tres caminos distintos.\nconst r = $('Execute · 19 Task Create (tras alta)').isExecuted\n  ? ($('Execute · 19 Task Create (tras alta)').first().json ?? {})\n  : ($('Execute · 19 Task Create').first().json ?? {});\n// 19 envuelve la respuesta de 02: { ok, data: { task: { status, task: {id…} } } }.\nconst t = (r.data && r.data.task) || {};\nconst task_id = (r.ok === true && ((t.task && t.task.id) || t.id)) || '';\nconst canal = ($('When Executed by Agent').first().json || {}).canal || '';\nreturn [{ json: { task_id: String(task_id), canal: String(canal) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1940,
+        -360
+      ],
+      "id": "aegora-lt-av1",
+      "name": "Code · ¿Avisar al equipo?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "lt-av2",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.task_id }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2160,
+        -360
+      ],
+      "id": "aegora-lt-av2",
+      "name": "¿Tarea creada?"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraAvisoTarea",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "task_id": "={{ $json.task_id }}",
+            "canal": "={{ $json.canal }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2380,
+        -460
+      ],
+      "id": "aegora-lt-av3",
+      "name": "Execute · Aviso al equipo",
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -790,7 +870,7 @@
         ],
         [
           {
-            "node": "Code · Salida",
+            "node": "Code · ¿Avisar al equipo?",
             "type": "main",
             "index": 0
           }
@@ -819,7 +899,7 @@
         ],
         [
           {
-            "node": "Code · Salida",
+            "node": "Code · ¿Avisar al equipo?",
             "type": "main",
             "index": 0
           }
@@ -827,6 +907,46 @@
       ]
     },
     "Execute · 19 Task Create (tras alta)": {
+      "main": [
+        [
+          {
+            "node": "Code · ¿Avisar al equipo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · ¿Avisar al equipo?": {
+      "main": [
+        [
+          {
+            "node": "¿Tarea creada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Tarea creada?": {
+      "main": [
+        [
+          {
+            "node": "Execute · Aviso al equipo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · Aviso al equipo": {
       "main": [
         [
           {

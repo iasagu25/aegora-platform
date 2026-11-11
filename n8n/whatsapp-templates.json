@@ -204,6 +204,34 @@
           }
         ]
       }
+    },
+    {
+      "cuando": "Aviso a un EMPLEADO (no a un cliente) de que Lucía acaba de anotar una tarea: algo que pidió un cliente y que ella no podía resolver. Va a quien la tenga asignada y, si no hay nadie, a todos los que reciben avisos (employees.whatsapp_notifications). Es de utilidad porque se refiere a una petición concreta de un cliente. La dispara AVISO · Tarea al equipo.",
+      "variables": [
+        "cliente (nombre y empresa, o 'un cliente')",
+        "canal: WhatsApp, teléfono o el chat de la web",
+        "asunto de la tarea"
+      ],
+      "meta": {
+        "name": "aegora_aviso_tarea",
+        "language": "es",
+        "category": "UTILITY",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Lucía ha anotado una tarea nueva de {{1}}, que contactó por {{2}}:\n\n{{3}}\n\nLa tienes en el panel, en Tareas. Cuando esté resuelta, márcala como hecha.",
+            "example": {
+              "body_text": [
+                [
+                  "Ana García (Gestoría García)",
+                  "WhatsApp",
+                  "Enviar presupuesto de la declaración de la renta"
+                ]
+              ]
+            }
+          }
+        ]
+      }
     }
   ],
   "_retiradas": [

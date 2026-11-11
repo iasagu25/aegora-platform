@@ -1,0 +1,271 @@
+{
+  "id": "aegoraAvisoTarea",
+  "name": "AVISO · Tarea al equipo",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "task_id"
+            },
+            {
+              "name": "canal"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -700,
+        0
+      ],
+      "id": "aegora-at-01",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "at1",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "__DIRECTUS_BASE_URL__"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -480,
+        0
+      ],
+      "id": "aegora-at-02",
+      "name": "Config (editar por tenant)"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Config (editar por tenant)').first().json.directus_base_url }}/items/tasks/{{ $('When Executed by Another Workflow').first().json.task_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ fields: 'id,title,priority,assignee_id,contact_id.first_name,contact_id.last_name,contact_id.company' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -260,
+        0
+      ],
+      "id": "aegora-at-03",
+      "name": "HTTP · Tarea",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Config (editar por tenant)').first().json.directus_base_url }}/items/employees",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ filter: JSON.stringify({ status: { _eq: 'active' }, whatsapp_notifications: { _eq: true } }), fields: 'id,first_name,phone,phone_normalized', limit: -1 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -40,
+        0
+      ],
+      "id": "aegora-at-04",
+      "name": "HTTP · Empleados",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// A quién se avisa de una tarea que Lucía acaba de anotar.\n//\n// Regla: a quien la tenga asignada, si recibe avisos por WhatsApp. Si no está asignada a\n// nadie -- lo normal: solo se asigna cuando el cliente nombra a alguien -- o esa persona\n// no recibe avisos, a TODOS los que los reciben. Mejor que se entere uno de más que nadie:\n// el problema que esto resuelve es una petición que se queda sin contestar.\n//\n// \"Recibe avisos\" es el mismo interruptor que el resumen de las 8:00\n// (employees.whatsapp_notifications), activo y con teléfono. No hay otro ajuste.\n//\n// Si una consulta a Directus falla, se falla A LA VISTA (como en el resumen): no avisar\n// porque un 403 devolvió una lista vacía es justo el silencio que esto viene a quitar.\nconst lista = (nombre, uno) => {\n  const r = $(nombre).first().json || {};\n  const code = r.statusCode || 0;\n  if (code < 200 || code >= 300) {\n    const msg = (r.body && r.body.errors && r.body.errors[0] && r.body.errors[0].message) || code;\n    throw new Error(`${nombre}: Directus devolvió ${code} (${msg})`);\n  }\n  return uno ? ((r.body && r.body.data) || null) : ((r.body && r.body.data) || []);\n};\nconst tarea = lista('HTTP · Tarea', true);\nconst empleados = lista('HTTP · Empleados', false);\nconst entrada = $('When Executed by Another Workflow').first().json || {};\n\nif (!tarea) return [{ json: { _nadie: true, motivo: 'tarea_no_encontrada' } }];\n\n// Meta rechaza en una variable saltos de línea, tabuladores y más de 4 espacios seguidos,\n// y una variable vacía. Se aplana y se recorta.\nconst plano = (v, max) => {\n  const s = (v === undefined || v === null ? '' : String(v)).replace(/\\s+/g, ' ').trim();\n  return s.length > max ? s.slice(0, max - 1).trimEnd() + '…' : s;\n};\n\nconst c = (tarea.contact_id && typeof tarea.contact_id === 'object') ? tarea.contact_id : {};\nconst nombre = [c.first_name, c.last_name].filter(Boolean).join(' ');\nconst empresa = (c.company || '').trim();\nconst cliente = plano(nombre ? (empresa ? `${nombre} (${empresa})` : nombre) : (empresa || 'un cliente'), 80);\n\nconst CANALES = { whatsapp: 'WhatsApp', voz: 'teléfono', webchat: 'el chat de la web' };\nconst canal = CANALES[String(entrada.canal || '').toLowerCase()] || 'mensaje';\n\nconst asunto = plano(tarea.title, 200) || 'tarea sin título';\n\nconst conAvisos = empleados.filter((e) => e.phone_normalized || e.phone);\nconst asignado = tarea.assignee_id\n  ? conAvisos.find((e) => e.id === (typeof tarea.assignee_id === 'object' ? tarea.assignee_id.id : tarea.assignee_id))\n  : null;\nconst destinatarios = asignado ? [asignado] : conAvisos;\n\nif (!destinatarios.length) {\n  return [{ json: { _nadie: true, motivo: 'nadie_recibe_avisos',\n    detalle: 'Ningún empleado activo tiene \"whatsapp_notifications\" y teléfono.' } }];\n}\nreturn destinatarios.map((e) => ({ json: {\n  telefono: e.phone_normalized || e.phone,\n  plantilla: 'aegora_aviso_tarea',\n  parametros: JSON.stringify([cliente, canal, asunto]),\n  contact_id: '',\n  _empleado: e.first_name || e.id,\n  _por: asignado ? 'asignada' : 'todos',\n} }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        180,
+        0
+      ],
+      "id": "aegora-at-05",
+      "name": "Code · Destinatarios"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "at6",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json._nadie === true }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        400,
+        0
+      ],
+      "id": "aegora-at-06",
+      "name": "¿Hay a quién?"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraWhatsappPlantilla",
+          "mode": "id"
+        },
+        "mode": "each",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "telefono": "={{ $json.telefono }}",
+            "plantilla": "={{ $json.plantilla }}",
+            "parametros": "={{ $json.parametros }}",
+            "contact_id": "={{ $json.contact_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        620,
+        -100
+      ],
+      "id": "aegora-at-07",
+      "name": "Execute · WhatsApp plantilla",
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Tarea",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Tarea": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Empleados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Empleados": {
+      "main": [
+        [
+          {
+            "node": "Code · Destinatarios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Destinatarios": {
+      "main": [
+        [
+          {
+            "node": "¿Hay a quién?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay a quién?": {
+      "main": [
+        [
+          {
+            "node": "Execute · WhatsApp plantilla",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all"
+  }
+}
