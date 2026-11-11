@@ -1,0 +1,389 @@
+{
+  "id": "aegoraRecordatorioCitas",
+  "name": "RECORDATORIO · Citas de mañana",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 10 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -700,
+        0
+      ],
+      "id": "aegora-rc-01",
+      "name": "Cada día a las 10:00"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c1",
+              "name": "tenant",
+              "type": "string",
+              "value": "__TENANT_ID__"
+            },
+            {
+              "id": "c2",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "__DIRECTUS_BASE_URL__"
+            },
+            {
+              "id": "c3",
+              "name": "tenant_timezone",
+              "type": "string",
+              "value": "Europe/Madrid"
+            },
+            {
+              "id": "c4",
+              "name": "recordatorio_citas",
+              "type": "string",
+              "value": "__RECORDATORIO_CITAS__"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -480,
+        0
+      ],
+      "id": "aegora-rc-02",
+      "name": "Config (editar por tenant)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// \"Mañana\" es el día siguiente en la zona del negocio, no en UTC: a las 10:00 de Madrid\n// son las 9:00 (o las 8:00) en UTC, y un día calculado en UTC se come o se inventa las\n// citas de la primera y la última hora.\nconst c = $json;\nconst tz = c.tenant_timezone || 'Europe/Madrid';\nconst ahora = DateTime.now().setZone(tz);\nconst manana = ahora.plus({ days: 1 });\n// El ajuste llega como texto desde tenant.env. Solo un \"true\" explícito lo enciende:\n// mandar mensajes de pago a clientes reales no puede depender de una lectura laxa.\nconst activo = String(c.recordatorio_citas || '').trim().toLowerCase() === 'true';\nreturn [{ json: { ...c, tz, activo,\n  desde: manana.startOf('day').toUTC().toISO(),\n  hasta: manana.endOf('day').toUTC().toISO(),\n  hoy_desde: ahora.startOf('day').toUTC().toISO(),\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -260,
+        0
+      ],
+      "id": "aegora-rc-03",
+      "name": "Code · Mañana"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "a1",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.activo === true }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -40,
+        0
+      ],
+      "id": "aegora-rc-04",
+      "name": "¿Activado?"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Code · Mañana').first().json.directus_base_url }}/items/appointments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ filter: JSON.stringify({ start_at: { _between: [$('Code · Mañana').first().json.desde, $('Code · Mañana').first().json.hasta] }, status: { _in: ['scheduled', 'confirmed'] } }), fields: 'id,start_at,created_at,contact_id.id,contact_id.first_name,contact_id.phones.phone_normalized,contact_id.phones.phone_number,contact_id.phones.is_primary,contact_id.phones.can_whatsapp', sort: 'start_at', limit: -1 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        180,
+        -100
+      ],
+      "id": "aegora-rc-05",
+      "name": "HTTP · Citas de mañana",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Code · Mañana').first().json.directus_base_url }}/items/conversation_messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ filter: JSON.stringify({ created_at: { _gte: $('Code · Mañana').first().json.hoy_desde }, canal: { _eq: 'whatsapp' }, direccion: { _eq: 'saliente' }, texto: { _contains: 'te recordamos tu cita' } }), fields: 'texto,estado_envio,session_id.session_key', limit: -1 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        400,
+        -100
+      ],
+      "id": "aegora-rc-06",
+      "name": "HTTP · Recordatorios de hoy",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Un recordatorio POR CITA de mañana, al teléfono del cliente. Lo que no se manda\n// queda en `_omitidos` con su motivo: es lo que se mira cuando alguien dice \"a mí no\n// me llegó\".\nconst h = $('Code · Mañana').first().json;\nconst tz = h.tz;\n\n// Si una consulta falla, esto falla A LA VISTA. Con la lista de mensajes de hoy vacía\n// por un 403, una segunda pasada mandaría otra vez todos los recordatorios.\nconst lista = (nombre) => {\n  const r = $(nombre).first().json || {};\n  const code = r.statusCode || 0;\n  if (code < 200 || code >= 300) {\n    const msg = (r.body && r.body.errors && r.body.errors[0] && r.body.errors[0].message) || code;\n    throw new Error(`${nombre}: Directus devolvió ${code} (${msg})`);\n  }\n  return (r.body && r.body.data) || [];\n};\nconst citas = lista('HTTP · Citas de mañana');\nconst yaHoy = lista('HTTP · Recordatorios de hoy');\n\nconst limpio = (v) => (v === undefined || v === null) ? '' : String(v).trim();\nconst digitos = (v) => limpio(v).replace(/[^\\d]/g, '');\n// Mismo criterio que el resto: 9 dígitos que empiezan por 6/7/8/9 son españoles sin el 34.\nconst aE164 = (d) => (/^[6789]\\d{8}$/.test(d) ? `34${d}` : d);\n// Un fijo español (34 8xx / 34 9xx) no tiene WhatsApp. Si la ficha no dice lo\n// contrario (`can_whatsapp`), no se intenta: Meta lo rechazaría igual.\nconst esFijoEs = (d) => /^34[89]\\d{8}$/.test(d);\n\nconst telefonoDe = (contacto) => {\n  const tels = ((contacto && contacto.phones) || [])\n    .map((p) => ({ ...p, _d: aE164(digitos(p.phone_normalized || p.phone_number)) }))\n    .filter((p) => p._d);\n  const orden = (p) => (p.can_whatsapp === true ? 0 : 2) + (p.is_primary === true ? 0 : 1);\n  const validos = tels.filter((p) => p.can_whatsapp === true || !esFijoEs(p._d))\n    .sort((a, b) => orden(a) - orden(b));\n  return validos.length ? validos[0]._d : '';\n};\n\n// Lo que ya salió HOY, para que una segunda pasada (una ejecución a mano, un reinicio a\n// la hora justa) no mande dos veces lo mismo. Se reconoce por hilo + \"tu cita del <día>\n// a las <hora>\", que es el texto que WHATSAPP · Enviar plantilla guarda: si la cita se\n// movió, el texto es otro y sí toca recordarla. Solo cuentan los `enviado`: un envío\n// fallido (p. ej. plantilla aún sin aprobar) se puede repetir a mano el mismo día.\nconst enviados = new Set(yaHoy\n  .filter((m) => m.estado_envio === 'enviado')\n  .map((m) => `${(m.session_id && m.session_id.session_key) || ''}|${limpio(m.texto)}`));\nconst yaEnviado = (tel, frase) => [...enviados].some((k) =>\n  k.startsWith(`whatsapp:${tel}|`) && k.includes(frase));\n\nconst hoyDesde = DateTime.fromISO(h.hoy_desde);\nconst salida = [];\nconst omitidos = [];\nfor (const a of citas) {\n  const ct = (a.contact_id && typeof a.contact_id === 'object') ? a.contact_id : null;\n  const inicio = DateTime.fromISO(a.start_at).setZone(tz).setLocale('es');\n  const dia = inicio.toFormat(\"cccc d 'de' LLLL\");\n  const hora = inicio.toFormat('HH:mm');\n  const base = { cita: a.id, hora };\n  if (!ct) { omitidos.push({ ...base, motivo: 'sin_contacto' }); continue; }\n  // Pedida hoy para mañana: el cliente acaba de hablar con nosotros y tiene su\n  // confirmación de hace unas horas. Un recordatorio ahí es ruido, y se paga.\n  if (a.created_at && DateTime.fromISO(a.created_at) >= hoyDesde) {\n    omitidos.push({ ...base, motivo: 'reservada_hoy' }); continue;\n  }\n  // La plantilla empieza por \"Hola {{1}}\" y Meta no admite un parámetro vacío.\n  const nombre = limpio(ct.first_name);\n  if (!nombre) { omitidos.push({ ...base, motivo: 'sin_nombre' }); continue; }\n  const telefono = telefonoDe(ct);\n  if (!telefono) { omitidos.push({ ...base, motivo: 'sin_movil' }); continue; }\n  if (yaEnviado(telefono, `tu cita del ${dia} a las ${hora}`)) {\n    omitidos.push({ ...base, motivo: 'ya_enviado_hoy' }); continue;\n  }\n  salida.push({ json: {\n    cita: a.id,\n    telefono,\n    plantilla: 'aegora_recordatorio_cita',\n    parametros: JSON.stringify([nombre, dia, hora]),\n    contact_id: ct.id,\n  } });\n}\n\nif (!salida.length) {\n  return [{ json: { _nadie: true, citas: citas.length, omitidos } }];\n}\nsalida[0].json._omitidos = omitidos;\nreturn salida;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        -100
+      ],
+      "id": "aegora-rc-07",
+      "name": "Code · Recordatorios"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "q1",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json._nadie === true }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        840,
+        -100
+      ],
+      "id": "aegora-rc-08",
+      "name": "¿Hay a quién?"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraWhatsappPlantilla",
+          "mode": "id"
+        },
+        "mode": "each",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "telefono": "={{ $json.telefono }}",
+            "plantilla": "={{ $json.plantilla }}",
+            "parametros": "={{ $json.parametros }}",
+            "contact_id": "={{ $json.contact_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1060,
+        -200
+      ],
+      "id": "aegora-rc-09",
+      "name": "Execute · WhatsApp plantilla",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Una línea que diga qué ha pasado: cuántos recordatorios salieron, cuáles fallaron\n// y cuáles no se intentaron y por qué.\nconst items = $input.all().map((i) => i.json);\nif (items.length === 1 && items[0]._nadie) {\n  return [{ json: { enviados: 0, fallidos: [], citas: items[0].citas, omitidos: items[0].omitidos } }];\n}\nlet omitidos = [];\ntry { omitidos = $('Code · Recordatorios').first().json._omitidos || []; } catch (e) { omitidos = []; }\nreturn [{ json: {\n  enviados: items.filter((x) => x.enviado).length,\n  fallidos: items.filter((x) => !x.enviado).map((x) => x.error || x.motivo || 'desconocido'),\n  omitidos,\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        -100
+      ],
+      "id": "aegora-rc-10",
+      "name": "Code · Balance"
+    }
+  ],
+  "connections": {
+    "Cada día a las 10:00": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "Code · Mañana",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Mañana": {
+      "main": [
+        [
+          {
+            "node": "¿Activado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Activado?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Citas de mañana",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "HTTP · Citas de mañana": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Recordatorios de hoy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Recordatorios de hoy": {
+      "main": [
+        [
+          {
+            "node": "Code · Recordatorios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Recordatorios": {
+      "main": [
+        [
+          {
+            "node": "¿Hay a quién?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay a quién?": {
+      "main": [
+        [
+          {
+            "node": "Execute · WhatsApp plantilla",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Balance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · WhatsApp plantilla": {
+      "main": [
+        [
+          {
+            "node": "Code · Balance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Madrid",
+    "saveDataErrorExecution": "all"
+  }
+}

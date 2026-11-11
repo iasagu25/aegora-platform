@@ -36,7 +36,7 @@
   ],
   "plantillas": [
     {
-      "cuando": "Recordatorio de una cita próxima. Lo mandará el aviso programado; la respuesta del cliente reabre la ventana de 24 h y a partir de ahí conversa Lucía con normalidad.",
+      "cuando": "Recordatorio de la cita del día siguiente. Lo manda RECORDATORIO · Citas de mañana a las 10:00 (solo con RECORDATORIO_CITAS=true en el tenant); la respuesta del cliente reabre la ventana de 24 h y a partir de ahí conversa Lucía con normalidad.",
       "variables": [
         "nombre del cliente",
         "día en texto",

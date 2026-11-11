@@ -110,6 +110,10 @@ AJUSTES_TENANT = {
     # Por defecto `*`, como hasta ahora; un tenant con el chat en una web pública pone aquí
     # sus dominios (`ops`: los de aegora.es).
     "allowed_origins": ("__WEBCHAT_ORIGENES__", "WEBCHAT_ORIGENES", "*"),
+    # Recordatorio por WhatsApp la víspera de cada cita (`RECORDATORIO · Citas de mañana`).
+    # Apagado por defecto: son mensajes de pago a clientes reales, y un tenant con datos
+    # de demostración no debe escribir a nadie. Solo "true" lo enciende.
+    "recordatorio_citas": ("__RECORDATORIO_CITAS__", "RECORDATORIO_CITAS", "false"),
 }
 
 # Formas que delatan un secreto aunque el campo no esté en la lista de arriba.

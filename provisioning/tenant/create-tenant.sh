@@ -817,6 +817,9 @@ write_env "$TENANT_ENV" "ENVIRONMENT" "production"
 # `pedir_empresa`: en una gestoría a los clientes se los conoce por su empresa y
 # una ficha sin ella no sirve de mucho; en una peluquería sobra.
 write_env "$TENANT_ENV" "CONTACTO_PEDIR_EMPRESA" "false"
+# `RECORDATORIO_CITAS`: WhatsApp al cliente la víspera de su cita, a las 10:00. Apagado
+# hasta que el negocio lo pida: cada recordatorio es un mensaje que Meta cobra.
+write_env "$TENANT_ENV" "RECORDATORIO_CITAS" "false"
 
 write_env "$TENANT_ENV" "BASE_DOMAIN" "$BASE_DOMAIN"
 

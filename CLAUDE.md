@@ -1237,6 +1237,30 @@ desviarlos a un flujo determinista que mande el detalle del día como texto libr
 respuesta ya ha abierto la ventana de 24 h). Ese detalle tiene que salir de consultas, no
 redactado por un modelo.
 
+### Recordatorio de la víspera (11/nov/2026, en prueba en `dev`)
+`RECORDATORIO · Citas de mañana` manda cada día a las 10:00 (Madrid) la plantilla
+`aegora_recordatorio_cita` a cada cliente con cita `scheduled`/`confirmed` al día siguiente.
+Si contesta ("no puedo, cámbiamela"), la ventana de 24 h se abre y lo lleva Lucía: el
+recordatorio queda en la memoria de ese hilo, así que sabe de qué cita le habla.
+- **Apagado por defecto: `RECORDATORIO_CITAS=true` en `tenant.env` lo enciende** (ajuste de
+  `AJUSTES_TENANT`). Son mensajes de pago a clientes reales, y un tenant con datos de
+  demostración no debe escribir a nadie. Solo `true` literal cuenta.
+- **A las 10:00 y no por la tarde**: si el cliente anula, el negocio tiene el día para dar
+  ese hueco a otro.
+- **Qué no se manda**, y queda en `omitidos` de la ejecución con su motivo: cita pedida HOY
+  para mañana (`reservada_hoy`: acaba de hablar con nosotros), contacto sin nombre
+  (`sin_nombre`: la plantilla abre con "Hola {{1}}" y Meta no admite un parámetro vacío),
+  sin móvil (`sin_movil`: un fijo español solo se intenta si la ficha dice `can_whatsapp`),
+  y lo que ya salió hoy (`ya_enviado_hoy`).
+- **El "ya salió" no necesita un campo nuevo**: se mira en `conversation_messages` de hoy,
+  por hilo y por "tu cita del <día> a las <hora>", que es el texto que guarda
+  `WHATSAPP · Enviar plantilla`. Solo cuentan los `enviado`, así que tras un fallo (plantilla
+  sin aprobar, token caducado) se puede **re-ejecutar a mano el mismo día** y solo salen los
+  que faltan. Y si una cita se mueve a mañana después de recordarla para otro día, el texto
+  es otro y vuelve a tocar.
+- Una cita = un recordatorio: dos citas mañana del mismo cliente son dos mensajes.
+- Si una consulta a Directus falla, el workflow falla a la vista, como el resumen.
+
 Sigue pendiente **enviar la política de privacidad por WhatsApp** cuando preguntan por sus
 datos: necesita su propia plantilla (con la URL) y una tool que la dispare, porque no nace
 de ninguna acción sobre una cita.
