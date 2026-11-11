@@ -447,7 +447,7 @@ Todo lo de abajo está probado conversando, no solo cableado:
   se suprime el saludo genérico entero y en v2 (que devuelve siempre `intent: 'v2'`
   y abre con "¡Hola!") `Code · Fusionar resultado` le quita el saludo de la primera
   frase (11/nov/2026). El texto del aviso tiene que decir la verdad: la conversación
-  se guarda SIEMPRE (bandeja y memoria), los datos de contacto solo con cita o recado.
+  se guarda SIEMPRE (bandeja y memoria), los datos de contacto solo con cita o nota.
 - Alta automática de contacto al reservar si no existe en Directus (Art.
   6.1.b RGPD: medida precontractual a petición del propio interesado, no
   hace falta opt-in para esto — un opt-in aparte haría falta solo para
