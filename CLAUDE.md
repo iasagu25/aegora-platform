@@ -442,8 +442,12 @@ Todo lo de abajo está probado conversando, no solo cableado:
   concatenado al inicio de la respuesta; en WhatsApp va como mensaje
   **interactivo `cta_url`** aparte (texto de enlace personalizado no existe
   en un mensaje de texto normal de WhatsApp; botón limitado a 20 caracteres
-  — `Ver política` por defecto, editable en `Config` de Entry). No repite el
-  saludo genérico detrás si el primer mensaje ya era solo un saludo.
+  — `Ver política` por defecto, editable en `Config` de Entry). El aviso ya
+  saluda, así que la respuesta que va detrás **no vuelve a decir "hola"**: en v1
+  se suprime el saludo genérico entero y en v2 (que devuelve siempre `intent: 'v2'`
+  y abre con "¡Hola!") `Code · Fusionar resultado` le quita el saludo de la primera
+  frase (11/nov/2026). El texto del aviso tiene que decir la verdad: la conversación
+  se guarda SIEMPRE (bandeja y memoria), los datos de contacto solo con cita o recado.
 - Alta automática de contacto al reservar si no existe en Directus (Art.
   6.1.b RGPD: medida precontractual a petición del propio interesado, no
   hace falta opt-in para esto — un opt-in aparte haría falta solo para
