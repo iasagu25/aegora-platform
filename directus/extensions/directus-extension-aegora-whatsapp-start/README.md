@@ -12,8 +12,10 @@ escrito. No hay hilo, y la ventana de 24 h está cerrada: solo vale una plantill
 aquí se llega al hilo y, en él, la caja de respuesta de `directus-extension-aegora-conversation`
 deja elegir la plantilla.
 
-- Un hilo nuevo nace en `modo: humano`: lo abre una persona para hablar ella, y si el
-  cliente contesta no debe responderle Lucía encima.
+- Un hilo nuevo nace en `modo: auto` (decidido 12/nov/2026). En `humano` nadie se entera de
+  que el cliente ha contestado hasta abrir el panel; en `auto` contesta Lucía, que tiene la
+  plantilla en su memoria, y lo que no resuelva acaba en una tarea con aviso al equipo.
+  Quien quiera llevarla él cambia «Modo» en el hilo.
 - Un fijo español no sale, salvo que el teléfono tenga `can_whatsapp`.
 - El gestor necesita `create` sobre `conversation_sessions` (`configure-tenant-role.sh`).
 

@@ -761,9 +761,11 @@ conversaciones, que son las que sirven para depurar.)
 en `dev`).** Tras una llamada no hay hilo y la ventana de 24 h está cerrada. Dos piezas:
 - **Botón "Escribir por WhatsApp" en la ficha del contacto** (campo de presentación
   `contacts.whatsapp`, extensión `directus-extension-aegora-whatsapp-start`): abre su hilo
-  `whatsapp:<tel>` o lo crea, **en `modo: humano`** -- lo abre una persona para hablar ella,
-  y si el cliente contesta no le responde Lucía encima. El gestor tiene `create` sobre
-  `conversation_sessions` para esto.
+  `whatsapp:<tel>` o lo crea **en `modo: auto`**. Se pensó en `humano` y se descartó: en
+  `humano` nadie se entera de que el cliente ha contestado hasta abrir el panel (no hay
+  aviso). En `auto` contesta Lucía al momento, con la plantilla en su memoria, y lo que no
+  resuelva acaba en una tarea, que avisa al equipo por WhatsApp. El gestor tiene `create`
+  sobre `conversation_sessions` para esto.
 - **Modo "Plantilla" en la caja de respuesta de la bandeja**, por defecto con la ventana
   cerrada: el gestor elige una plantilla del catálogo (las que llevan `gestor` en
   `n8n/whatsapp-templates.json`, entre ellas `aegora_tras_llamada` con texto libre), la cita

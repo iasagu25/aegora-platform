@@ -20,8 +20,8 @@
       </div>
       <p class="nota">
         Abre su conversación (o la crea) para mandarle una plantilla aprobada, aunque nunca
-        nos haya escrito. Un hilo nuevo se abre en «Lo lleva una persona»: si contesta, le
-        respondes tú, no Lucía.
+        nos haya escrito. Si contesta, le atiende Lucía, y si hace falta te deja una tarea con
+        aviso. Para llevarla tú, pon «Modo» en «Lo lleva una persona».
       </p>
     </template>
     <p v-if="error" class="error">{{ error }}</p>
@@ -114,9 +114,11 @@ export default {
             session_key: clave,
             canal: 'whatsapp',
             contact_id: contactoId.value,
-            // Lo abre una persona para hablar ella: si el cliente contesta, que no le
-            // responda Lucía encima. Se devuelve a «Lucía responde» desde el propio hilo.
-            modo: 'humano',
+            // En `auto` a propósito (decidido 12/nov/2026): en `humano` nadie se entera
+            // de que el cliente ha contestado hasta abrir el panel. Lucía contesta al
+            // momento, tiene la plantilla en su memoria, y lo que no pueda resolver lo
+            // deja en una tarea, que avisa al equipo por WhatsApp.
+            modo: 'auto',
           });
           sesion = r.data.data;
         }
