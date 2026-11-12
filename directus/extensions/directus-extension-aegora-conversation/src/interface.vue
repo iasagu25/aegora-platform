@@ -174,6 +174,12 @@ const enUnaLinea = (t) => (t || '').toString().split(/\r?\n/).map((l) => l.trim(
 const CADA = 10000;
 
 export default {
+  // Se declara `input` aunque no se emita nunca. Sin esto Directus engancha su escucha de
+  // `input` al <div> raíz como evento NATIVO, y cualquier <select>/<textarea> de dentro
+  // le manda el evento del navegador como valor del campo: al guardar, Directus intenta
+  // escribir ese objeto y falla con `"isTrusted" is not allowed`.
+  emits: ['input'],
+  inheritAttrs: false,
   props: {
     primaryKey: { type: [String, Number], default: null },
   },

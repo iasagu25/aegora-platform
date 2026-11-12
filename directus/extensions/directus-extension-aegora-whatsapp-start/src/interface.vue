@@ -43,6 +43,12 @@ const bonito = (d) => (/^34\d{9}$/.test(d)
   ? `+34 ${d.slice(2, 5)} ${d.slice(5, 8)} ${d.slice(8)}` : `+${d}`);
 
 export default {
+  // Se declara `input` aunque no se emita nunca. Sin esto Directus engancha su escucha de
+  // `input` al <div> raíz como evento NATIVO, y cualquier <select>/<textarea> de dentro
+  // le manda el evento del navegador como valor del campo: al guardar, Directus intenta
+  // escribir ese objeto y falla con `"isTrusted" is not allowed`.
+  emits: ['input'],
+  inheritAttrs: false,
   props: {
     primaryKey: { type: [String, Number], default: null },
   },
