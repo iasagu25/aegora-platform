@@ -1191,6 +1191,14 @@ reintenta solo**, igual que en `HUMANO · Enviar pendientes`. Un tenant sin
 rompe nada, pero el prompt de voz NO debe prometer la confirmación hasta que estén
 aprobadas: es el mismo fallo que las tools que no existían.
 
+**Las plantillas son del WABA del NÚMERO que envía** (12/nov/2026). El `WHATSAPP_WABA_ID` de
+`ops` apuntaba al WABA de pruebas de Meta (el del `+1 555` que usa `dev`): las plantillas se
+creaban ahí, salían `APPROVED` en el listado y cada envío desde el número real de Aegora fallaba
+con `(#132001) Template name does not exist in the translation`. Cada tenant tiene su WABA:
+`dev` el de pruebas, `ops` el de Aegora, `demo` el suyo; `jca` aún ninguno. Ahora
+`whatsapp-templates.sh` comprueba que `WHATSAPP_PHONE_NUMBER_ID` sea de ese WABA y lo dice en
+el PLAN (`OK` / `AJENO`). El WABA ID solo lo usa ese script: cambiarlo no pide render.
+
 ### VIP y números bloqueados: se decide ANTES de descolgar (25/sep/2026)
 `VOZ · Llamada entrante` (`POST /webhook/retell-inbound`) es el *inbound webhook* de Retell.
 Bloqueado (`numeros_bloqueados`) -> se rechaza. `contacts.trato = vip` con `gestor_id`
