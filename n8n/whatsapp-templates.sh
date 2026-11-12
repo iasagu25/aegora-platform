@@ -104,6 +104,42 @@ enviar pero no listar ni crear plantillas. Ver n8n/WHATSAPP.md."
   fail "Meta devolvió un error: ${REMOTO}"
 fi
 
+# ---------------------------------------------------------------------------
+# ¿El número que ENVÍA es de este WABA? Meta busca la plantilla en el WABA del
+# número, no en el que se mira aquí. Si no coinciden, este listado enseña
+# APPROVED y cada envío falla con (#132001) "Template name does not exist in the
+# translation" -- pasó el 12/nov/2026. El número de pruebas de Meta suele vivir
+# en un WABA de pruebas propio, así que es el primer sospechoso.
+# ---------------------------------------------------------------------------
+NUMERO_ESTADO="sin WHATSAPP_PHONE_NUMBER_ID en whatsapp.env: no se comprueba"
+NUMERO_AJENO=false
+if [[ -n "${WHATSAPP_PHONE_NUMBER_ID:-}" ]]; then
+  NUMEROS="$(curl -sS --max-time 30 \
+    "${GRAPH}/${WHATSAPP_WABA_ID}/phone_numbers?fields=id,display_phone_number,verified_name&limit=100" \
+    -H "Authorization: Bearer ${WHATSAPP_TOKEN}")" || NUMEROS='{"error":{"message":"la llamada falló"}}'
+  NUMERO_ESTADO="$(
+    AEGORA_NUMEROS="$NUMEROS" AEGORA_PNID="$WHATSAPP_PHONE_NUMBER_ID" python3 -c '
+import json, os
+pnid = os.environ["AEGORA_PNID"]
+try:
+    r = json.loads(os.environ["AEGORA_NUMEROS"])
+except ValueError:
+    r = {"error": {"message": "respuesta ilegible"}}
+if "error" in r:
+    print("NO SE PUDO COMPROBAR: " + str(r["error"].get("message")))
+else:
+    nums = r.get("data", [])
+    propio = next((n for n in nums if n.get("id") == pnid), None)
+    if propio:
+        print("OK: %s es %s (%s), de este WABA" % (pnid, propio.get("display_phone_number"), propio.get("verified_name")))
+    else:
+        lista = ", ".join("%s [%s]" % (n.get("display_phone_number"), n.get("id")) for n in nums) or "(ninguno)"
+        print("AJENO: %s NO es de este WABA. Números del WABA: %s" % (pnid, lista))
+'
+  )"
+  [[ "$NUMERO_ESTADO" == AJENO:* ]] && NUMERO_AJENO=true
+fi
+
 INFORME="$(
   AEGORA_REMOTO="$REMOTO" python3 - "$CATALOGO" <<'PY'
 import json, os, sys
@@ -152,6 +188,12 @@ AEGORA · PLANTILLAS DE WHATSAPP
 
 Tenant:
   ${TENANT}   (WABA ${WHATSAPP_WABA_ID})
+
+Número que envía (WHATSAPP_PHONE_NUMBER_ID):
+  ${NUMERO_ESTADO}
+$( [[ "$NUMERO_AJENO" == true ]] && printf '%s\n' "  ^ las plantillas de este WABA NO le sirven a ese número: cada envío
+    fallará con (#132001) aunque aquí salgan APPROVED. El número o el WABA
+    de secrets/whatsapp.env no son los que crees." )
 
 Catálogo:
   ${CATALOGO}
