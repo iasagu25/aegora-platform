@@ -546,7 +546,8 @@
             "email": "={{ $('Code · Validar').first().json.email }}",
             "empresa": "={{ $('Code · Validar').first().json.empresa }}",
             "mensaje": "={{ $('Code · Validar').first().json.mensaje }}",
-            "notas": "={{ $('Code · Preparar').first().json.notas }}"
+            "notas": "={{ $('Code · Preparar').first().json.notas }}",
+            "telefono": "={{ $('Code · Validar').first().json.telefono }}"
           },
           "matchingColumns": [],
           "schema": [],

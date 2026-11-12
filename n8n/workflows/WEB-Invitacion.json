@@ -41,6 +41,9 @@
             },
             {
               "name": "notas"
+            },
+            {
+              "name": "telefono"
             }
           ]
         }
@@ -392,6 +395,87 @@
           "name": "Directus"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "// La invitación ya salió por correo. Además, un WhatsApp al teléfono que dio: hoy se lee\n// mucho más que el correo, lleva el enlace por si la invitación acabó en spam, y su\n// respuesta (\"sí, me ha llegado\") abre la ventana de 24 h para hablar con él.\n//\n// Solo aquí, con la invitación creada y el enlace en la mano: si Google falla, el\n// mensaje diría que hay un correo que no existe (para ese caso está la tarea).\nconst i = $('Invitación pedida').first().json;\nconst meet = $('Code · Resultado').first().json.meet;\nconst t = DateTime.fromISO(String(i.inicio), { setZone: true }).setZone('Europe/Madrid').setLocale('es');\n// \"Hola Ana\", no \"Hola Ana García Pérez\": el nombre del formulario va completo.\nconst nombre = String(i.nombre || '').trim().split(/\\s+/)[0];\nconst parametros = [nombre, t.toFormat(\"cccc d 'de' LLLL\"), t.toFormat('HH:mm'), meet];\nif (!i.telefono || parametros.some((x) => !x)) {\n  return [{ json: { _whatsapp: false, motivo: !i.telefono ? 'sin_telefono' : 'faltan_datos', parametros } }];\n}\nreturn [{ json: { _whatsapp: true, telefono: i.telefono, plantilla: 'aegora_cita_web',\n  parametros: JSON.stringify(parametros), contact_id: i.contact_id || '' } }];"
+      },
+      "id": "wi-0014",
+      "name": "Code · WhatsApp de confirmación",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "wi-0015-c",
+              "leftValue": "={{ $json._whatsapp }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "wi-0015",
+      "name": "¿Mandar WhatsApp?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2220,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraWhatsappPlantilla",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "telefono": "={{ $json.telefono }}",
+            "plantilla": "={{ $json.plantilla }}",
+            "parametros": "={{ $json.parametros }}",
+            "contact_id": "={{ $json.contact_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2440,
+        -400
+      ],
+      "id": "wi-0016",
+      "name": "Execute · WhatsApp plantilla",
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -523,6 +607,40 @@
             "index": 0
           }
         ]
+      ]
+    },
+    "HTTP · Apuntar el Meet en la cita": {
+      "main": [
+        [
+          {
+            "node": "Code · WhatsApp de confirmación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · WhatsApp de confirmación": {
+      "main": [
+        [
+          {
+            "node": "¿Mandar WhatsApp?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Mandar WhatsApp?": {
+      "main": [
+        [
+          {
+            "node": "Execute · WhatsApp plantilla",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     }
   }

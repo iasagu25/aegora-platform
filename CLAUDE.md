@@ -1436,6 +1436,10 @@ se puede olvidar:
   Calendar`, que tiene que existir en TODOS los tenants aunque sea sin conectar, o el render
   falla). Si el servicio es en grupo, las reservas de un mismo hueco comparten sala de Meet;
   en `ops` la demo es individual (1 plaza, 30 min, huecos sueltos entre 11:00 y 14:00).
+- **Tras la invitación, un WhatsApp** (`aegora_cita_web`, 12/nov/2026, en prueba en `dev`) con
+  día, hora y enlace de Meet, pidiendo que confirme que le ha llegado. Es también el camino
+  para las citas que el equipo reserva desde la web con los datos de una llamada: más rápido
+  que el panel, y el cliente recibe correo y WhatsApp. Solo si Google creó la invitación.
 - **`ops` probado el 22/oct/2026** (reserva + invitación con Meet), y `aegora.es` ya sale de este
   VPS. La web se compila con `PUBLIC_RESERVAS_URL=https://lucia.ops.aegora.es/webhook`; como
   `web.dev.aegora.es` sirve la misma release, la previsualización también reserva en `ops`.

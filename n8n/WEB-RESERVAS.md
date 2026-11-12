@@ -189,6 +189,13 @@ de Meet.
 - **El id del evento es el de la cita**, así que un reintento no duplica la invitación.
 - El enlace de Meet se apunta en las notas de la cita: se ve en el panel y en el `.ics` de quien
   atiende la demo.
+- **Y un WhatsApp al teléfono de la reserva** (`aegora_cita_web`, 12/nov/2026): día, hora,
+  el enlace de Meet y "¿nos confirmas que te ha llegado?". Solo cuando Google ha creado la
+  invitación y hay enlace: si no, el mensaje hablaría de un correo que no existe. Se lee más
+  que el correo, lleva el enlace por si la invitación cayó en spam, y la respuesta del cliente
+  abre la ventana de 24 h (contesta Lucía, que tiene el mensaje en la memoria del hilo). Sirve
+  igual cuando la reserva la hace el equipo desde la web con lo que el cliente dijo por teléfono.
+  Mientras Meta no apruebe la plantilla, el envío queda `fallido` en la bandeja y no rompe nada.
 - **Si Google falla, se crea una tarea de prioridad alta** ("Enviar enlace de Meet a …") con el
   motivo y el email. La reserva sigue hecha: lo que falta es avisar a quien la hizo.
 

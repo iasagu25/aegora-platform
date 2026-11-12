@@ -232,6 +232,36 @@
           }
         ]
       }
+    },
+    {
+      "cuando": "Cita reservada desde el formulario de la web (WEB · Reservar), también cuando la reserva la hace el equipo con los datos que el cliente dio por teléfono. La manda WEB · Invitación con Meet en cuanto Google ha creado la invitación, con el enlace de la videollamada. Su respuesta abre la ventana de 24 h.",
+      "variables": [
+        "nombre del cliente",
+        "día en texto",
+        "hora",
+        "enlace de la videollamada"
+      ],
+      "meta": {
+        "name": "aegora_cita_web",
+        "language": "es",
+        "category": "UTILITY",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Hola {{1}}, tu cita del {{2}} a las {{3}} está reservada.\n\nTe hemos enviado un correo con la invitación. Este es el enlace de la videollamada: {{4}}\n\n¿Nos confirmas que te ha llegado? Si necesitas cambiar algo, responde a este mensaje.",
+            "example": {
+              "body_text": [
+                [
+                  "Ana",
+                  "jueves 13 de noviembre",
+                  "11:00",
+                  "https://meet.google.com/abc-defg-hij"
+                ]
+              ]
+            }
+          }
+        ]
+      }
     }
   ],
   "_retiradas": [
