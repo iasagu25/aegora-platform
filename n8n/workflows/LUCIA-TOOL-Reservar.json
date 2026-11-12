@@ -364,14 +364,14 @@
     },
     {
       "parameters": {
-        "jsCode": "// Se traduce la respuesta del tool 22 a motivos cerrados. El agente decide qué decir; lo que\n// NO puede es afirmar nada que no venga de aquí.\n// $json ya no es la respuesta de 22: en medio va la consulta de quién atiende.\nconst r = $('Execute · 22 Appointment Create').item.json ?? {};\nconst inp = $('Code · Entrada').item.json;\n\n// Quién va a atender la cita. El Booking API devuelve `primary_resource_id` y\n// hasta ahora se tiraba aquí, así que Lucía confirmaba una cita sin poder decir\n// con quién es -- que en una gestoría es la mitad del dato.\n// Si la consulta falla o el recurso no es una persona, se queda a null y el\n// prompt dice explícitamente que entonces no se lo invente.\nlet atiende = null;\ntry {\n  const q = $json ?? {};\n  const fila = ((q.body && q.body.data) || q.data || [])[0];\n  if (fila) {\n    const emp = fila.employee_id;\n    // Solo una PERSONA atiende. Un recurso sin empleado es una sala o una clase\n    // (\"Demo Aegora\"), y decir \"te atenderá Demo Aegora\" suena a error. Sin\n    // empleado, `atiende` va vacío y el prompt ya dice que entonces no se menciona.\n    atiende = (emp && emp.first_name) ? emp.first_name : null;\n  }\n} catch (e) {\n  atiende = null;\n}\nconst svc = $('Execute · 26 Resolve Service').item.json;\nconst cita = { fecha: inp.fecha, fecha_label: inp.fecha_label, hora: inp.hora,\n               servicio: svc.service_name || null };\n\nif (r.ok === true) {\n  const yaEstaba = (r.message || '').includes('idempotente');\n  return [{ json: { ok: true, motivo: yaEstaba ? 'ya_estaba_reservada' : 'reservada',\n    cita: { ...cita, atiende },\n    // Viaja hasta Entry para que la SESIÓN quede atada al contacto. No lo ve el\n    // modelo: `Code · Salida v2` lo recoge aparte, igual que telefono_usado.\n    contact_id: r.contact_id || null,\n    telefono_usado: inp.telefono } }];\n}\n\nconst st = r.status || 'error';\nif (st === 'slot_taken' || st === 'slot_conflict') {\n  return [{ json: { ok: false, motivo: 'hueco_no_disponible', cita } }];\n}\nif (st === 'not_found') {\n  // 22 pide teléfono y/o nombre cuando el contacto no existe y hay que darlo de alta.\n  const falta = [];\n  if (!inp.telefono) falta.push('telefono');\n  if (!inp.nombre) falta.push('nombre');\n  // Se pide junto al nombre y no en otro turno: son el mismo hueco de identidad,\n  // y partirlo en dos preguntas se hace pesado.\n  if (inp.pedir_empresa && !inp.empresa) falta.push('empresa');\n  return [{ json: { ok: false, motivo: 'falta_identidad',\n    falta: falta.length ? falta : ['nombre'] } }];\n}\nif (st === 'ambiguous' || st === 'multiple') {\n  return [{ json: { ok: false, motivo: 'contacto_ambiguo' } }];\n}\nif (st === 'validation_error') {\n  return [{ json: { ok: false, motivo: 'faltan_datos',\n    detalle: ((r.data && r.data.errors) || []).join(' ') } }];\n}\nreturn [{ json: { ok: false, motivo: 'error_reserva', detalle: r.message || null } }];"
+        "jsCode": "// Se traduce la respuesta del tool 22 a motivos cerrados. El agente decide qué decir; lo que\n// NO puede es afirmar nada que no venga de aquí.\n// Todo por nombre y con .first(): aquí se llega por dos caminos (con y sin aviso al equipo)\n// y TIENE que ser el último nodo que se ejecuta, porque lo que devuelve es lo que recibe el agente.\nconst r = $('Execute · 22 Appointment Create').first().json ?? {};\nconst inp = $('Code · Entrada').first().json;\n\n// Quién va a atender la cita. El Booking API devuelve `primary_resource_id` y\n// hasta ahora se tiraba aquí, así que Lucía confirmaba una cita sin poder decir\n// con quién es -- que en una gestoría es la mitad del dato.\n// Si la consulta falla o el recurso no es una persona, se queda a null y el\n// prompt dice explícitamente que entonces no se lo invente.\nlet atiende = null;\ntry {\n  const q = $('HTTP · Quién atiende').first().json ?? {};\n  const fila = ((q.body && q.body.data) || q.data || [])[0];\n  if (fila) {\n    const emp = fila.employee_id;\n    // Solo una PERSONA atiende. Un recurso sin empleado es una sala o una clase\n    // (\"Demo Aegora\"), y decir \"te atenderá Demo Aegora\" suena a error. Sin\n    // empleado, `atiende` va vacío y el prompt ya dice que entonces no se menciona.\n    atiende = (emp && emp.first_name) ? emp.first_name : null;\n  }\n} catch (e) {\n  atiende = null;\n}\nconst svc = $('Execute · 26 Resolve Service').first().json;\nconst cita = { fecha: inp.fecha, fecha_label: inp.fecha_label, hora: inp.hora,\n               servicio: svc.service_name || null };\n\nif (r.ok === true) {\n  const yaEstaba = (r.message || '').includes('idempotente');\n  return [{ json: { ok: true, motivo: yaEstaba ? 'ya_estaba_reservada' : 'reservada',\n    cita: { ...cita, atiende },\n    // Viaja hasta Entry para que la SESIÓN quede atada al contacto. No lo ve el\n    // modelo: `Code · Salida v2` lo recoge aparte, igual que telefono_usado.\n    contact_id: r.contact_id || null,\n    telefono_usado: inp.telefono } }];\n}\n\nconst st = r.status || 'error';\nif (st === 'slot_taken' || st === 'slot_conflict') {\n  return [{ json: { ok: false, motivo: 'hueco_no_disponible', cita } }];\n}\nif (st === 'not_found') {\n  // 22 pide teléfono y/o nombre cuando el contacto no existe y hay que darlo de alta.\n  const falta = [];\n  if (!inp.telefono) falta.push('telefono');\n  if (!inp.nombre) falta.push('nombre');\n  // Se pide junto al nombre y no en otro turno: son el mismo hueco de identidad,\n  // y partirlo en dos preguntas se hace pesado.\n  if (inp.pedir_empresa && !inp.empresa) falta.push('empresa');\n  return [{ json: { ok: false, motivo: 'falta_identidad',\n    falta: falta.length ? falta : ['nombre'] } }];\n}\nif (st === 'ambiguous' || st === 'multiple') {\n  return [{ json: { ok: false, motivo: 'contacto_ambiguo' } }];\n}\nif (st === 'validation_error') {\n  return [{ json: { ok: false, motivo: 'faltan_datos',\n    detalle: ((r.data && r.data.errors) || []).join(' ') } }];\n}\nreturn [{ json: { ok: false, motivo: 'error_reserva', detalle: r.message || null } }];"
       },
       "id": "r-0007",
       "name": "Code · Salida",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2160,
+        2820,
         -180
       ]
     },
@@ -829,6 +829,86 @@
         1940,
         -420
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ¿Reserva NUEVA de la que avisar al equipo por correo? Una idempotente ya tuvo su aviso.\n// El aviso solo sale si el tenant tiene AVISO_RESERVAS_EMAIL; eso lo mira el propio aviso.\nconst r = $('Execute · 22 Appointment Create').first().json ?? {};\nconst nueva = r.ok === true && !String(r.message || '').includes('idempotente');\nconst cita_id = nueva ? ((r.data && r.data.appointment && r.data.appointment.id) || '') : '';\n// El canal sale del session_key (`whatsapp:…`, `webchat:…`, `voz:…`).\nconst sk = String(($('When Executed by Agent').first().json || {}).session_key || '');\nconst canal = (sk.match(/^(whatsapp|webchat|voz):/) || [])[1] || '';\nreturn [{ json: { cita_id: String(cita_id), origen: canal ? 'lucia_' + canal : 'lucia' } }];\n"
+      },
+      "id": "lr-av1",
+      "name": "Code · ¿Avisar reserva?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "lr-av2-c",
+              "leftValue": "={{ $json.cita_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "lr-av2",
+      "name": "¿Reserva nueva?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2380,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraAvisoReservaCorreo",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "cita_id": "={{ $json.cita_id }}",
+            "origen": "={{ $json.origen }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "lr-av3",
+      "name": "Execute · Aviso reserva por correo",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2600,
+        -300
+      ],
+      "onError": "continueRegularOutput",
+      "notes": "Sin esperar: ni el chat ni la llamada pagan el envío. Apagado salvo AVISO_RESERVAS_EMAIL en tenant.env."
     }
   ],
   "connections": {
@@ -974,7 +1054,7 @@
       "main": [
         [
           {
-            "node": "Code · Salida",
+            "node": "Code · ¿Avisar reserva?",
             "type": "main",
             "index": 0
           }
@@ -1062,6 +1142,46 @@
         [
           {
             "node": "Code · Pedir identidad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · ¿Avisar reserva?": {
+      "main": [
+        [
+          {
+            "node": "¿Reserva nueva?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Reserva nueva?": {
+      "main": [
+        [
+          {
+            "node": "Execute · Aviso reserva por correo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute · Aviso reserva por correo": {
+      "main": [
+        [
+          {
+            "node": "Code · Salida",
             "type": "main",
             "index": 0
           }

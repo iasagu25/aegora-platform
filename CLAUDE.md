@@ -1467,7 +1467,9 @@ se puede olvidar:
   para las citas que el equipo reserva desde la web con los datos de una llamada: más rápido
   que el panel, y el cliente recibe correo y WhatsApp. Solo si Google creó la invitación.
 - **Y un correo al equipo** (`AVISO · Reserva por correo`, 12/nov/2026, en prueba en `dev`) con
-  los datos de la reserva y `Reply-To` a quien reservó. Solo si `AVISO_RESERVAS_EMAIL` está en
+  los datos de la reserva y `Reply-To` a quien reservó. **También con las reservas de Lucía**
+  (`LUCÍA · TOOL · Reservar`, todos los canales): esas no llevan Meet, y el aviso es la señal
+  para mandarlo. Los datos se leen de la cita en Directus. Solo si `AVISO_RESERVAS_EMAIL` está en
   `tenant.env` (en `ops`, `equipo@aegora.es`). Sale por la API de Gmail con la credencial
   `Gmail` (Google OAuth2 genérica, scope solo `gmail.send`), que **tiene que existir en TODOS
   los tenants**, como la de Calendar, aunque sea sin conectar.

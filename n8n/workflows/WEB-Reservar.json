@@ -580,6 +580,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "cita_id": "={{ $('Code · Resultado').first().json.cita_id }}",
+            "origen": "web",
             "servicio": "={{ $('Code · Preparar').first().json.cita.servicio }}",
             "inicio": "={{ $('Code · Validar').first().json.inicio }}",
             "duracion_minutos": "={{ $('Code · Preparar').first().json.cita.duracion_minutos }}",

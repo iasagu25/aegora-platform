@@ -10,6 +10,9 @@
               "name": "cita_id"
             },
             {
+              "name": "origen"
+            },
+            {
               "name": "servicio"
             },
             {
@@ -43,7 +46,8 @@
       "position": [
         -420,
         0
-      ]
+      ],
+      "notes": "Solo cita_id es imprescindible: el resto se lee de la cita. origen: web | lucia_whatsapp | lucia_webchat | lucia_voz. Lo demás, si se pasa, manda sobre lo leído (la web pasa lo que se escribió en el formulario)."
     },
     {
       "parameters": {
@@ -62,6 +66,12 @@
               "name": "webhook_publico",
               "type": "string",
               "value": "__WEBHOOK_PUBLIC_URL__"
+            },
+            {
+              "id": "a3",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "__DIRECTUS_BASE_URL__"
             }
           ]
         },
@@ -79,19 +89,6 @@
     },
     {
       "parameters": {
-        "jsCode": "// Aviso al equipo de que alguien ha reservado. Solo si el tenant dice a qué correo\n// (AVISO_RESERVAS_EMAIL en tenant.env; vacío = apagado, que es lo normal en un cliente).\n// El correo sale de la cuenta conectada a la credencial `Gmail` y va con Reply-To a quien\n// reservó: contestar al aviso es escribirle a esa persona.\nconst i = $('Reserva hecha').first().json;\nconst cfg = $('Config (editar por tenant)').first().json;\nconst destinos = String(cfg.aviso_reservas_email || '').split(',').map((s) => s.trim()).filter(Boolean);\nif (!destinos.length) return [{ json: { _enviar: false, motivo: 'desactivado (AVISO_RESERVAS_EMAIL vacío)' } }];\n\nconst txt = (v) => (v === undefined || v === null ? '' : String(v).trim());\n// Una cabecera no puede llevar saltos de línea: con ellos se inyectan cabeceras nuevas.\nconst cab = (v) => txt(v).replace(/[\\r\\n]+/g, ' ');\nconst correoValido = (v) => /^[^\\s@<>,;\"]+@[^\\s@<>,;\"]+\\.[^\\s@<>,;\"]{2,}$/.test(v);\n\nconst t = DateTime.fromISO(txt(i.inicio), { setZone: true }).setZone('Europe/Madrid').setLocale('es');\nconst cuando = t.isValid ? t.toFormat(\"cccc d 'de' LLLL 'a las' HH:mm\") : txt(i.inicio);\nconst email = txt(i.email).toLowerCase();\nconst telefono = txt(i.telefono);\n\n// El panel es `panel.<dominio>` y los webhooks `lucia.<dominio>` (los cuatro subdominios\n// de un tenant son fijos). Si la dirección no tiene esa forma, el aviso va sin enlace.\nconst publico = txt(cfg.webhook_publico);\nconst panel = /^https:\\/\\/lucia\\./.test(publico) ? publico.replace('https://lucia.', 'https://panel.') : '';\nconst enlace = panel && txt(i.cita_id) ? `${panel}/admin/content/appointments/${txt(i.cita_id)}` : '';\n\nconst lineas = [\n  `${txt(i.nombre) || 'Alguien'} ha reservado desde la web.`,\n  '',\n  `Servicio: ${txt(i.servicio)}`,\n  `Cuándo: ${cuando}${txt(i.duracion_minutos) ? ` (${txt(i.duracion_minutos)} min)` : ''}`,\n  '',\n  `Nombre: ${txt(i.nombre)}`,\n  `Correo: ${email}`,\n  telefono ? `Teléfono: +${telefono.replace(/^\\+/, '')}` : null,\n  txt(i.empresa) ? `Empresa: ${txt(i.empresa)}` : null,\n  ...(txt(i.mensaje) ? ['', 'Qué quiere resolver:', txt(i.mensaje)] : []),\n  ...(enlace ? ['', `La cita en el panel: ${enlace}`] : []),\n  '',\n  'La invitación con el enlace de Meet le llega por separado. Si Google no pudiera mandarla,',\n  'aparecerá una tarea en el panel. Respondiendo a este correo le escribes a quien ha reservado.',\n].filter((l) => l !== null);\n\nconst b64 = (s) => Buffer.from(s, 'utf8').toString('base64');\nconst palabra = (s) => `=?UTF-8?B?${b64(s)}?=`; // RFC 2047: tildes en el asunto\nconst asunto = `Nueva reserva: ${cab(i.nombre) || 'sin nombre'} · ${cab(cuando)}`;\nconst cabeceras = [\n  `To: ${destinos.filter(correoValido).join(', ')}`,\n  `Subject: ${palabra(asunto)}`,\n  correoValido(email) ? `Reply-To: ${email}` : null,\n  'MIME-Version: 1.0',\n  'Content-Type: text/plain; charset=UTF-8',\n  'Content-Transfer-Encoding: base64',\n].filter(Boolean);\nif (!destinos.some(correoValido)) {\n  throw new Error('AVISO_RESERVAS_EMAIL no tiene ningún correo válido: ' + destinos.join(', '));\n}\nconst cuerpo = b64(lineas.join('\\r\\n')).match(/.{1,76}/g).join('\\r\\n');\nconst mime = cabeceras.join('\\r\\n') + '\\r\\n\\r\\n' + cuerpo;\n// La API de Gmail quiere el mensaje entero en base64url.\nconst raw = Buffer.from(mime, 'utf8').toString('base64').replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');\nreturn [{ json: { _enviar: true, raw, para: destinos, asunto } }];\n"
-      },
-      "id": "ar-0003",
-      "name": "Code · Correo",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        20,
-        0
-      ]
-    },
-    {
-      "parameters": {
         "conditions": {
           "options": {
             "caseSensitive": true,
@@ -101,12 +98,12 @@
           },
           "conditions": [
             {
-              "id": "ar-0004-c",
-              "leftValue": "={{ $json._enviar }}",
+              "id": "ar-0003-c",
+              "leftValue": "={{ $json.aviso_reservas_email }}",
               "rightValue": "",
               "operator": {
-                "type": "boolean",
-                "operation": "true",
+                "type": "string",
+                "operation": "notEmpty",
                 "singleValue": true
               }
             }
@@ -115,13 +112,59 @@
         },
         "options": {}
       },
-      "id": "ar-0004",
-      "name": "¿Enviar?",
+      "id": "ar-0003",
+      "name": "¿Activado?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        240,
+        20,
         0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config (editar por tenant)').first().json.directus_base_url }}/items/appointments/{{ $('Reserva hecha').first().json.cita_id || '00000000-0000-4000-8000-000000000000' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ fields: 'start_at,end_at,notes,service_id.name,contact_id.first_name,contact_id.last_name,contact_id.company,contact_id.email,contact_id.phones.phone_number,contact_id.phones.is_primary' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "ar-0004",
+      "name": "HTTP · Cita",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        240,
+        -100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aviso al equipo de que alguien ha reservado. Los datos salen de la CITA en Directus, así\n// vale para cualquier origen (web, WhatsApp, webchat, voz). Lo que pase el que llama (la web\n// manda lo del formulario) manda sobre lo leído: es lo que la persona acaba de escribir.\n// El correo sale de la cuenta conectada a la credencial `Gmail`, con Reply-To a quien reservó.\nconst i = $('Reserva hecha').first().json;\nconst cfg = $('Config (editar por tenant)').first().json;\nconst destinos = String(cfg.aviso_reservas_email || '').split(',').map((s) => s.trim()).filter(Boolean);\n\nconst txt = (v) => (v === undefined || v === null ? '' : String(v).trim());\nconst cab = (v) => txt(v).replace(/[\\r\\n]+/g, ' '); // un salto en una cabecera inyecta otra\nconst correoValido = (v) => /^[^\\s@<>,;\"]+@[^\\s@<>,;\"]+\\.[^\\s@<>,;\"]{2,}$/.test(v);\nif (!destinos.some(correoValido)) {\n  throw new Error('AVISO_RESERVAS_EMAIL no tiene ningún correo válido: ' + destinos.join(', '));\n}\n\n// La cita. Si no se puede leer, el aviso sale igual con lo que haya y lo dice: avisar de una\n// reserva con datos a medias es mejor que no avisar.\nconst r = $('HTTP · Cita').first().json ?? {};\nconst st = r.statusCode ?? 0;\nconst a = (st >= 200 && st < 300 && r.body && r.body.data) || null;\nconst c = (a && a.contact_id) || {};\nconst tels = Array.isArray(c.phones) ? c.phones : [];\nconst telFicha = txt(((tels.find((p) => p.is_primary) || tels[0]) || {}).phone_number);\n\nconst nombre = txt(i.nombre) || [txt(c.first_name), txt(c.last_name)].filter(Boolean).join(' ');\nconst email = (txt(i.email) || txt(c.email)).toLowerCase();\nconst telefono = txt(i.telefono) ? '+' + txt(i.telefono).replace(/^\\+/, '') : telFicha;\nconst empresa = txt(i.empresa) || txt(c.company);\nconst servicio = txt(i.servicio) || txt(a && a.service_id && a.service_id.name);\nconst inicio = txt(i.inicio) || txt(a && a.start_at);\nlet minutos = txt(i.duracion_minutos);\nif (!minutos && a && a.start_at && a.end_at) {\n  minutos = String(Math.round((Date.parse(a.end_at) - Date.parse(a.start_at)) / 60000));\n}\n\nconst t = DateTime.fromISO(inicio, { setZone: true }).setZone('Europe/Madrid').setLocale('es');\nconst cuando = t.isValid ? t.toFormat(\"cccc d 'de' LLLL 'a las' HH:mm\") : inicio;\n\nconst ORIGENES = {\n  web: 'desde la web',\n  lucia_whatsapp: 'con Lucía por WhatsApp',\n  lucia_webchat: 'con Lucía en el chat de la web',\n  lucia_voz: 'con Lucía por teléfono',\n};\nconst origen = ORIGENES[txt(i.origen)] || 'con Lucía';\n\n// El panel es `panel.<dominio>` y los webhooks `lucia.<dominio>` (los subdominios de un\n// tenant son fijos). Si la dirección no tiene esa forma, el aviso va sin enlace.\nconst publico = txt(cfg.webhook_publico);\nconst panel = /^https:\\/\\/lucia\\./.test(publico) ? publico.replace('https://lucia.', 'https://panel.') : '';\nconst enlace = panel && txt(i.cita_id) ? `${panel}/admin/content/appointments/${txt(i.cita_id)}` : '';\n\n// La web manda su mensaje aparte; de Lucía, lo que haya en las notas de la cita.\nconst mensaje = txt(i.mensaje);\nconst notas = !mensaje ? txt(a && a.notes) : '';\n\nconst lineas = [\n  `${nombre || 'Alguien'} ha reservado ${origen}.`,\n  '',\n  `Servicio: ${servicio}`,\n  `Cuándo: ${cuando}${minutos ? ` (${minutos} min)` : ''}`,\n  '',\n  `Nombre: ${nombre || '(sin nombre)'}`,\n  email ? `Correo: ${email}` : null,\n  telefono ? `Teléfono: ${telefono}` : null,\n  empresa ? `Empresa: ${empresa}` : null,\n  ...(mensaje ? ['', 'Qué quiere resolver:', mensaje] : []),\n  ...(notas ? ['', 'Notas de la cita:', notas] : []),\n  ...(enlace ? ['', `La cita en el panel: ${enlace}`] : []),\n  ...(!a ? ['', `(No se pudo leer la cita en Directus: ${st || 'sin respuesta'}. Faltan datos.)`] : []),\n  '',\n  txt(i.origen) === 'web'\n    ? 'La invitación con el enlace de Meet le llega por separado; si Google no pudiera mandarla, aparecerá una tarea en el panel.'\n    : 'Lucía ya le ha confirmado la cita en la conversación.',\n  correoValido(email) ? 'Respondiendo a este correo le escribes a quien ha reservado.' : null,\n].filter((l) => l !== null);\n\nconst b64 = (s) => Buffer.from(s, 'utf8').toString('base64');\nconst palabra = (s) => `=?UTF-8?B?${b64(s)}?=`; // RFC 2047: tildes en el asunto\nconst asunto = `Nueva reserva: ${cab(nombre) || 'sin nombre'} · ${cab(cuando)}`;\nconst cabeceras = [\n  `To: ${destinos.filter(correoValido).join(', ')}`,\n  `Subject: ${palabra(asunto)}`,\n  correoValido(email) ? `Reply-To: ${email}` : null,\n  'MIME-Version: 1.0',\n  'Content-Type: text/plain; charset=UTF-8',\n  'Content-Transfer-Encoding: base64',\n].filter(Boolean);\nconst cuerpo = b64(lineas.join('\\r\\n')).match(/.{1,76}/g).join('\\r\\n');\nconst mime = cabeceras.join('\\r\\n') + '\\r\\n\\r\\n' + cuerpo;\n// La API de Gmail quiere el mensaje entero en base64url.\nconst raw = Buffer.from(mime, 'utf8').toString('base64').replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');\nreturn [{ json: { raw, para: destinos, asunto, cita_leida: !!a } }];\n"
+      },
+      "id": "ar-0005",
+      "name": "Code · Correo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        -100
       ]
     },
     {
@@ -142,12 +185,12 @@
           }
         }
       },
-      "id": "ar-0005",
+      "id": "ar-0006",
       "name": "HTTP · Gmail enviar",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        460,
+        680,
         -100
       ],
       "credentials": {
@@ -159,14 +202,14 @@
     },
     {
       "parameters": {
-        "jsCode": "// Un aviso que no sale tiene que verse: la ejecución acaba en error, no en verde.\nconst r = $json ?? {};\nconst st = r.statusCode ?? 0;\nif (st >= 200 && st < 300) {\n  const c = $('Code · Correo').first().json;\n  return [{ json: { ok: true, id: (r.body && r.body.id) || null, para: c.para, asunto: c.asunto } }];\n}\nconst b = r.body || {};\nthrow new Error(`Gmail rechazó el aviso (${st}): ${(b.error && b.error.message) || JSON.stringify(b).slice(0, 300)}`);\n"
+        "jsCode": "// Un aviso que no sale tiene que verse: la ejecución acaba en error, no en verde.\nconst r = $json ?? {};\nconst st = r.statusCode ?? 0;\nif (st >= 200 && st < 300) {\n  const c = $('Code · Correo').first().json;\n  return [{ json: { ok: true, id: (r.body && r.body.id) || null, para: c.para, asunto: c.asunto, cita_leida: c.cita_leida } }];\n}\nconst b = r.body || {};\nthrow new Error(`Gmail rechazó el aviso (${st}): ${(b.error && b.error.message) || JSON.stringify(b).slice(0, 300)}`);\n"
       },
-      "id": "ar-0006",
+      "id": "ar-0007",
       "name": "Code · Resultado",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        680,
+        900,
         -100
       ]
     }
@@ -187,6 +230,29 @@
       "main": [
         [
           {
+            "node": "¿Activado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Activado?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Cita",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "HTTP · Cita": {
+      "main": [
+        [
+          {
             "node": "Code · Correo",
             "type": "main",
             "index": 0
@@ -198,23 +264,11 @@
       "main": [
         [
           {
-            "node": "¿Enviar?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "¿Enviar?": {
-      "main": [
-        [
-          {
             "node": "HTTP · Gmail enviar",
             "type": "main",
             "index": 0
           }
-        ],
-        []
+        ]
       ]
     },
     "HTTP · Gmail enviar": {

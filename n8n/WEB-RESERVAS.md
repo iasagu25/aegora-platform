@@ -203,8 +203,16 @@ esperar, un correo a `AVISO_RESERVAS_EMAIL` de `tenant.env` (uno o varios, separ
 comas; **vacío = sin aviso**, que es el valor por defecto). En `ops`: `equipo@aegora.es`.
 Antes, la única forma de enterarse era ver el evento aparecer en el calendario.
 
-- Lleva servicio, día y hora, nombre, correo, teléfono, empresa, lo que escribió en el
-  formulario y el enlace a la cita en el panel (`panel.` del mismo dominio que `lucia.`).
+**También lo lanza `LUCÍA · TOOL · Reservar`** (WhatsApp, webchat y voz, que usa la misma
+tool por el despachador), solo en reservas nuevas y sin esperar. El asunto es el mismo y el
+cuerpo dice por dónde llegó ("con Lucía por WhatsApp"). Ojo en `ops`: una demo reservada
+hablando con Lucía **no recibe invitación con Meet** -- solo la web la manda --, así que ese
+aviso es la señal para mandársela a mano.
+
+- Los datos se **leen de la cita en Directus** (servicio, hora, contacto, empresa, teléfono,
+  notas), y lo que pase el que llama manda sobre lo leído: la web pasa lo del formulario. Si
+  Directus no contesta, el aviso sale igual, con lo que haya y diciéndolo.
+- Lleva el enlace a la cita en el panel (`panel.` del mismo dominio que `lucia.`).
 - Va con **`Reply-To` a quien reservó**: responder al aviso es escribirle a esa persona.
 - Sale por la **API de Gmail** (`users/me/messages/send`) con la cuenta conectada a la
   credencial `Gmail`. Si Gmail lo rechaza, la ejecución acaba **en error**, no en verde.
