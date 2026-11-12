@@ -12,7 +12,7 @@
           :key="t.digitos"
           type="button"
           class="boton"
-          :disabled="abriendo"
+          :disabled="!!abriendo"
           @click="abrir(t)"
         >
           {{ abriendo === t.digitos ? 'Abriendo…' : `Escribir por WhatsApp al ${t.mostrar}` }}
@@ -53,6 +53,9 @@ export default {
     const values = inject('values', ref({}));
 
     const telefonos = ref(null);
+    // El número que se está abriendo, o '' si ninguno. OJO: en el template va como
+    // `!!abriendo`. Vue trata `disabled=""` como atributo PRESENTE (así es HTML), y con
+    // la cadena vacía a pelo el botón salía desactivado siempre.
     const abriendo = ref('');
     const error = ref('');
 
