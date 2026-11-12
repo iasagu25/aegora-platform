@@ -282,6 +282,7 @@ Ajustes del tenant (de tenant.env; el valor por defecto si no está):
   WEB_ORIGENES            ${WEB_ORIGENES:-https://aegora.es,https://www.aegora.es,https://web.dev.aegora.es (por defecto)}
   WEBCHAT_ORIGENES        ${WEBCHAT_ORIGENES:-* (por defecto: cualquier origen)}
   RECORDATORIO_CITAS      ${RECORDATORIO_CITAS:-false (por defecto: sin recordatorio de la víspera)}
+  AVISO_RESERVAS_EMAIL    ${AVISO_RESERVAS_EMAIL:-(vacío: sin correo al equipo por reserva web)}
 
 Credenciales en su n8n:
   ${CREDS_ESTADO}

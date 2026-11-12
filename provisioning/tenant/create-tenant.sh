@@ -820,6 +820,9 @@ write_env "$TENANT_ENV" "CONTACTO_PEDIR_EMPRESA" "false"
 # `RECORDATORIO_CITAS`: WhatsApp al cliente la víspera de su cita, a las 10:00. Apagado
 # hasta que el negocio lo pida: cada recordatorio es un mensaje que Meta cobra.
 write_env "$TENANT_ENV" "RECORDATORIO_CITAS" "false"
+# `AVISO_RESERVAS_EMAIL`: a quién se manda un correo con cada reserva nueva desde la web.
+# Vacío = nadie. Solo tiene sentido donde hay reservas web (`ops`).
+write_env "$TENANT_ENV" "AVISO_RESERVAS_EMAIL" ""
 
 write_env "$TENANT_ENV" "BASE_DOMAIN" "$BASE_DOMAIN"
 

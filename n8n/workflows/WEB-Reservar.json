@@ -568,6 +568,46 @@
       ],
       "onError": "continueRegularOutput",
       "notes": "Por DEBAJO de Responder en el lienzo a propósito: con executionOrder v1 las ramas corren de arriba abajo, así que la web recibe su respuesta antes de que se mande la invitación. Y sin esperar al sub-workflow: un fallo de Google no puede tumbar una reserva hecha."
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraAvisoReservaCorreo",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "cita_id": "={{ $('Code · Resultado').first().json.cita_id }}",
+            "servicio": "={{ $('Code · Preparar').first().json.cita.servicio }}",
+            "inicio": "={{ $('Code · Validar').first().json.inicio }}",
+            "duracion_minutos": "={{ $('Code · Preparar').first().json.cita.duracion_minutos }}",
+            "nombre": "={{ $('Code · Validar').first().json.nombre }}",
+            "email": "={{ $('Code · Validar').first().json.email }}",
+            "telefono": "={{ $('Code · Validar').first().json.telefono }}",
+            "empresa": "={{ $('Code · Validar').first().json.empresa }}",
+            "mensaje": "={{ $('Code · Validar').first().json.mensaje }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "wr-0016",
+      "name": "Execute · Aviso al equipo (sin esperar)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        2220,
+        420
+      ],
+      "onError": "continueRegularOutput",
+      "notes": "Correo al equipo con los datos de la reserva (AVISO · Reserva por correo). Apagado salvo AVISO_RESERVAS_EMAIL en tenant.env."
     }
   ],
   "connections": {
@@ -712,6 +752,11 @@
         [
           {
             "node": "Execute · Invitación (sin esperar)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Execute · Aviso al equipo (sin esperar)",
             "type": "main",
             "index": 0
           }

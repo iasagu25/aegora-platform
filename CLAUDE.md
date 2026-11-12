@@ -1458,6 +1458,11 @@ se puede olvidar:
   día, hora y enlace de Meet, pidiendo que confirme que le ha llegado. Es también el camino
   para las citas que el equipo reserva desde la web con los datos de una llamada: más rápido
   que el panel, y el cliente recibe correo y WhatsApp. Solo si Google creó la invitación.
+- **Y un correo al equipo** (`AVISO · Reserva por correo`, 12/nov/2026, en prueba en `dev`) con
+  los datos de la reserva y `Reply-To` a quien reservó. Solo si `AVISO_RESERVAS_EMAIL` está en
+  `tenant.env` (en `ops`, `equipo@aegora.es`). Sale por la API de Gmail con la credencial
+  `Gmail` (Google OAuth2 genérica, scope solo `gmail.send`), que **tiene que existir en TODOS
+  los tenants**, como la de Calendar, aunque sea sin conectar.
 - **`ops` probado el 22/oct/2026** (reserva + invitación con Meet), y `aegora.es` ya sale de este
   VPS. La web se compila con `PUBLIC_RESERVAS_URL=https://lucia.ops.aegora.es/webhook`; como
   `web.dev.aegora.es` sirve la misma release, la previsualización también reserva en `ops`.

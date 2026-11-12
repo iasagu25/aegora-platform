@@ -1,0 +1,236 @@
+{
+  "id": "aegoraAvisoReservaCorreo",
+  "name": "AVISO · Reserva por correo",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "cita_id"
+            },
+            {
+              "name": "servicio"
+            },
+            {
+              "name": "inicio"
+            },
+            {
+              "name": "duracion_minutos"
+            },
+            {
+              "name": "nombre"
+            },
+            {
+              "name": "email"
+            },
+            {
+              "name": "telefono"
+            },
+            {
+              "name": "empresa"
+            },
+            {
+              "name": "mensaje"
+            }
+          ]
+        }
+      },
+      "id": "ar-0001",
+      "name": "Reserva hecha",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -420,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "aviso_reservas_email",
+              "type": "string",
+              "value": "__AVISO_RESERVAS_EMAIL__"
+            },
+            {
+              "id": "a2",
+              "name": "webhook_publico",
+              "type": "string",
+              "value": "__WEBHOOK_PUBLIC_URL__"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ar-0002",
+      "name": "Config (editar por tenant)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -200,
+        0
+      ],
+      "notes": "Los rellena render-workflows.sh. aviso_reservas_email: AVISO_RESERVAS_EMAIL de tenant.env (uno o varios, separados por comas; vacío = sin aviso)."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aviso al equipo de que alguien ha reservado. Solo si el tenant dice a qué correo\n// (AVISO_RESERVAS_EMAIL en tenant.env; vacío = apagado, que es lo normal en un cliente).\n// El correo sale de la cuenta conectada a la credencial `Gmail` y va con Reply-To a quien\n// reservó: contestar al aviso es escribirle a esa persona.\nconst i = $('Reserva hecha').first().json;\nconst cfg = $('Config (editar por tenant)').first().json;\nconst destinos = String(cfg.aviso_reservas_email || '').split(',').map((s) => s.trim()).filter(Boolean);\nif (!destinos.length) return [{ json: { _enviar: false, motivo: 'desactivado (AVISO_RESERVAS_EMAIL vacío)' } }];\n\nconst txt = (v) => (v === undefined || v === null ? '' : String(v).trim());\n// Una cabecera no puede llevar saltos de línea: con ellos se inyectan cabeceras nuevas.\nconst cab = (v) => txt(v).replace(/[\\r\\n]+/g, ' ');\nconst correoValido = (v) => /^[^\\s@<>,;\"]+@[^\\s@<>,;\"]+\\.[^\\s@<>,;\"]{2,}$/.test(v);\n\nconst t = DateTime.fromISO(txt(i.inicio), { setZone: true }).setZone('Europe/Madrid').setLocale('es');\nconst cuando = t.isValid ? t.toFormat(\"cccc d 'de' LLLL 'a las' HH:mm\") : txt(i.inicio);\nconst email = txt(i.email).toLowerCase();\nconst telefono = txt(i.telefono);\n\n// El panel es `panel.<dominio>` y los webhooks `lucia.<dominio>` (los cuatro subdominios\n// de un tenant son fijos). Si la dirección no tiene esa forma, el aviso va sin enlace.\nconst publico = txt(cfg.webhook_publico);\nconst panel = /^https:\\/\\/lucia\\./.test(publico) ? publico.replace('https://lucia.', 'https://panel.') : '';\nconst enlace = panel && txt(i.cita_id) ? `${panel}/admin/content/appointments/${txt(i.cita_id)}` : '';\n\nconst lineas = [\n  `${txt(i.nombre) || 'Alguien'} ha reservado desde la web.`,\n  '',\n  `Servicio: ${txt(i.servicio)}`,\n  `Cuándo: ${cuando}${txt(i.duracion_minutos) ? ` (${txt(i.duracion_minutos)} min)` : ''}`,\n  '',\n  `Nombre: ${txt(i.nombre)}`,\n  `Correo: ${email}`,\n  telefono ? `Teléfono: +${telefono.replace(/^\\+/, '')}` : null,\n  txt(i.empresa) ? `Empresa: ${txt(i.empresa)}` : null,\n  ...(txt(i.mensaje) ? ['', 'Qué quiere resolver:', txt(i.mensaje)] : []),\n  ...(enlace ? ['', `La cita en el panel: ${enlace}`] : []),\n  '',\n  'La invitación con el enlace de Meet le llega por separado. Si Google no pudiera mandarla,',\n  'aparecerá una tarea en el panel. Respondiendo a este correo le escribes a quien ha reservado.',\n].filter((l) => l !== null);\n\nconst b64 = (s) => Buffer.from(s, 'utf8').toString('base64');\nconst palabra = (s) => `=?UTF-8?B?${b64(s)}?=`; // RFC 2047: tildes en el asunto\nconst asunto = `Nueva reserva: ${cab(i.nombre) || 'sin nombre'} · ${cab(cuando)}`;\nconst cabeceras = [\n  `To: ${destinos.filter(correoValido).join(', ')}`,\n  `Subject: ${palabra(asunto)}`,\n  correoValido(email) ? `Reply-To: ${email}` : null,\n  'MIME-Version: 1.0',\n  'Content-Type: text/plain; charset=UTF-8',\n  'Content-Transfer-Encoding: base64',\n].filter(Boolean);\nif (!destinos.some(correoValido)) {\n  throw new Error('AVISO_RESERVAS_EMAIL no tiene ningún correo válido: ' + destinos.join(', '));\n}\nconst cuerpo = b64(lineas.join('\\r\\n')).match(/.{1,76}/g).join('\\r\\n');\nconst mime = cabeceras.join('\\r\\n') + '\\r\\n\\r\\n' + cuerpo;\n// La API de Gmail quiere el mensaje entero en base64url.\nconst raw = Buffer.from(mime, 'utf8').toString('base64').replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');\nreturn [{ json: { _enviar: true, raw, para: destinos, asunto } }];\n"
+      },
+      "id": "ar-0003",
+      "name": "Code · Correo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ar-0004-c",
+              "leftValue": "={{ $json._enviar }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ar-0004",
+      "name": "¿Enviar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ raw: $json.raw }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "ar-0005",
+      "name": "HTTP · Gmail enviar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        460,
+        -100
+      ],
+      "credentials": {
+        "googleOAuth2Api": {
+          "id": "__CRED_GMAIL__",
+          "name": "Gmail"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Un aviso que no sale tiene que verse: la ejecución acaba en error, no en verde.\nconst r = $json ?? {};\nconst st = r.statusCode ?? 0;\nif (st >= 200 && st < 300) {\n  const c = $('Code · Correo').first().json;\n  return [{ json: { ok: true, id: (r.body && r.body.id) || null, para: c.para, asunto: c.asunto } }];\n}\nconst b = r.body || {};\nthrow new Error(`Gmail rechazó el aviso (${st}): ${(b.error && b.error.message) || JSON.stringify(b).slice(0, 300)}`);\n"
+      },
+      "id": "ar-0006",
+      "name": "Code · Resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        -100
+      ]
+    }
+  ],
+  "connections": {
+    "Reserva hecha": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "Code · Correo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Correo": {
+      "main": [
+        [
+          {
+            "node": "¿Enviar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Enviar?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Gmail enviar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "HTTP · Gmail enviar": {
+      "main": [
+        [
+          {
+            "node": "Code · Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Madrid"
+  }
+}

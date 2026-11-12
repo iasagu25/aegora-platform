@@ -167,8 +167,6 @@ Valores de `campos`: `obligatorio`, `formato`, `largo`.
 ## Pendiente
 - El servicio "Demo de Aegora" existe en `dev` y `demo` creado a mano; **no está en ningún
   seed**. Para `ops` hará falta uno.
-- Cómo se entera Aegora de una reserva nueva: hoy aparece en el panel y en el `.ics` de quien
-  la atiende. Si hace falta aviso inmediato, una tarea o un WhatsApp al equipo.
 - **Una cancelación o un cambio de hora no tocan la invitación de Google.** Si la demo se anula
   desde el panel o por WhatsApp, el evento sigue en el calendario de quien reservó. El id del
   evento es el uuid de la cita sin guiones, así que borrarlo después no necesita guardar nada.
@@ -198,6 +196,27 @@ de Meet.
   Mientras Meta no apruebe la plantilla, el envío queda `fallido` en la bandeja y no rompe nada.
 - **Si Google falla, se crea una tarea de prioridad alta** ("Enviar enlace de Meet a …") con el
   motivo y el email. La reserva sigue hecha: lo que falta es avisar a quien la hizo.
+
+## El aviso al equipo por correo (`AVISO · Reserva por correo`, 12/nov/2026)
+Con cada reserva NUEVA (la misma condición que la invitación), `WEB · Reservar` lanza, sin
+esperar, un correo a `AVISO_RESERVAS_EMAIL` de `tenant.env` (uno o varios, separados por
+comas; **vacío = sin aviso**, que es el valor por defecto). En `ops`: `equipo@aegora.es`.
+Antes, la única forma de enterarse era ver el evento aparecer en el calendario.
+
+- Lleva servicio, día y hora, nombre, correo, teléfono, empresa, lo que escribió en el
+  formulario y el enlace a la cita en el panel (`panel.` del mismo dominio que `lucia.`).
+- Va con **`Reply-To` a quien reservó**: responder al aviso es escribirle a esa persona.
+- Sale por la **API de Gmail** (`users/me/messages/send`) con la cuenta conectada a la
+  credencial `Gmail`. Si Gmail lo rechaza, la ejecución acaba **en error**, no en verde.
+- No lleva el enlace de Meet: lo crea `WEB · Invitación con Meet` en paralelo y ya está en el
+  evento del calendario. Si Google fallara, la tarea de siempre lo dice.
+
+**Credencial `Gmail`** (tipo *Google OAuth2 API*, el genérico, no el de Gmail de n8n: ese pide
+acceso completo al buzón y aquí basta con enviar). Scope **solo**
+`https://www.googleapis.com/auth/gmail.send`, el mismo cliente OAuth que `Google Calendar` (con
+la API de Gmail activada en ese proyecto de Google Cloud) y conectada con `equipo@aegora.es`.
+Como la de Calendar, **tiene que existir en todos los tenants**: donde no hay aviso basta con
+crearla sin conectar.
 
 **Credencial `Google Calendar`** (tipo *Google Calendar OAuth2 API*), creada a mano en el n8n
 y conectada con `equipo@aegora.es`. Como `render-workflows.sh` exige todas las credenciales que

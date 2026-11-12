@@ -114,6 +114,9 @@ AJUSTES_TENANT = {
     # Apagado por defecto: son mensajes de pago a clientes reales, y un tenant con datos
     # de demostración no debe escribir a nadie. Solo "true" lo enciende.
     "recordatorio_citas": ("__RECORDATORIO_CITAS__", "RECORDATORIO_CITAS", "false"),
+    # Correo al equipo con cada reserva nueva desde la web (`AVISO · Reserva por correo`).
+    # Uno o varios, separados por comas. Vacío = sin aviso; `ops` pone equipo@aegora.es.
+    "aviso_reservas_email": ("__AVISO_RESERVAS_EMAIL__", "AVISO_RESERVAS_EMAIL", ""),
 }
 
 # Formas que delatan un secreto aunque el campo no esté en la lista de arriba.
