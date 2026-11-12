@@ -34,8 +34,24 @@ estables de Directus, mucho más que un layout.
 - No cambia `modo`. Ese campo está en el mismo formulario y un interface solo
   puede emitir el valor de SU campo; tocarlo por API por detrás pelearía con el
   estado del formulario. Se avisa y se deja la decisión en el desplegable.
-- No manda plantillas con la ventana cerrada. Cuando existan las plantillas de
-  recordatorio, ese es su sitio natural.
+- (Desde el 12/nov/2026 SÍ manda plantillas: ver abajo.)
+
+## Plantillas (12/nov/2026)
+
+Con WhatsApp, la caja tiene dos modos: **Mensaje** (texto libre, como siempre) y
+**Plantilla**, que es lo único que sale con la ventana cerrada y por eso es el modo por
+defecto en ese caso. Se elige la plantilla, la cita si la plantilla habla de una (día,
+hora y servicio salen de ella), y el nombre viene de la ficha. Hay vista previa de lo que
+recibirá el cliente.
+
+- La lista sale de `n8n/whatsapp-templates.json` (las que llevan `gestor`), **importado al
+  compilar**: tras tocar el catálogo, `npm run build` aquí y commit del `dist/`.
+- La fila se crea con `plantilla`, `plantilla_parametros` y `texto` ya rellenado (lo que ven
+  la bandeja y la memoria de Lucía). `HUMANO · Enviar pendientes` la manda como plantilla y
+  no mira la ventana.
+- Una plantilla vale en cualquier `modo`. En `auto`, si el cliente contesta, le responde
+  Lucía; se avisa debajo de la vista previa.
+- WhatsApp no admite saltos de línea en una variable: el texto libre se une con « · ».
 
 ## Construir
 

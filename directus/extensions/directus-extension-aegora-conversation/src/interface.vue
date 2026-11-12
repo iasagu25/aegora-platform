@@ -49,6 +49,7 @@
             <div v-if="!fila.seguida" class="quien">{{ etiquetaAutor(fila.mensaje.autor) }}</div>
             <div class="texto">{{ fila.mensaje.texto }}</div>
             <div class="pie">
+              <span v-if="fila.mensaje.plantilla" class="etiqueta-plantilla">plantilla</span>
               <span class="cuando">{{ hora(fila.mensaje.created_at) }}</span>
               <span
                 v-if="estadoVisible(fila.mensaje)"
@@ -64,7 +65,56 @@
 
     <!-- Respuesta -->
     <div v-if="!sinGuardar" class="responder">
-      <p v-if="motivoBloqueo" class="aviso aviso--bloqueo">{{ motivoBloqueo }}</p>
+      <!-- Con WhatsApp se puede elegir: texto libre (ventana abierta y hilo en manos
+           de una persona) o una plantilla aprobada, que vale con la ventana cerrada. -->
+      <div v-if="canal === 'whatsapp'" class="modos">
+        <button type="button" :class="{ activo: modoEnvio === 'texto' }" @click="elegido = 'texto'">Mensaje</button>
+        <button type="button" :class="{ activo: modoEnvio === 'plantilla' }" @click="elegido = 'plantilla'">Plantilla</button>
+      </div>
+
+      <template v-if="modoEnvio === 'plantilla'">
+        <select v-model="plantillaId" class="selector">
+          <option value="">Elige una plantilla…</option>
+          <option v-for="p in plantillas" :key="p.id" :value="p.id">{{ p.etiqueta }}</option>
+        </select>
+
+        <template v-if="plantilla">
+          <label v-if="necesitaCita" class="campo">
+            <span>Cita</span>
+            <select v-model="citaId" class="selector">
+              <option value="">{{ citasDePlantilla.length ? 'Elige la cita…' : 'Este contacto no tiene citas próximas' }}</option>
+              <option v-for="c in citasDePlantilla" :key="c.id" :value="c.id">
+                {{ fechaLarga(c.start_at) }}<template v-if="nombreServicio(c)"> · {{ nombreServicio(c) }}</template><template v-if="c.status === 'cancelled'"> (anulada)</template>
+              </option>
+            </select>
+          </label>
+
+          <label v-for="(campo, i) in plantilla.campos" v-show="campo === 'nombre' || campo === 'texto'" :key="i" class="campo">
+            <span>{{ plantilla.variables[i] }}</span>
+            <input v-if="campo === 'nombre'" v-model="valores[i]" class="caja caja--linea" type="text" maxlength="60" />
+            <textarea v-else v-model="valores[i]" class="caja" rows="3" maxlength="900" />
+          </label>
+          <p v-if="tieneTexto" class="pista">WhatsApp no admite saltos de línea dentro de una plantilla: cada línea se separa con « · ».</p>
+
+          <div class="vista-previa">
+            <div class="quien">Así le llegará</div>
+            <div class="texto">{{ vistaPrevia }}</div>
+          </div>
+          <p class="pista">
+            Tiene que estar aprobada por Meta en este número; si no, saldrá «No se pudo enviar».
+            <template v-if="!enRelevo"> Si contesta, le responderá Lucía: para contestarle tú, pon «Modo» en «Lo lleva una persona».</template>
+          </p>
+        </template>
+
+        <div class="acciones">
+          <span class="pista">{{ faltaPlantilla }}</span>
+          <button class="enviar" type="button" :disabled="enviando || !!faltaPlantilla" @click="enviarPlantilla">
+            {{ enviando ? 'Enviando…' : 'Enviar plantilla' }}
+          </button>
+        </div>
+      </template>
+
+      <p v-else-if="motivoBloqueo" class="aviso aviso--bloqueo">{{ motivoBloqueo }}</p>
 
       <template v-else>
         <textarea
@@ -95,6 +145,31 @@
 <script>
 import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useApi } from '@directus/extensions-sdk';
+// El catálogo de plantillas es UNO para toda la plataforma (n8n/whatsapp-templates.json) y
+// se mete en la extensión al compilar: tras tocarlo, `npm run build` aquí. Solo se ofrecen
+// las que llevan `gestor`, que dice cómo se rellena cada variable.
+import catalogo from '../../../../n8n/whatsapp-templates.json';
+
+const PLANTILLAS = (catalogo.plantillas || [])
+  .filter((p) => p.gestor && p.meta && p.meta.components && p.meta.components[0])
+  .map((p) => ({
+    id: p.meta.name,
+    etiqueta: p.gestor.etiqueta,
+    campos: p.gestor.campos,
+    variables: p.variables || [],
+    texto: p.meta.components[0].text,
+  }));
+
+const ZONA = 'Europe/Madrid';
+const diaEnTexto = (iso) => new Intl.DateTimeFormat('es-ES', {
+  weekday: 'long', day: 'numeric', month: 'long', timeZone: ZONA,
+}).format(new Date(iso)).replace(',', '');
+const horaEnTexto = (iso) => new Intl.DateTimeFormat('es-ES', {
+  hour: '2-digit', minute: '2-digit', timeZone: ZONA,
+}).format(new Date(iso));
+// Meta no admite saltos de línea, tabuladores ni 4+ espacios seguidos en una variable.
+const enUnaLinea = (t) => (t || '').toString().split(/\r?\n/).map((l) => l.trim())
+  .filter(Boolean).join(' · ').replace(/\s{2,}/g, ' ').trim();
 
 const CADA = 10000;
 
@@ -112,6 +187,14 @@ export default {
 
     const mensajes = ref(null);
     const citas = ref(null);
+    // Para las plantillas: citas próximas también anuladas (para avisar de una
+    // anulación) y el nombre de la ficha.
+    const citasTodas = ref([]);
+    const nombreContacto = ref('');
+    const elegido = ref('');
+    const plantillaId = ref('');
+    const citaId = ref('');
+    const valores = ref([]);
     const borrador = ref('');
     const cargando = ref(false);
     const enviando = ref(false);
@@ -172,6 +255,83 @@ export default {
       return '';
     });
 
+    const ventanaCerrada = computed(() => ventana.value.clase === 'chip--cerrada');
+    // Sin elección del gestor: plantilla si la ventana está cerrada (es lo único que
+    // saldría), texto si está abierta.
+    const modoEnvio = computed(() => {
+      if (canal.value !== 'whatsapp') return 'texto';
+      return elegido.value || (ventanaCerrada.value ? 'plantilla' : 'texto');
+    });
+    const plantillas = PLANTILLAS;
+    const plantilla = computed(() => PLANTILLAS.find((p) => p.id === plantillaId.value) || null);
+    const necesitaCita = computed(() => !!plantilla.value
+      && plantilla.value.campos.some((c) => c === 'dia' || c === 'hora' || c === 'servicio'));
+    const tieneTexto = computed(() => !!plantilla.value && plantilla.value.campos.includes('texto'));
+    const citasDePlantilla = computed(() => {
+      const anulada = plantillaId.value === 'aegora_cita_anulada';
+      return citasTodas.value.filter((c) => (c.status === 'cancelled') === anulada);
+    });
+    const cita = computed(() => citasTodas.value.find((c) => c.id === citaId.value) || null);
+
+    // Al cambiar de plantilla se vuelve a rellenar: nombre de la ficha, texto vacío.
+    watch(plantillaId, () => {
+      citaId.value = '';
+      valores.value = plantilla.value
+        ? plantilla.value.campos.map((c) => (c === 'nombre' ? nombreContacto.value : '')) : [];
+    });
+    watch(nombreContacto, (n) => {
+      if (!plantilla.value) return;
+      plantilla.value.campos.forEach((c, i) => { if (c === 'nombre' && !valores.value[i]) valores.value[i] = n; });
+    });
+
+    const parametros = computed(() => {
+      if (!plantilla.value) return [];
+      const c = cita.value;
+      return plantilla.value.campos.map((campo, i) => {
+        if (campo === 'dia') return c ? diaEnTexto(c.start_at) : '';
+        if (campo === 'hora') return c ? horaEnTexto(c.start_at) : '';
+        if (campo === 'servicio') return (c && c.service_id && c.service_id.name) || '';
+        return enUnaLinea(valores.value[i]);
+      });
+    });
+    const vistaPrevia = computed(() => (plantilla.value
+      ? plantilla.value.texto.replace(/\{\{(\d+)\}\}/g, (_, n) => parametros.value[Number(n) - 1] || '…')
+      : ''));
+    const faltaPlantilla = computed(() => {
+      if (!plantilla.value) return 'Elige una plantilla.';
+      if (necesitaCita.value && !cita.value) return 'Elige la cita.';
+      const vacio = parametros.value.findIndex((x) => !x);
+      if (vacio >= 0) return `Falta: ${plantilla.value.variables[vacio] || 'un dato'}.`;
+      return '';
+    });
+
+    async function enviarPlantilla() {
+      if (faltaPlantilla.value || enviando.value || !sesionId.value) return;
+      enviando.value = true;
+      error.value = '';
+      try {
+        // Igual que un mensaje: crear la fila ES enviarlo. `texto` lleva la plantilla
+        // ya rellenada, que es lo que verán la bandeja y la memoria de Lucía.
+        await api.post('/items/conversation_messages', {
+          session_id: sesionId.value,
+          contact_id: contactoId.value,
+          canal: 'whatsapp',
+          texto: vistaPrevia.value,
+          direccion: 'saliente',
+          autor: 'humano',
+          estado_envio: 'pendiente',
+          plantilla: plantilla.value.id,
+          plantilla_parametros: parametros.value,
+        });
+        plantillaId.value = '';
+        await cargar({ silencioso: true, forzarAbajo: true });
+      } catch (e) {
+        error.value = 'No se pudo poner la plantilla en cola. ' + detalle(e);
+      } finally {
+        enviando.value = false;
+      }
+    }
+
     async function cargar({ silencioso = false, forzarAbajo = false } = {}) {
       if (!sesionId.value) return;
       // Se decide ANTES de repintar: si el gestor estaba leyendo hacia arriba, el
@@ -183,7 +343,7 @@ export default {
         const { data } = await api.get('/items/conversation_messages', {
           params: {
             filter: { session_id: { _eq: sesionId.value } },
-            fields: ['id', 'texto', 'autor', 'direccion', 'estado_envio', 'error', 'created_at'],
+            fields: ['id', 'texto', 'autor', 'direccion', 'estado_envio', 'error', 'created_at', 'plantilla'],
             sort: ['created_at'],
             limit: 300,
           },
@@ -201,24 +361,32 @@ export default {
     }
 
     async function cargarCitas() {
-      if (!contactoId.value) { citas.value = null; return; }
+      if (!contactoId.value) { citas.value = null; citasTodas.value = []; nombreContacto.value = ''; return; }
       try {
         const { data } = await api.get('/items/appointments', {
           params: {
             filter: {
               contact_id: { _eq: contactoId.value },
-              status: { _in: ['scheduled', 'confirmed'] },
+              status: { _in: ['scheduled', 'confirmed', 'cancelled'] },
               start_at: { _gte: '$NOW' },
             },
             fields: ['id', 'start_at', 'status', 'service_id.name'],
             sort: ['start_at'],
-            limit: 5,
+            limit: 15,
           },
         });
-        citas.value = data.data || [];
+        citasTodas.value = data.data || [];
+        citas.value = citasTodas.value.filter((c) => c.status !== 'cancelled').slice(0, 5);
       } catch {
         // Informativo: si no se pueden leer, el hilo sigue sirviendo.
         citas.value = [];
+        citasTodas.value = [];
+      }
+      try {
+        const { data } = await api.get(`/items/contacts/${contactoId.value}`, { params: { fields: ['first_name'] } });
+        nombreContacto.value = ((data.data && data.data.first_name) || '').trim();
+      } catch {
+        nombreContacto.value = '';
       }
     }
 
@@ -344,6 +512,8 @@ export default {
     return {
       mensajes, lineas, citas, borrador, cargando, enviando, error, hilo,
       sinGuardar, canal, enRelevo, contactoId, ventana, motivoBloqueo,
+      elegido, modoEnvio, plantillas, plantillaId, plantilla, necesitaCita, tieneTexto,
+      citasDePlantilla, citaId, valores, vistaPrevia, faltaPlantilla, enviarPlantilla,
       enviar, recargar, lado, etiquetaAutor, etiquetaEstado, estadoVisible,
       nombreServicio, hora, fechaLarga,
     };
@@ -549,6 +719,45 @@ export default {
   cursor: pointer;
 }
 .enviar:disabled { opacity: 0.5; cursor: default; }
+
+.modos { display: flex; gap: 4px; margin-bottom: 8px; }
+.modos button {
+  font-size: 12px;
+  padding: 3px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--theme--border-color-subdued);
+  background: var(--theme--background);
+  color: var(--theme--foreground-subdued);
+  cursor: pointer;
+}
+.modos button.activo { border-color: var(--theme--primary); color: var(--theme--primary); }
+
+.selector {
+  width: 100%;
+  font: inherit;
+  color: var(--theme--foreground);
+  background: var(--theme--background);
+  border: 1px solid var(--theme--border-color-subdued);
+  border-radius: var(--theme--border-radius);
+  padding: 6px 8px;
+  margin-bottom: 8px;
+}
+.campo { display: block; margin-bottom: 8px; }
+.campo > span { display: block; font-size: 12px; color: var(--theme--foreground-subdued); margin-bottom: 3px; }
+.caja--linea { resize: none; }
+.vista-previa {
+  margin: 4px 0 6px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px dashed var(--theme--border-color-subdued);
+  background: var(--theme--background);
+}
+.etiqueta-plantilla {
+  font-size: 10px;
+  padding: 0 6px;
+  border-radius: 8px;
+  border: 1px solid var(--theme--border-color-subdued);
+}
 
 .aviso { margin: 0; padding: 12px; font-size: 13px; color: var(--theme--foreground-subdued); }
 .aviso--error { color: var(--theme--danger); }

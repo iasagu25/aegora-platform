@@ -309,10 +309,12 @@ const ordenDeCampos = {
     ['direccion', 'half'],
     ['canal', 'half'],
     ['estado_envio', 'half'],
+    ['plantilla', 'half'],
     ['error', 'full'],
     ['session_id', 'full'],
     ['contact_id', 'full'],
     ['canal_message_id', 'full'],
+    ['plantilla_parametros', 'full'],
     ['id', 'full'],
   ],
 };

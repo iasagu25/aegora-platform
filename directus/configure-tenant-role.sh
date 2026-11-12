@@ -155,7 +155,9 @@ Informe (Insights):
   directus_panels        read
 
 Conversaciones de Lucía:
-  conversation_sessions  read / update   (update = coger el hilo con 'modo')
+  conversation_sessions  create / read / update   (create = "Escribir por WhatsApp"
+                                          desde la ficha del contacto; update =
+                                          coger el hilo con 'modo')
   call_notes             read / update   (update = apagar 'requiere seguimiento')
   numeros_bloqueados     create / read / update / delete   (borrar = desbloquear)
   conversation_messages  read / create   (create = contestar; crear el mensaje
@@ -260,7 +262,9 @@ const permissionModel = {
   // poder tocar `state` (el JSON interno de la máquina) porque esta edición de
   // Directus no tiene permisos por campo: se pone readonly en la interfaz, que
   // es un guardarraíl y no una barrera -- igual que con la hora de una cita.
-  conversation_sessions: { read: ALL, update: ALL },
+  // create = abrir un hilo de WhatsApp desde la ficha del contacto (botón "Escribir
+  // por WhatsApp"), para escribirle tras una llamada aunque nunca nos haya escrito.
+  conversation_sessions: { create: ALL, read: ALL, update: ALL },
   // create = contestar. Crear el mensaje ES enviarlo: HUMANO · Enviar pendientes
   // recoge los 'pendiente' cada 30 s.
   // SIN update y SIN delete, a propósito: un historial que se puede editar deja

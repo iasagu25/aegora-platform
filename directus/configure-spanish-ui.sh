@@ -472,6 +472,7 @@ const fieldTranslations = {
     appointments: 'Citas',
     trato: 'Trato',
     gestor_id: 'Gestor asignado',
+    whatsapp: 'WhatsApp',
   },
 
   numeros_bloqueados: {
@@ -696,6 +697,8 @@ const fieldTranslations = {
     error: 'Error',
     canal_message_id: 'ID del canal',
     created_at: 'Fecha de creación',
+    plantilla: 'Plantilla',
+    plantilla_parametros: 'Parámetros de la plantilla',
   },
 
   languages: {

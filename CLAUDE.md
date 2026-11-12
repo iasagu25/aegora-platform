@@ -757,6 +757,22 @@ latencia que quieres, no la contabilidad. (A 30 s lo elegía la contabilidad: 2.
 ejecuciones diarias se habrían comido ese límite en tres días, desalojando las de
 conversaciones, que son las que sirven para depurar.)
 
+**Escribir a un contacto por WhatsApp aunque no nos haya escrito (12/nov/2026, en prueba
+en `dev`).** Tras una llamada no hay hilo y la ventana de 24 h está cerrada. Dos piezas:
+- **Botón "Escribir por WhatsApp" en la ficha del contacto** (campo de presentación
+  `contacts.whatsapp`, extensión `directus-extension-aegora-whatsapp-start`): abre su hilo
+  `whatsapp:<tel>` o lo crea, **en `modo: humano`** -- lo abre una persona para hablar ella,
+  y si el cliente contesta no le responde Lucía encima. El gestor tiene `create` sobre
+  `conversation_sessions` para esto.
+- **Modo "Plantilla" en la caja de respuesta de la bandeja**, por defecto con la ventana
+  cerrada: el gestor elige una plantilla del catálogo (las que llevan `gestor` en
+  `n8n/whatsapp-templates.json`, entre ellas `aegora_tras_llamada` con texto libre), la cita
+  si hace falta, y ve la vista previa. La fila lleva `plantilla` y `plantilla_parametros`
+  (columnas nuevas de `conversation_messages`) y `HUMANO · Enviar pendientes` la manda como
+  plantilla sin mirar la ventana.
+- **El catálogo se compila dentro de la extensión de la bandeja**: tocar
+  `whatsapp-templates.json` sin `npm run build` en esa extensión deja la lista vieja en el panel.
+
 **Por eso el chat NO necesita Flows de Directus.** Se recurrió a ellos dos veces y las dos
 hubo algo mejor: cancelar las citas al borrar un contacto es un trigger (cubre más, es
 atómico y viaja en el dump), y el empujón para que el gestor no espere se resolvió bajando

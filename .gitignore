@@ -89,4 +89,4 @@ __pycache__/
 # node_modules no: un solo `npm install` mete 16.000 ficheros en el repo, y las
 # otras extensiones se libraron por accidente, porque nadie había construido
 # dentro del checkout.
-node_modules/
+node_modules

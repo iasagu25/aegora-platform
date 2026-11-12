@@ -32,7 +32,12 @@
     "Meta EXIGE `example` en toda plantilla con variables: sin él, rechazo directo.",
     "Va en `example.body_text` del componente BODY, no dentro de `text`: es una",
     "clave hermana cuyo nombre dice a qué componente pertenece, y cada entrada del",
-    "array interno es un valor para {{1}}, {{2}}..."
+    "array interno es un valor para {{1}}, {{2}}...",
+    "",
+    "`gestor` marca las que el gestor puede mandar desde la bandeja de Directus (la extensión",
+    "directus-extension-aegora-conversation importa ESTE fichero al compilarse: tras tocarlo,",
+    "`npm run build` en la extensión). `campos` dice cómo se rellena cada variable, en orden:",
+    "nombre (de la ficha), dia/hora/servicio (de una cita del contacto) o texto (lo escribe él)."
   ],
   "plantillas": [
     {
@@ -60,6 +65,14 @@
               ]
             }
           }
+        ]
+      },
+      "gestor": {
+        "etiqueta": "Recordatorio de cita",
+        "campos": [
+          "nombre",
+          "dia",
+          "hora"
         ]
       }
     },
@@ -89,6 +102,14 @@
             }
           }
         ]
+      },
+      "gestor": {
+        "etiqueta": "Hay que cambiar una cita",
+        "campos": [
+          "nombre",
+          "dia",
+          "hora"
+        ]
       }
     },
     {
@@ -114,6 +135,13 @@
               ]
             }
           }
+        ]
+      },
+      "gestor": {
+        "etiqueta": "Gestión lista",
+        "campos": [
+          "nombre",
+          "texto"
         ]
       }
     },
@@ -143,6 +171,14 @@
             }
           }
         ]
+      },
+      "gestor": {
+        "etiqueta": "Confirmación de cita",
+        "campos": [
+          "servicio",
+          "dia",
+          "hora"
+        ]
       }
     },
     {
@@ -170,6 +206,14 @@
               ]
             }
           }
+        ]
+      },
+      "gestor": {
+        "etiqueta": "Cita anulada",
+        "campos": [
+          "servicio",
+          "dia",
+          "hora"
         ]
       }
     },
@@ -256,6 +300,39 @@
                   "jueves 13 de noviembre",
                   "11:00",
                   "https://meet.google.com/abc-defg-hij"
+                ]
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "cuando": "El gestor escribe al cliente tras una llamada (botón 'Escribir por WhatsApp' de la ficha del contacto, o la bandeja con la ventana cerrada): lo que no se dicta bien por teléfono, la documentación que hay que traer, lo que se acordó. El texto lo escribe una PERSONA del negocio. UTILITY porque sigue a una conversación concreta con el cliente; usarla para promociones es lo que haría que Meta la reclasificara.",
+      "variables": [
+        "nombre del cliente",
+        "el mensaje, en una línea"
+      ],
+      "gestor": {
+        "etiqueta": "Tras una llamada (texto libre)",
+        "campos": [
+          "nombre",
+          "texto"
+        ]
+      },
+      "meta": {
+        "name": "aegora_tras_llamada",
+        "language": "es",
+        "category": "UTILITY",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Hola {{1}}, te escribimos tras nuestra llamada:\n\n{{2}}\n\nSi tienes cualquier duda, responde a este mensaje y te ayudamos.",
+            "example": {
+              "body_text": [
+                [
+                  "María",
+                  "Para la renta necesitamos tu DNI, el borrador de Hacienda y los recibos del IBI. Puedes traerlos el jueves a la oficina."
                 ]
               ]
             }

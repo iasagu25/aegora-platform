@@ -28,6 +28,7 @@ readonly MANAGED_EXTENSIONS=(
   "directus-extension-aegora-phone-display"
   "directus-extension-aegora-phone-normalizer"
   "directus-extension-aegora-tasks-layout"
+  "directus-extension-aegora-whatsapp-start"
   "directus-extension-field-actions"
 )
 
