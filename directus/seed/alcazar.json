@@ -1,0 +1,421 @@
+{
+  "_nota": [
+    "Gestoría Alcázar (Murcia) para el tenant `demo` (16/nov/2026). Se carga con",
+    "directus/seed/load-seed.sh --tenant demo --set alcazar, después de vaciar el tenant con",
+    "reset-tenant-data.sh. Datos sacados de gestoriaalcazar.com.",
+    "",
+    "La web NO publica equipo, horario ni precios. Por eso:",
+    "- tres recursos por ÁREA, sin personas (Lucía no dirá 'te atenderá X');",
+    "- horario PROVISIONAL (L-J 9-14 y 16:30-19, V 9-14; tráfico solo mañanas), igual en la KB",
+    "  y en availability_rules: si se corrige, en los dos sitios;",
+    "- precios: 'presupuesto según el caso'."
+  ],
+  "locations": [
+    {
+      "_ref": "oficina",
+      "name": "Gestoría Alcázar",
+      "code": "MURCIA",
+      "address": "Avda. Ronda Norte, 9, 1º B, Edificio Satsuma\n30009 Murcia",
+      "phone": "+34 968 291 912",
+      "email": "info@gestoriaalcazar.com",
+      "timezone": "Europe/Madrid",
+      "active": true
+    }
+  ],
+  "resources": [
+    {
+      "_ref": "r_laboral",
+      "name": "Asesoría laboral",
+      "resource_type": "generic",
+      "location_id": "@oficina",
+      "capacity": 1,
+      "active": true
+    },
+    {
+      "_ref": "r_fiscal",
+      "name": "Fiscal, contable y jurídico",
+      "resource_type": "generic",
+      "location_id": "@oficina",
+      "capacity": 1,
+      "active": true
+    },
+    {
+      "_ref": "r_trafico",
+      "name": "Tráfico",
+      "resource_type": "generic",
+      "location_id": "@oficina",
+      "capacity": 1,
+      "active": true
+    }
+  ],
+  "services": [
+    {
+      "_ref": "s_laboral",
+      "name": "Asesoría laboral",
+      "duration_minutes": 45,
+      "description": "Nóminas, contratos, seguros sociales y asesoramiento laboral para empresas y autónomos.",
+      "booking_mode": "fixed_duration",
+      "minimum_notice_minutes": 120,
+      "maximum_booking_days": 60,
+      "requires_confirmation": false,
+      "active": true,
+      "buffer_before_minutes": 0,
+      "buffer_after_minutes": 10
+    },
+    {
+      "_ref": "s_fiscal",
+      "name": "Asesoría fiscal",
+      "duration_minutes": 45,
+      "description": "Impuestos y declaraciones tributarias de empresas, autónomos y particulares.",
+      "booking_mode": "fixed_duration",
+      "minimum_notice_minutes": 120,
+      "maximum_booking_days": 60,
+      "requires_confirmation": false,
+      "active": true,
+      "buffer_before_minutes": 0,
+      "buffer_after_minutes": 10
+    },
+    {
+      "_ref": "s_conta",
+      "name": "Contabilidad",
+      "duration_minutes": 45,
+      "description": "Libros contables, balances y cierres para empresas y autónomos.",
+      "booking_mode": "fixed_duration",
+      "minimum_notice_minutes": 120,
+      "maximum_booking_days": 60,
+      "requires_confirmation": false,
+      "active": true,
+      "buffer_before_minutes": 0,
+      "buffer_after_minutes": 10
+    },
+    {
+      "_ref": "s_renta",
+      "name": "Declaración de la Renta",
+      "duration_minutes": 30,
+      "description": "Elaboración y presentación de la Renta, revisando deducciones para pagar solo lo justo.",
+      "booking_mode": "fixed_duration",
+      "minimum_notice_minutes": 120,
+      "maximum_booking_days": 60,
+      "requires_confirmation": false,
+      "active": true,
+      "buffer_before_minutes": 0,
+      "buffer_after_minutes": 10
+    },
+    {
+      "_ref": "s_herencias",
+      "name": "Herencias, sucesiones y donaciones",
+      "duration_minutes": 60,
+      "description": "Tramitación completa ante notaría, registro y Hacienda.",
+      "booking_mode": "fixed_duration",
+      "minimum_notice_minutes": 120,
+      "maximum_booking_days": 60,
+      "requires_confirmation": false,
+      "active": true,
+      "buffer_before_minutes": 0,
+      "buffer_after_minutes": 10
+    },
+    {
+      "_ref": "s_escrituras",
+      "name": "Gestión de escrituras",
+      "duration_minutes": 45,
+      "description": "Preparación, revisión y tramitación de escrituras de compraventa, herencias o constitución de empresas.",
+      "booking_mode": "fixed_duration",
+      "minimum_notice_minutes": 120,
+      "maximum_booking_days": 60,
+      "requires_confirmation": false,
+      "active": true,
+      "buffer_before_minutes": 0,
+      "buffer_after_minutes": 10
+    },
+    {
+      "_ref": "s_transfer",
+      "name": "Transferencia de vehículo",
+      "duration_minutes": 30,
+      "description": "Cambio de titularidad de turismos, motos, furgonetas e industriales: contrato, tasas, impuesto y DGT, en el día.",
+      "booking_mode": "fixed_duration",
+      "minimum_notice_minutes": 60,
+      "maximum_booking_days": 60,
+      "requires_confirmation": false,
+      "active": true,
+      "buffer_before_minutes": 0,
+      "buffer_after_minutes": 10
+    },
+    {
+      "_ref": "s_matric",
+      "name": "Matriculación de vehículo",
+      "duration_minutes": 30,
+      "description": "Matriculación de vehículos nuevos o importados con toda su documentación.",
+      "booking_mode": "fixed_duration",
+      "minimum_notice_minutes": 60,
+      "maximum_booking_days": 60,
+      "requires_confirmation": false,
+      "active": true,
+      "buffer_before_minutes": 0,
+      "buffer_after_minutes": 10
+    },
+    {
+      "_ref": "s_trafico",
+      "name": "Otros trámites de tráfico",
+      "duration_minutes": 20,
+      "description": "Bajas, duplicados de permisos, notificaciones de venta y gestiones para profesionales del motor.",
+      "booking_mode": "fixed_duration",
+      "minimum_notice_minutes": 60,
+      "maximum_booking_days": 60,
+      "requires_confirmation": false,
+      "active": true,
+      "buffer_before_minutes": 0,
+      "buffer_after_minutes": 10
+    }
+  ],
+  "service_resources": [
+    {
+      "service_id": "@s_laboral",
+      "resource_id": "@r_laboral"
+    },
+    {
+      "service_id": "@s_fiscal",
+      "resource_id": "@r_fiscal"
+    },
+    {
+      "service_id": "@s_conta",
+      "resource_id": "@r_fiscal"
+    },
+    {
+      "service_id": "@s_renta",
+      "resource_id": "@r_fiscal"
+    },
+    {
+      "service_id": "@s_herencias",
+      "resource_id": "@r_fiscal"
+    },
+    {
+      "service_id": "@s_escrituras",
+      "resource_id": "@r_fiscal"
+    },
+    {
+      "service_id": "@s_transfer",
+      "resource_id": "@r_trafico"
+    },
+    {
+      "service_id": "@s_matric",
+      "resource_id": "@r_trafico"
+    },
+    {
+      "service_id": "@s_trafico",
+      "resource_id": "@r_trafico"
+    }
+  ],
+  "availability_rules": [
+    {
+      "resource_id": "@r_laboral",
+      "day_of_week": 1,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_laboral",
+      "day_of_week": 2,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_laboral",
+      "day_of_week": 3,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_laboral",
+      "day_of_week": 4,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_laboral",
+      "day_of_week": 5,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_laboral",
+      "day_of_week": 1,
+      "start_time": "16:30:00",
+      "end_time": "19:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_laboral",
+      "day_of_week": 2,
+      "start_time": "16:30:00",
+      "end_time": "19:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_laboral",
+      "day_of_week": 3,
+      "start_time": "16:30:00",
+      "end_time": "19:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_laboral",
+      "day_of_week": 4,
+      "start_time": "16:30:00",
+      "end_time": "19:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_fiscal",
+      "day_of_week": 1,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_fiscal",
+      "day_of_week": 2,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_fiscal",
+      "day_of_week": 3,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_fiscal",
+      "day_of_week": 4,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_fiscal",
+      "day_of_week": 5,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_fiscal",
+      "day_of_week": 1,
+      "start_time": "16:30:00",
+      "end_time": "19:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_fiscal",
+      "day_of_week": 2,
+      "start_time": "16:30:00",
+      "end_time": "19:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_fiscal",
+      "day_of_week": 3,
+      "start_time": "16:30:00",
+      "end_time": "19:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_fiscal",
+      "day_of_week": 4,
+      "start_time": "16:30:00",
+      "end_time": "19:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_trafico",
+      "day_of_week": 1,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_trafico",
+      "day_of_week": 2,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_trafico",
+      "day_of_week": 3,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_trafico",
+      "day_of_week": 4,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    },
+    {
+      "resource_id": "@r_trafico",
+      "day_of_week": 5,
+      "start_time": "09:00:00",
+      "end_time": "14:00:00",
+      "active": true
+    }
+  ],
+  "knowledge": [
+    {
+      "sort": 1,
+      "active": true,
+      "title": "Quiénes somos",
+      "body": "Somos Gestoría Alcázar, una gestoría en Murcia con más de 40 años de experiencia. Ayudamos a empresas, autónomos y particulares con su gestión fiscal, laboral, contable y de tráfico, además de herencias, escrituras y trámites administrativos.\n\nNuestra forma de trabajar: atención cercana, ágil y personalizada, con confianza, profesionalidad, innovación y compromiso. Contamos con un equipo experto en materia fiscal, laboral, contable y jurídica, y con una red de colaboradores especializados para ofrecer un servicio integral."
+    },
+    {
+      "sort": 2,
+      "active": true,
+      "title": "Dónde estamos y cómo contactar",
+      "body": "- Dirección: Avda. Ronda Norte, 9, 1º B, Edificio Satsuma, 30009 Murcia.\n- Teléfono: 968 291 912.\n- Móvil y WhatsApp: 661 11 44 36.\n- Correo: info@gestoriaalcazar.com."
+    },
+    {
+      "sort": 3,
+      "active": true,
+      "title": "Horario de atención",
+      "body": "- Lunes a jueves: de 9:00 a 14:00 y de 16:30 a 19:00.\n- Viernes: de 9:00 a 14:00.\n- Los trámites de tráfico se atienden por la mañana, de lunes a viernes de 9:00 a 14:00."
+    },
+    {
+      "sort": 4,
+      "active": true,
+      "title": "Asesoría laboral",
+      "body": "Nos encargamos de nóminas, contratos y seguros sociales, y asesoramos a empresas y autónomos en todo lo laboral."
+    },
+    {
+      "sort": 5,
+      "active": true,
+      "title": "Asesoría fiscal y contabilidad",
+      "body": "- Fiscal: presentación de impuestos y declaraciones tributarias, cumpliendo cada plazo.\n- Contabilidad: llevanza y supervisión de libros contables, balances y cierres para empresas y autónomos.\n- Declaración de la Renta: la preparamos y presentamos analizando cada caso y revisando las deducciones, para que pagues solo lo justo y sin errores."
+    },
+    {
+      "sort": 6,
+      "active": true,
+      "title": "Herencias y escrituras",
+      "body": "- Herencias, sucesiones y donaciones: tramitación completa ante notaría, registro y Hacienda.\n- Escrituras: preparación, revisión y tramitación de escrituras notariales de compraventa, herencias o constitución de empresas.\n- También gestionamos certificados, licencias y otras gestiones administrativas."
+    },
+    {
+      "sort": 7,
+      "active": true,
+      "title": "Gestiones de tráfico",
+      "body": "- Transferencias: cambio de titularidad de turismos, motos, furgonetas e industriales. Redactamos el contrato de compraventa, pagamos las tasas, liquidamos el impuesto de transmisiones y lo gestionamos ante la DGT. Te damos el justificante provisional de circulación al momento y la transferencia queda lista el mismo día, sin citas ni esperas en Tráfico.\n- Matriculaciones de vehículos nuevos o importados.\n- Bajas, duplicados de permisos y notificaciones de venta.\n- Profesionales del motor: gestión integral de expedientes para concesionarios, talleres y compraventas."
+    },
+    {
+      "sort": 8,
+      "active": true,
+      "title": "Precios",
+      "body": "No tenemos tarifas cerradas publicadas: cada trámite depende del caso. Te damos presupuesto sin compromiso al ver tu caso, en la oficina, por teléfono o por WhatsApp."
+    }
+  ]
+}
