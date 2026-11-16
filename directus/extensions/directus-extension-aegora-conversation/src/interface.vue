@@ -253,7 +253,7 @@ export default {
         return 'Este canal no admite enviar un mensaje más tarde. Solo WhatsApp.';
       }
       if (!enRelevo.value) {
-        return 'Lucía está respondiendo este hilo. Cambia «Modo» a «Lo lleva una persona» y guarda antes de escribir tú, o le contestaréis los dos.';
+        return 'Lucía está respondiendo este hilo. Cambia «Modo» a «Lo lleva una persona» antes de escribir tú, o le contestaréis los dos (al enviar se guarda solo).';
       }
       if (ventana.value.clase === 'chip--cerrada') {
         return 'La ventana de 24 h de WhatsApp está cerrada: el cliente no escribe desde hace más de un día. Hasta que vuelva a escribir, solo se le puede mandar una plantilla aprobada por Meta.';
@@ -311,11 +311,23 @@ export default {
       return '';
     });
 
+    // El «Modo» del formulario NO está en la base hasta que se pulsa Guardar, y Entry lee
+    // la base. Enviar, en cambio, es inmediato. Pasó el 16/nov/2026: plantilla enviada con
+    // «Lo lleva una persona» elegido y sin guardar, el contestador automático del cliente
+    // respondió en el mismo segundo y le contestó Lucía. Así que antes de poner nada en
+    // cola se guarda el modo que se VE: lo que el gestor tiene delante es lo que vale.
+    async function fijarModo() {
+      const modo = values.value && values.value.modo;
+      if (!modo || !sesionId.value) return;
+      await api.patch(`/items/conversation_sessions/${sesionId.value}`, { modo });
+    }
+
     async function enviarPlantilla() {
       if (faltaPlantilla.value || enviando.value || !sesionId.value) return;
       enviando.value = true;
       error.value = '';
       try {
+        await fijarModo();
         // Igual que un mensaje: crear la fila ES enviarlo. `texto` lleva la plantilla
         // ya rellenada, que es lo que verán la bandeja y la memoria de Lucía.
         await api.post('/items/conversation_messages', {
@@ -402,6 +414,7 @@ export default {
       enviando.value = true;
       error.value = '';
       try {
+        await fijarModo();
         // Crear la fila ES enviar: HUMANO · Enviar pendientes la recoge. Se
         // mandan los campos explícitos aunque tengan default, para no depender
         // de que el esquema del tenant esté al día.

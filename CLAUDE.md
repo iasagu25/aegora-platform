@@ -772,6 +772,10 @@ en `dev`).** Tras una llamada no hay hilo y la ventana de 24 h está cerrada. Do
   si hace falta, y ve la vista previa. La fila lleva `plantilla` y `plantilla_parametros`
   (columnas nuevas de `conversation_messages`) y `HUMANO · Enviar pendientes` la manda como
   plantilla sin mirar la ventana.
+- **Al enviar (mensaje o plantilla), la bandeja guarda antes el «Modo» que se ve** en el
+  formulario (16/nov/2026). Enviar es inmediato y el modo solo llegaba a la base al pulsar
+  Guardar: con «Lo lleva una persona» elegido y sin guardar, el contestador automático del
+  cliente respondió en el mismo segundo y le contestó Lucía, aviso de privacidad incluido.
 - **El catálogo se compila dentro de la extensión de la bandeja**: tocar
   `whatsapp-templates.json` sin `npm run build` en esa extensión deja la lista vieja en el panel.
 
