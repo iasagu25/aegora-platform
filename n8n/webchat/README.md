@@ -12,7 +12,7 @@ widget.js  --POST /webchat-->  WEBCHAT · Adapter  -->  AGENT · Lucía · Entry
 | | |
 |---|---|
 | `widget.js` | Script embebible. Inyecta su CSS + DOM, botón flotante, panel de chat. |
-| `demo.html` | Página para probar o enseñar el chat de un tenant: `demo.html?tenant=demo&negocio=Gestoría%20Alcázar`. Publicada en **https://chat.demo.aegora.es** (`compose/caddy/sites/chat-demo.caddy`, sirve esta carpeta del checkout del VPS: un `git reset` la actualiza). Atajos por cliente en ese fichero (`/alcazar`). También se abre desde disco (solo con `WEBCHAT_ORIGENES=*`). |
+| `demo.html` | Página para probar o enseñar el chat de un tenant: `demo.html?tenant=demo&negocio=Gestoría%20Alcázar`. Publicada en **https://chat.demo.aegora.es** (`compose/caddy/sites/chat-demo.caddy`, sirve esta carpeta del checkout del VPS: un `git reset` la actualiza). Maquetas de la web de un cliente con Lucía dentro en `maquetas/<nombre>.html`, servidas en `/<nombre>` (`/alcazar`). También se abre desde disco (solo con `WEBCHAT_ORIGENES=*`). |
 
 ## Contrato HTTP
 

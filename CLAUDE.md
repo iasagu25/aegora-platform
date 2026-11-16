@@ -277,9 +277,11 @@ Orden de sospechas cuando no hay huecos y "debería haberlos" (16/sep/2026: fue 
   quien abre conversaciones nuevas sin fin, y cada mensaje cuesta modelo.
 - Widget en `n8n/webchat/` (`widget.js` sin dependencias + `demo.html`).
   `demo.html` está publicada en `https://chat.demo.aegora.es` (16/nov/2026) para mandarla a clientes:
-  Caddy monta `n8n/webchat` del checkout del VPS y solo sirve la página y el widget. Cada cliente
-  tiene un atajo en `compose/caddy/sites/chat-demo.caddy` (`/alcazar`). Lo que escriban ahí entra
-  en la bandeja de `demo` como cualquier conversación de webchat.
+  Caddy monta `n8n/webchat` del checkout del VPS y solo sirve la página, el widget y las maquetas.
+  **Maqueta por cliente**: `n8n/webchat/maquetas/<nombre>.html` se sirve en `/<nombre>` sin tocar
+  Caddy -- su web copiada en estático con el botón de contacto abriendo a Lucía (`/alcazar`). La
+  franja "maqueta de Aegora, no es la web oficial" no se quita: la página es pública. Lo que
+  escriban ahí entra en la bandeja de `demo` como cualquier conversación de webchat.
 
 #### Lucía v2 — reescritura del Core en curso (decidida el 15/sep/2026)
 El Core v1 (`AGENT-Lucia-Core.json`) llegó a **75 nodos: 4 LLMs, 21 puertas de

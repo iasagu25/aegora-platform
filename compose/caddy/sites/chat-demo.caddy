@@ -8,8 +8,9 @@
 # Solo se sirven la página y el widget: en la carpeta hay más cosas (README) que no son
 # para el público. noindex porque es una demostración, no una web.
 #
-# Atajos por cliente: un `redir` por línea, con el nombre ya codificado para URL. Así se
-# manda https://chat.demo.aegora.es/alcazar y no la URL con parámetros.
+# Maquetas por cliente: https://chat.demo.aegora.es/<nombre> sirve maquetas/<nombre>.html
+# (una copia estática de la web del cliente con Lucía dentro). Añadir otra es solo añadir
+# el fichero: Caddy no se toca. En maquetas/ no va nada que no sea una maqueta.
 
 chat.demo.aegora.es {
 	header {
@@ -21,8 +22,6 @@ chat.demo.aegora.es {
 	}
 	encode zstd gzip
 
-	redir /alcazar /?tenant=demo&negocio=Gestor%C3%ADa%20Alc%C3%A1zar 302
-
 	handle / {
 		root * /srv/webchat
 		rewrite * /demo.html
@@ -33,6 +32,9 @@ chat.demo.aegora.es {
 		file_server
 	}
 	handle {
-		respond 404
+		root * /srv/webchat/maquetas
+		@maqueta file {path}.html
+		rewrite @maqueta {path}.html
+		file_server
 	}
 }

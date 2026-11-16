@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Gestoría Alcázar · Maqueta con Lucía (Aegora)</title>
+  <!--
+    MAQUETA ESTÁTICA de https://gestoriaalcazar.com/ para enseñarle a Gestoría Alcázar cómo
+    quedaría Lucía en su web. Todo es decorativo salvo el chat, que habla con el tenant `demo`.
+    El botón "Solicitar Información" (en su web, un formulario de contacto) abre a Lucía.
+
+    - Textos sacados de su web (16/nov/2026). El logo y la foto se enlazan desde su servidor,
+      no se copian: si cambian de ruta, aquí se ven rotos y basta con quitarlos.
+    - La franja superior dice SIEMPRE que es una maqueta de Aegora y no su web oficial. No se
+      quita: la página es pública (aunque no indexada) y alguien podría llegar sin contexto.
+    - Se sirve en https://chat.demo.aegora.es/alcazar (compose/caddy/sites/chat-demo.caddy):
+      cualquier /<nombre> sirve maquetas/<nombre>.html, así que otra maqueta no toca Caddy.
+  -->
+  <link rel="icon" href="https://aegora.es/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <style>
+    :root {
+      --granate: #7a263a;
+      --granate-btn: #702336;
+      --granate-claro: #873a4b;
+      --pizarra: #3f4c51;
+      --dorado: #e5b48d;
+      --coral: #e87c5d;
+      --crema: #fdf9f4;
+      --tinta: #1f1f1f;
+      --suave: #6c757d;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+    body { margin: 0; background: #fff; color: var(--tinta); font: 16px/1.6 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; }
+    a { color: inherit; }
+    .caja { max-width: 1140px; margin: 0 auto; padding: 0 20px; }
+
+    /* Franja de maqueta: obligatoria, ver comentario de cabecera. */
+    .maqueta { background: #15364a; color: #e6eef2; font-size: .85rem; text-align: center; padding: 7px 16px; line-height: 1.4; }
+    .maqueta strong { color: #fff; }
+    .maqueta a { color: #9fd0d6; }
+
+    .barra { background: var(--pizarra); color: #fff; font-size: .85rem; }
+    .barra .caja { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 6px; padding-bottom: 6px; }
+    .barra a { text-decoration: none; }
+    .barra .redes { display: flex; gap: 14px; align-items: center; }
+
+    .cabecera { position: sticky; top: 0; z-index: 50; background: rgba(122, 38, 58, .95); box-shadow: 0 4px 10px rgba(0,0,0,.35); }
+    .cabecera .caja { display: flex; align-items: center; justify-content: space-between; gap: 20px; height: 84px; }
+    .cabecera .logo img { height: 66px; display: block; }
+    .cabecera .logo span { color: #fff; font-weight: 700; font-size: 1.4rem; }
+    nav ul { list-style: none; display: flex; gap: 26px; margin: 0; padding: 0; }
+    nav a { color: #fff; text-decoration: none; font-weight: 500; font-size: .98rem; }
+    nav a:hover { color: var(--dorado); }
+    .cab-botones { display: flex; gap: 10px; }
+    .cab-botones a, .cab-botones button { font-family: inherit; font-weight: 600; font-size: .9rem; border-radius: 30px; padding: 8px 16px; text-decoration: none; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; }
+    .btn-llamar { background: #fff; color: var(--granate); border: 0; }
+    .btn-wsp { background: transparent; color: var(--dorado); border: 2px solid var(--dorado); }
+
+    /* Portada: su vídeo se sustituye por la foto del rótulo, con el mismo velo. */
+    .portada { position: relative; min-height: 78vh; display: flex; align-items: flex-start; justify-content: center; text-align: center;
+               background: #2b2f31 url("https://gestoriaalcazar.com/1_imagenes/gestoria_murcia.jpg") center / cover no-repeat; padding: 14vh 20px 80px; }
+    .portada::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.45), rgba(0,0,0,.25)); }
+    .hero-box { position: relative; padding: 40px 60px; border-radius: 16px; max-width: 1000px; box-shadow: 0 8px 30px rgba(0,0,0,.4);
+                backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); background: rgba(63, 76, 81, .35); color: #fff; }
+    .hero-title { font-size: 2.6rem; font-weight: 700; line-height: 1.25; text-shadow: 0 3px 12px rgba(0,0,0,.5); margin: 0 0 28px; }
+    .hero-title strong { color: var(--dorado); }
+    .btn-principal { background: var(--granate-btn); color: #fbfbfb; border: 0; padding: 13px 34px; border-radius: 30px; font-weight: 600; font-size: 1rem;
+                     font-family: inherit; cursor: pointer; transition: .3s; }
+    .btn-principal:hover { background: #fff; color: var(--granate); transform: translateY(-2px); }
+
+    .bloque { padding: 72px 0; }
+    .bloque.crema { background: var(--crema); }
+    .titulo-bloque { font-size: 2.1rem; font-weight: 600; margin: 0 0 36px; color: var(--tinta); text-align: center; }
+    .titulo-bloque::after { content: ""; display: block; width: 60px; height: 3px; background: var(--coral); margin: 14px auto 0; }
+    .texto-bloque { max-width: 900px; margin: 0 auto; text-align: center; font-size: 1.08rem; color: #333; }
+    .texto-bloque strong { color: var(--granate); }
+
+    .servicios { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; }
+    .servicio { background: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.08); padding: 34px 22px 26px; text-align: center; transition: transform .3s; }
+    .servicio:hover { transform: translateY(-6px); }
+    .servicio i { font-size: 2.4rem; color: var(--granate); margin-bottom: 16px; }
+    .servicio h3 { margin: 0 0 10px; font-size: 1.15rem; color: var(--pizarra); }
+    .servicio p { margin: 0; color: var(--suave); font-size: .93rem; }
+
+    .franja-granate { background: linear-gradient(135deg, var(--granate-claro), var(--pizarra)); color: #fff; }
+    .dos-col { display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center; }
+    .dos-col h2 { font-size: 1.9rem; margin: 0 0 16px; letter-spacing: .04em; }
+    .dos-col p { margin: 0 0 14px; color: #f1e9e9; }
+    .dos-col strong { color: var(--dorado); }
+    .contacto { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); border-radius: 14px; padding: 28px; }
+    .contacto h3 { margin: 0 0 16px; font-size: 1.2rem; }
+    .contacto p { margin: 0 0 10px; }
+
+    .escribenos { max-width: 720px; margin: 0 auto; text-align: center; background: #fff; border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.08); padding: 40px 32px; }
+    .escribenos p { color: var(--suave); margin: 0 0 24px; }
+    .escribenos .lucia { display: flex; gap: 14px; align-items: center; justify-content: center; margin: 0 0 22px; color: var(--pizarra); font-weight: 600; }
+    .escribenos .avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--granate); color: #fff; display: grid; place-items: center; font-size: 1.2rem; }
+
+    footer { background: #2b3336; color: #d7dcde; font-size: .92rem; padding: 48px 0 110px; }
+    footer .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 32px; }
+    footer h4 { color: #fff; letter-spacing: .08em; margin: 0 0 14px; font-size: .95rem; }
+    footer p { margin: 0 0 6px; }
+    footer img { height: 70px; }
+    footer .pie { border-top: 1px solid rgba(255,255,255,.12); margin-top: 32px; padding-top: 16px; font-size: .82rem; color: #aab3b6; }
+
+    @media (max-width: 960px) {
+      nav { display: none; }
+      .dos-col { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .barra .lema { display: none; }
+      .cabecera .caja { height: 70px; }
+      .cabecera .logo img { height: 52px; }
+      .cab-botones .txt { display: none; }
+      .hero-box { padding: 28px 20px; }
+      .hero-title { font-size: 1.8rem; }
+      .titulo-bloque { font-size: 1.7rem; }
+      .bloque { padding: 52px 0; }
+    }
+
+    /* El chat, con los colores de la gestoría. `html body` gana a las reglas del widget. */
+    html body .agw-btn { background: var(--granate); box-shadow: 0 6px 20px rgba(0,0,0,.35), 0 0 0 3px var(--dorado); }
+    html body .agw-panel { font-family: "Segoe UI", system-ui, sans-serif; border-radius: 14px; }
+    html body .agw-head { background: var(--granate); padding: 14px 16px; }
+    html body .agw-log { background: var(--crema); }
+    html body .agw-user { background: var(--pizarra); }
+    html body .agw-bot { border-color: #eadfd6; }
+    html body .agw-bot a, html body .agw-priv a { color: var(--granate); }
+    html body .agw-form button { background: var(--granate-btn); color: #fff; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="maqueta">
+    <strong>Maqueta de demostración</strong> preparada por Aegora para Gestoría Alcázar: así se vería Lucía en su web.
+    No es la web oficial (<a href="https://gestoriaalcazar.com/" target="_blank" rel="noopener">gestoriaalcazar.com</a>); las citas que se reserven aquí son de prueba.
+  </div>
+
+  <div class="barra">
+    <div class="caja">
+      <span class="lema">Gestoría en Murcia con más de 40 años de experiencia.</span>
+      <span class="redes"><span><i class="fas fa-phone-alt"></i> +34 968 291 912</span><i class="fab fa-facebook-f" aria-label="Facebook"></i></span>
+    </div>
+  </div>
+
+  <header class="cabecera">
+    <div class="caja">
+      <a class="logo" href="#inicio" aria-label="Gestoría Alcázar">
+        <img src="https://gestoriaalcazar.com/1_cabecera_pie/img/logo_cabecera.png" alt="Gestoría Alcázar"
+             onerror="this.outerHTML='<span>Gestoría Alcázar</span>'">
+      </a>
+      <nav aria-label="Menú (maqueta)">
+        <ul>
+          <li><a href="#inicio">Inicio</a></li>
+          <li><a href="#quienes">Quiénes somos</a></li>
+          <li><a href="#servicios">Asesoría</a></li>
+          <li><a href="#servicios">Gestiones de tráfico</a></li>
+          <li><a href="#contacto">Contacto</a></li>
+        </ul>
+      </nav>
+      <div class="cab-botones">
+        <a class="btn-llamar" href="#contacto"><i class="fas fa-phone-alt"></i><span class="txt">Llámanos</span></a>
+        <button class="btn-wsp" type="button" data-lucia><i class="fab fa-whatsapp"></i><span class="txt">WhatsApp</span></button>
+      </div>
+    </div>
+  </header>
+
+  <section class="portada" id="inicio">
+    <div class="hero-box">
+      <h1 class="hero-title">Hacemos <strong>fáciles tus trámites</strong><br> para que te centres en lo <strong>importante</strong></h1>
+      <button class="btn-principal" type="button" data-lucia>Solicitar Información</button>
+    </div>
+  </section>
+
+  <section class="bloque crema" id="quienes">
+    <div class="caja">
+      <h2 class="titulo-bloque">Gestoría en Murcia – Confianza y Experiencia</h2>
+      <div class="texto-bloque">
+        <p>En <strong>Gestoría Alcázar</strong> somos una <strong>gestoría en Murcia</strong> con más de 40 años de experiencia ofreciendo soluciones a empresas, autónomos y particulares.</p>
+        <p>Nos caracteriza una atención <strong>cercana, ágil y personalizada</strong>, basada en la confianza y el compromiso con cada cliente.</p>
+        <p>Nuestro equipo especializado gestiona de forma integral las áreas <strong>fiscal, laboral, contable y de tráfico</strong>, además de tramitar herencias, transmisiones y documentación administrativa.</p>
+        <p>Unimos la experiencia de un despacho tradicional con herramientas digitales que simplifican los procesos y reducen los tiempos de gestión.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="bloque" id="servicios">
+    <div class="caja">
+      <h2 class="titulo-bloque">Nuestros servicios</h2>
+      <div class="servicios">
+        <div class="servicio">
+          <i class="fas fa-file-signature"></i>
+          <h3>Herencias</h3>
+          <p>Tramitamos herencias y sucesiones de forma integral, gestionando toda la documentación necesaria y ofreciendo asesoramiento jurídico y fiscal para garantizar un reparto justo, ágil y sin complicaciones.</p>
+        </div>
+        <div class="servicio">
+          <i class="fas fa-car"></i>
+          <h3>Traspaso de Vehículos</h3>
+          <p>Realizamos el cambio de titularidad de todo tipo de vehículos de forma rápida y segura. Nos encargamos de la gestión ante Tráfico y Hacienda, evitando desplazamientos y garantizando una tramitación sin errores.</p>
+        </div>
+        <div class="servicio">
+          <i class="fas fa-calculator"></i>
+          <h3>Asesoría Fiscal</h3>
+          <p>Ofrecemos un servicio integral en materia fiscal y contable para empresas y autónomos. Planificamos tus obligaciones tributarias y llevamos tu contabilidad al día, optimizando resultados y evitando imprevistos.</p>
+        </div>
+        <div class="servicio">
+          <i class="fas fa-users"></i>
+          <h3>Asesoría Laboral</h3>
+          <p>Gestionamos todos los aspectos laborales de tu empresa: nóminas, contratos, seguros sociales y relaciones con la Seguridad Social. Te ayudamos a cumplir la normativa vigente y a optimizar tus recursos humanos.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bloque franja-granate">
+    <div class="caja dos-col">
+      <div>
+        <h2>GESTORÍA ALCÁZAR</h2>
+        <p>En Gestoría Alcázar llevamos más de 40 años ayudando a particulares y empresas a gestionar con eficacia sus trámites fiscales, laborales, contables y administrativos. Nuestro equipo combina experiencia y trato cercano para ofrecerte soluciones claras y personalizadas.</p>
+        <p>Confía en una gestoría <strong>profesional, transparente y resolutiva</strong>, que entiende tus necesidades y te acompaña en cada paso.</p>
+        <p>Formamos parte de una red de colaboradores especializados que nos permite ofrecer un <strong>servicio integral</strong> con la máxima confianza y seguridad jurídica.</p>
+      </div>
+      <div class="contacto">
+        <h3>¿Tienes alguna duda? ¿Necesitas orientación?</h3>
+        <p><i class="fas fa-envelope"></i>&nbsp; info@gestoriaalcazar.com</p>
+        <p><i class="fas fa-phone-alt"></i>&nbsp; 968 291 912</p>
+        <p><i class="fas fa-building"></i>&nbsp; Avd. Ronda Norte, 9 1ºB, Edificio Satsuma, 30009 Murcia</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="bloque crema" id="contacto">
+    <div class="caja">
+      <h2 class="titulo-bloque">Escríbenos</h2>
+      <div class="escribenos">
+        <div class="lucia"><span class="avatar"><i class="fas fa-comment-dots"></i></span>Lucía te atiende ahora, a cualquier hora</div>
+        <p>Cuéntanos qué necesitas: te resolvemos la duda al momento, te damos cita o dejamos tu recado al equipo para que te llame.</p>
+        <button class="btn-principal" type="button" data-lucia>Hablar con Lucía</button>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="caja">
+      <div class="cols">
+        <div><img src="https://gestoriaalcazar.com/1_cabecera_pie/1_pie/logo_pie.png" alt="Gestoría Alcázar" onerror="this.remove()"></div>
+        <div>
+          <h4>MURCIA</h4>
+          <p>Avd. Ronda Norte, 9 1ºB</p>
+          <p>Edificio Satsuma, 30009 Murcia</p>
+          <p>968 291 912 · 661 11 44 36</p>
+          <p>info@gestoriaalcazar.com</p>
+        </div>
+        <div>
+          <h4>LEGAL</h4>
+          <p>Aviso Legal</p>
+          <p>Política de privacidad</p>
+          <p>Política de cookies</p>
+        </div>
+      </div>
+      <p class="pie">Maqueta de demostración preparada por <a href="https://aegora.es" target="_blank" rel="noopener">Aegora</a>. Contenido y marca de Gestoría Alcázar, tomados de su web pública.</p>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      function abrir() {
+        var panel = document.querySelector('.agw-panel');
+        var btn = document.querySelector('.agw-btn');
+        if (!panel || !btn) return;
+        if (!panel.classList.contains('agw-open')) btn.click();
+        else { var i = panel.querySelector('.agw-form input'); if (i) i.focus(); }
+      }
+      Array.prototype.forEach.call(document.querySelectorAll('[data-lucia]'), function (b) {
+        b.addEventListener('click', abrir);
+      });
+
+      var s = document.createElement('script');
+      s.src = '/widget.js';
+      s.setAttribute('data-endpoint', 'https://lucia.demo.aegora.es/webhook/webchat');
+      s.setAttribute('data-title', 'Lucía · Gestoría Alcázar');
+      s.setAttribute('data-privacy-url', 'https://aegora.es/politica-privacidad');
+      s.setAttribute('data-greeting', 'Hola, soy Lucía, la asistente de inteligencia artificial de Gestoría Alcázar. ¿En qué puedo ayudarte?');
+      document.body.appendChild(s);
+    })();
+  </script>
+</body>
+</html>
