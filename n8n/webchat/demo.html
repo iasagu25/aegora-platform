@@ -3,75 +3,263 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Lucía — demo del chat</title>
+  <meta name="robots" content="noindex">
+  <title>Lucía — demostración de Aegora</title>
   <!--
-    Página para probar o enseñar el webchat de un tenant. Se abre tal cual (doble clic,
-    file://) o servida desde cualquier sitio. Parámetros en la URL:
+    Página para enseñar el webchat de un tenant. Se abre tal cual (doble clic, file://) o
+    servida desde cualquier sitio. Parámetros en la URL:
       ?tenant=demo                 tenant cuyo chat se usa (por defecto `demo`):
                                    https://lucia.<tenant>.aegora.es/webhook/webchat
-      &negocio=Gestoría%20Alcázar  nombre que se enseña en la página (opcional)
+      &negocio=Gestoría%20Alcázar  nombre del negocio que se enseña en la página (opcional)
     El tenant tiene que aceptar el origen de la página (`WEBCHAT_ORIGENES`, por defecto `*`).
     Abierta desde disco, el origen es `null`: solo funciona con `*`.
+
+    Identidad de Aegora (la de aegora-web): azul marino #15364A, verde azulado #66A5AE,
+    Comfortaa para títulos y Raleway para el texto. El verde no llega a AA con texto blanco:
+    sobre verde, el texto va en azul marino. El widget no se toca: se le cambian los colores
+    desde aquí, más abajo, para que esta página no altere el chat de ningún cliente.
   -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@600;700&family=Raleway:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    :root { --texto: #1f2328; --suave: #59636e; --fondo: #f6f8fa; --acento: #0b5cad; }
+    :root {
+      --navy: #15364a;
+      --teal: #66a5ae;
+      --teal-soft: #d4e6e9;
+      --bg: #ffffff;
+      --surface: #f5f7f8;
+      --ink: #15364a;
+      --muted: #3f5868;
+      --line: #dbe3e7;
+      --card: #ffffff;
+      --band: #15364a;
+      --display: "Comfortaa", ui-rounded, system-ui, sans-serif;
+      --sans: "Raleway", system-ui, -apple-system, "Segoe UI", sans-serif;
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b1e2a;
+        --surface: #11293a;
+        --ink: #e6eef2;
+        --muted: #b3c4cd;
+        --line: #23435a;
+        --card: #11293a;
+        --band: #081720;
+        color-scheme: dark;
+      }
+    }
     * { box-sizing: border-box; }
-    body { margin: 0; font: 17px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--texto); background: #fff; }
-    header { background: var(--fondo); border-bottom: 1px solid #d0d7de; }
-    .caja { max-width: 760px; margin: 0 auto; padding: 0 20px; }
-    header .caja { padding-top: 48px; padding-bottom: 40px; }
-    h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 12px; }
-    .sub { color: var(--suave); margin: 0; font-size: 1.1rem; }
-    main .caja { padding-top: 32px; padding-bottom: 96px; }
-    ul { padding-left: 20px; }
-    li { margin: 6px 0; }
-    .nota { margin-top: 32px; font-size: .9rem; color: var(--suave); }
-    code { background: var(--fondo); padding: 1px 5px; border-radius: 4px; }
-    button.reset { font: inherit; font-size: .9rem; color: var(--acento); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.6 var(--sans); }
+    h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; }
+    a { color: inherit; }
+    :focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; border-radius: 4px; }
+    .caja { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+    /* Barra superior */
+    .top { background: var(--band); color: #fff; border-bottom: 1px solid rgba(255,255,255,.08); }
+    .top .caja { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 64px; }
+    .marca { display: flex; align-items: center; gap: 10px; text-decoration: none; font: 700 1.3rem var(--display); letter-spacing: .01em; }
+    .marca img { width: 30px; height: 30px; }
+    .sello { font-size: .78rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+             color: var(--navy); background: var(--teal); padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+
+    /* Portada */
+    .hero { background: var(--band); color: #fff; padding: 56px 0 72px; position: relative; overflow: hidden; }
+    .hero::after { content: ""; position: absolute; right: -160px; top: -120px; width: 520px; height: 520px;
+                   border-radius: 50%; background: radial-gradient(circle, rgba(102,165,174,.28), rgba(102,165,174,0) 70%); pointer-events: none; }
+    .hero .caja { position: relative; z-index: 1; }
+    .antetitulo { margin: 0 0 14px; color: var(--teal); font-weight: 700; font-size: .85rem; letter-spacing: .1em; text-transform: uppercase; }
+    .hero h1 { font-size: clamp(2rem, 1.4rem + 2.6vw, 3.1rem); line-height: 1.15; max-width: 24ch; }
+    .hero .entradilla { margin: 20px 0 0; max-width: 60ch; font-size: 1.12rem; color: #d6e2e8; }
+    .acciones { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+    .boton { font: 700 1rem var(--sans); border-radius: 10px; padding: 14px 22px; cursor: pointer; text-decoration: none;
+             display: inline-flex; align-items: center; gap: 10px; border: 2px solid transparent; }
+    .boton.principal { background: var(--teal); color: var(--navy); }
+    .boton.principal:hover { background: #7bb4bc; }
+    .boton.secundario { background: transparent; color: #fff; border-color: rgba(255,255,255,.35); }
+    .boton.secundario:hover { border-color: #fff; }
+    .datos { display: flex; flex-wrap: wrap; gap: 12px 32px; margin: 40px 0 0; padding: 0; list-style: none; color: #d6e2e8; font-size: .95rem; }
+    .datos li { display: flex; align-items: center; gap: 8px; }
+    .datos li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--teal); }
+
+    /* Secciones */
+    section.bloque { padding: 64px 0; }
+    section.bloque.gris { background: var(--surface); }
+    .bloque h2 { font-size: clamp(1.5rem, 1.2rem + 1.2vw, 2.1rem); line-height: 1.2; }
+    .bloque .intro { color: var(--muted); margin: 12px 0 0; max-width: 62ch; }
+    .rejilla { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 20px; margin-top: 36px; }
+    .tarjeta { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 24px; }
+    .tarjeta .icono { width: 44px; height: 44px; border-radius: 12px; background: var(--teal-soft); color: var(--navy);
+                      display: grid; place-items: center; margin-bottom: 16px; }
+    .tarjeta h3 { font-size: 1.05rem; margin-bottom: 6px; }
+    .tarjeta p { margin: 0; color: var(--muted); font-size: .95rem; }
+
+    .ejemplos { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-top: 32px; }
+    .ejemplo { text-align: left; font: 500 1rem/1.45 var(--sans); color: var(--ink); background: var(--card);
+               border: 1px solid var(--line); border-left: 4px solid var(--teal); border-radius: 10px;
+               padding: 14px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .ejemplo:hover { border-color: var(--teal); }
+    .ejemplo small { display: block; color: var(--muted); font-size: .8rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 2px; }
+    .ejemplo .flecha { color: var(--teal); flex: none; }
+    .pista { margin: 16px 0 0; color: var(--muted); font-size: .92rem; }
+
+    /* Pie */
+    footer { border-top: 1px solid var(--line); padding: 28px 0 110px; color: var(--muted); font-size: .88rem; }
+    footer .caja { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 32px; }
+    footer p { margin: 0; }
+    footer code { font-size: .82rem; background: var(--surface); padding: 2px 6px; border-radius: 4px; word-break: break-all; }
+    .enlace { font: inherit; color: var(--ink); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+
+    @media (max-width: 600px) {
+      .caja { padding: 0 16px; }
+      .hero { padding: 40px 0 56px; }
+      section.bloque { padding: 48px 0; }
+      .ejemplos { grid-template-columns: 1fr; }
+      .sello { font-size: .7rem; }
+    }
+
+    /* El widget, con los colores de Aegora. `html body` gana a sus reglas, que se cargan después. */
+    html body .agw-btn { background: var(--navy); box-shadow: 0 6px 20px rgba(21,54,74,.35), 0 0 0 3px var(--teal); }
+    html body .agw-panel { font-family: var(--sans); border-radius: 14px; }
+    html body .agw-head { background: var(--navy); font-family: var(--display); padding: 14px 16px; }
+    html body .agw-log { background: #f5f7f8; }
+    html body .agw-user { background: var(--navy); }
+    html body .agw-bot { border-color: #dbe3e7; color: #15364a; }
+    html body .agw-bot a, html body .agw-priv a { color: var(--navy); }
+    html body .agw-form button { background: var(--teal); color: var(--navy); font-weight: 700; }
+    html body .agw-form input { color: #15364a; background: #fff; }
   </style>
 </head>
 <body>
-  <header>
+  <header class="top">
     <div class="caja">
-      <h1 id="titulo">Lucía, tu asistente por chat</h1>
-      <p class="sub">Demostración preparada por Aegora. Pulsa el botón 💬 de abajo a la derecha y habla con ella.</p>
+      <a class="marca" href="https://aegora.es" target="_blank" rel="noopener">
+        <img src="https://aegora.es/favicon.svg" alt="" onerror="this.remove()">Aegora
+      </a>
+      <span class="sello">Demostración</span>
     </div>
   </header>
-  <main>
+
+  <section class="hero">
     <div class="caja">
-      <p>Prueba a pedirle cosas como estas:</p>
-      <ul>
-        <li>«¿Qué horario tenéis?»</li>
-        <li>«¿Hacéis transferencias de coches? ¿Cuánto tardáis?»</li>
-        <li>«Quiero cita para la Renta el jueves por la mañana»</li>
-        <li>«¿Qué citas tengo?» / «Cámbiame la cita al viernes» / «Cancélala»</li>
-        <li>«Que me llame alguien de laboral, es por un despido»</li>
+      <p class="antetitulo" id="antetitulo">Asistente virtual</p>
+      <h1 id="titulo">Lucía atiende a tus clientes, a cualquier hora.</h1>
+      <p class="entradilla">Resuelve dudas, da cita, la cambia o la anula y toma recados para el equipo.
+        Trabaja con la agenda real del despacho, así que nunca ofrece un hueco que no existe.</p>
+      <div class="acciones">
+        <button class="boton principal" type="button" data-abrir>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>
+          Hablar con Lucía
+        </button>
+        <a class="boton secundario" href="#pruebala">Qué preguntarle</a>
+      </div>
+      <ul class="datos">
+        <li>24 horas, 7 días</li>
+        <li>WhatsApp, web y teléfono</li>
+        <li>Agenda y datos del propio negocio</li>
       </ul>
-      <p class="nota">
-        Conectado a <code id="endpoint"></code>.
-        <button class="reset" type="button" id="nueva">Empezar una conversación nueva</button>
+    </div>
+  </section>
+
+  <section class="bloque">
+    <div class="caja">
+      <h2>Qué hace por el despacho</h2>
+      <p class="intro">Lo mismo que haría una persona en recepción, con la información que el despacho le da y sin inventarse nada.</p>
+      <div class="rejilla">
+        <div class="tarjeta">
+          <div class="icono"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14"/><path d="M12 17h.01"/></svg></div>
+          <h3>Responde dudas</h3>
+          <p>Horario, dirección, qué servicios hay y qué documentos traer, con las palabras del despacho.</p>
+        </div>
+        <div class="tarjeta">
+          <div class="icono"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/><path d="m9 15 2 2 4-4"/></svg></div>
+          <h3>Da cita</h3>
+          <p>Consulta los huecos libres de cada servicio y reserva en el momento, sin llamadas ni esperas.</p>
+        </div>
+        <div class="tarjeta">
+          <div class="icono"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/></svg></div>
+          <h3>Cambia y anula</h3>
+          <p>Localiza la cita del cliente, propone otra hora y pide confirmación antes de anular.</p>
+        </div>
+        <div class="tarjeta">
+          <div class="icono"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg></div>
+          <h3>Toma recados</h3>
+          <p>Lo que no puede resolver lo deja anotado como tarea para el equipo, y avisa al momento.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bloque gris" id="pruebala">
+    <div class="caja">
+      <h2>Pruébala</h2>
+      <p class="intro">Pulsa una frase: se abre el chat con ella escrita y solo tienes que enviarla. También puedes escribirle lo que quieras.</p>
+      <div class="ejemplos">
+        <button class="ejemplo" type="button" data-texto="¿Qué horario tenéis?"><span><small>Información</small>«¿Qué horario tenéis?»</span><span class="flecha" aria-hidden="true">→</span></button>
+        <button class="ejemplo" type="button" data-texto="¿Hacéis transferencias de coches? ¿Cuánto tardáis?"><span><small>Servicios</small>«¿Hacéis transferencias de coches? ¿Cuánto tardáis?»</span><span class="flecha" aria-hidden="true">→</span></button>
+        <button class="ejemplo" type="button" data-texto="Quiero cita para la Renta el jueves por la mañana"><span><small>Reservar</small>«Quiero cita para la Renta el jueves por la mañana»</span><span class="flecha" aria-hidden="true">→</span></button>
+        <button class="ejemplo" type="button" data-texto="¿Qué citas tengo?"><span><small>Consultar</small>«¿Qué citas tengo?»</span><span class="flecha" aria-hidden="true">→</span></button>
+        <button class="ejemplo" type="button" data-texto="Cámbiame la cita al viernes"><span><small>Cambiar</small>«Cámbiame la cita al viernes»</span><span class="flecha" aria-hidden="true">→</span></button>
+        <button class="ejemplo" type="button" data-texto="Que me llame alguien de laboral, es por un despido"><span><small>Recado</small>«Que me llame alguien de laboral, es por un despido»</span><span class="flecha" aria-hidden="true">→</span></button>
+      </div>
+      <p class="pista" id="aviso-prueba" hidden>Las citas que reserves aquí son de prueba: no llegan al despacho.</p>
+    </div>
+  </section>
+
+  <footer>
+    <div class="caja">
+      <p>Demostración preparada por <a href="https://aegora.es" target="_blank" rel="noopener">Aegora</a>.</p>
+      <p>
+        <button class="enlace" type="button" id="nueva">Empezar una conversación nueva</button>
+        · Conectado a <code id="endpoint"></code>
       </p>
     </div>
-  </main>
+  </footer>
+
   <script>
     (function () {
       var q = new URLSearchParams(location.search);
       var tenant = (q.get('tenant') || 'demo').replace(/[^a-z0-9-]/g, '');
       var negocio = (q.get('negocio') || '').trim();
       var endpoint = 'https://lucia.' + tenant + '.aegora.es/webhook/webchat';
+
       if (negocio) {
-        document.getElementById('titulo').textContent = 'Lucía, la asistente de ' + negocio;
-        document.title = 'Lucía — ' + negocio;
+        document.getElementById('antetitulo').textContent = 'Asistente virtual de ' + negocio;
+        document.getElementById('titulo').textContent = 'Lucía atiende a los clientes de ' + negocio + ', a cualquier hora.';
+        document.title = 'Lucía · ' + negocio + ' — demostración de Aegora';
       }
+      // Solo en `demo` se puede decir que las citas no son de verdad.
+      if (tenant === 'demo') document.getElementById('aviso-prueba').hidden = false;
       document.getElementById('endpoint').textContent = endpoint;
+
       document.getElementById('nueva').onclick = function () {
         try { localStorage.removeItem('aegora_webchat_sid'); } catch (e) {}
         location.reload();
       };
+
+      // Abre el chat (si está cerrado) y, si se da, deja el texto escrito sin enviarlo:
+      // quien enseña la demo decide cuándo pulsar Enviar.
+      function abrir(texto) {
+        var panel = document.querySelector('.agw-panel');
+        var btn = document.querySelector('.agw-btn');
+        if (!panel || !btn) return;
+        if (!panel.classList.contains('agw-open')) btn.click();
+        var input = panel.querySelector('.agw-form input');
+        if (texto && input && !input.disabled) input.value = texto;
+        if (input) input.focus();
+      }
+      document.querySelector('[data-abrir]').onclick = function () { abrir(''); };
+      Array.prototype.forEach.call(document.querySelectorAll('[data-texto]'), function (b) {
+        b.onclick = function () { abrir(b.getAttribute('data-texto')); };
+      });
+
       var s = document.createElement('script');
       s.src = './widget.js';
       s.setAttribute('data-endpoint', endpoint);
-      s.setAttribute('data-title', 'Lucía');
+      s.setAttribute('data-title', 'Lucía' + (negocio ? ' · ' + negocio : ''));
       s.setAttribute('data-privacy-url', 'https://aegora.es/politica-privacidad');
       s.setAttribute('data-greeting', '¡Hola! Soy Lucía' + (negocio ? ', de ' + negocio : '') + '. ¿En qué puedo ayudarte?');
       document.body.appendChild(s);
