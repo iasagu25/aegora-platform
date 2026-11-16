@@ -12,7 +12,7 @@ widget.js  --POST /webchat-->  WEBCHAT · Adapter  -->  AGENT · Lucía · Entry
 | | |
 |---|---|
 | `widget.js` | Script embebible. Inyecta su CSS + DOM, botón flotante, panel de chat. |
-| `demo.html` | Página de prueba local que carga `widget.js`. |
+| `demo.html` | Página para probar o enseñar el chat de un tenant: `demo.html?tenant=demo&negocio=Gestoría%20Alcázar`. Se abre desde disco (solo con `WEBCHAT_ORIGENES=*`) o servida. |
 
 ## Contrato HTTP
 

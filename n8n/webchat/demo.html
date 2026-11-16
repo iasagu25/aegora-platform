@@ -3,26 +3,79 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Aegora webchat — página de prueba</title>
+  <title>Lucía — demo del chat</title>
+  <!--
+    Página para probar o enseñar el webchat de un tenant. Se abre tal cual (doble clic,
+    file://) o servida desde cualquier sitio. Parámetros en la URL:
+      ?tenant=demo                 tenant cuyo chat se usa (por defecto `demo`):
+                                   https://lucia.<tenant>.aegora.es/webhook/webchat
+      &negocio=Gestoría%20Alcázar  nombre que se enseña en la página (opcional)
+    El tenant tiene que aceptar el origen de la página (`WEBCHAT_ORIGENES`, por defecto `*`).
+    Abierta desde disco, el origen es `null`: solo funciona con `*`.
+  -->
   <style>
-    body { font: 16px/1.5 system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; color: #24292f; }
-    code { background: #f6f8fa; padding: 2px 5px; border-radius: 4px; }
+    :root { --texto: #1f2328; --suave: #59636e; --fondo: #f6f8fa; --acento: #0b5cad; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 17px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--texto); background: #fff; }
+    header { background: var(--fondo); border-bottom: 1px solid #d0d7de; }
+    .caja { max-width: 760px; margin: 0 auto; padding: 0 20px; }
+    header .caja { padding-top: 48px; padding-bottom: 40px; }
+    h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 12px; }
+    .sub { color: var(--suave); margin: 0; font-size: 1.1rem; }
+    main .caja { padding-top: 32px; padding-bottom: 96px; }
+    ul { padding-left: 20px; }
+    li { margin: 6px 0; }
+    .nota { margin-top: 32px; font-size: .9rem; color: var(--suave); }
+    code { background: var(--fondo); padding: 1px 5px; border-radius: 4px; }
+    button.reset { font: inherit; font-size: .9rem; color: var(--acento); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
   </style>
 </head>
 <body>
-  <h1>Página de prueba del webchat</h1>
-  <p>El botón 💬 abajo a la derecha abre el widget. Cambia <code>data-endpoint</code>
-     por la URL real del webhook de n8n (<code>/webhook/webchat</code> en producción,
-     <code>/webhook-test/webchat</code> con el workflow abierto en modo test).</p>
-  <p>El id de hilo se guarda en <code>localStorage["aegora_webchat_sid"]</code>;
-     bórralo para empezar una conversación nueva.</p>
-
-  <!-- Ajusta data-endpoint -->
-  <script
-    src="./widget.js"
-    data-endpoint="https://n8n.demo.aegora.es/webhook/webchat"
-    data-title="Lucía"
-        data-privacy-url="https://aegora.es/legal/demo-privacidad"
-    data-greeting="¡Hola! Soy Lucía. ¿En qué puedo ayudarte?"></script>
+  <header>
+    <div class="caja">
+      <h1 id="titulo">Lucía, tu asistente por chat</h1>
+      <p class="sub">Demostración preparada por Aegora. Pulsa el botón 💬 de abajo a la derecha y habla con ella.</p>
+    </div>
+  </header>
+  <main>
+    <div class="caja">
+      <p>Prueba a pedirle cosas como estas:</p>
+      <ul>
+        <li>«¿Qué horario tenéis?»</li>
+        <li>«¿Hacéis transferencias de coches? ¿Cuánto tardáis?»</li>
+        <li>«Quiero cita para la Renta el jueves por la mañana»</li>
+        <li>«¿Qué citas tengo?» / «Cámbiame la cita al viernes» / «Cancélala»</li>
+        <li>«Que me llame alguien de laboral, es por un despido»</li>
+      </ul>
+      <p class="nota">
+        Conectado a <code id="endpoint"></code>.
+        <button class="reset" type="button" id="nueva">Empezar una conversación nueva</button>
+      </p>
+    </div>
+  </main>
+  <script>
+    (function () {
+      var q = new URLSearchParams(location.search);
+      var tenant = (q.get('tenant') || 'demo').replace(/[^a-z0-9-]/g, '');
+      var negocio = (q.get('negocio') || '').trim();
+      var endpoint = 'https://lucia.' + tenant + '.aegora.es/webhook/webchat';
+      if (negocio) {
+        document.getElementById('titulo').textContent = 'Lucía, la asistente de ' + negocio;
+        document.title = 'Lucía — ' + negocio;
+      }
+      document.getElementById('endpoint').textContent = endpoint;
+      document.getElementById('nueva').onclick = function () {
+        try { localStorage.removeItem('aegora_webchat_sid'); } catch (e) {}
+        location.reload();
+      };
+      var s = document.createElement('script');
+      s.src = './widget.js';
+      s.setAttribute('data-endpoint', endpoint);
+      s.setAttribute('data-title', 'Lucía');
+      s.setAttribute('data-privacy-url', 'https://aegora.es/politica-privacidad');
+      s.setAttribute('data-greeting', '¡Hola! Soy Lucía' + (negocio ? ', de ' + negocio : '') + '. ¿En qué puedo ayudarte?');
+      document.body.appendChild(s);
+    })();
+  </script>
 </body>
 </html>
