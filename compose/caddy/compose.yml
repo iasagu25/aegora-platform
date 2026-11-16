@@ -31,6 +31,10 @@ services:
       # sites/aegora-web.caddy.
       - /opt/aegora/web:/srv/aegora-web:ro
 
+      # Página de demostración del webchat (n8n/webchat del propio checkout de la plataforma):
+      # un `git reset` en el VPS la actualiza sin desplegar nada. Ver sites/chat-demo.caddy.
+      - ../../n8n/webchat:/srv/webchat:ro
+
       # Estado persistente de Caddy
       - /opt/aegora/data/caddy/data:/data
       - /opt/aegora/data/caddy/config:/config

@@ -1,0 +1,38 @@
+# Demostración del webchat para enseñar a clientes y al equipo (n8n/webchat/demo.html).
+#
+# Cuelga del comodín *.demo.aegora.es que ya existe para el tenant `demo`, así que no
+# necesita DNS propio. La página habla con https://lucia.<tenant>.aegora.es/webhook/webchat
+# según ?tenant= (por defecto demo): ese tenant tiene que aceptar este origen en
+# WEBCHAT_ORIGENES (por defecto `*`).
+#
+# Solo se sirven la página y el widget: en la carpeta hay más cosas (README) que no son
+# para el público. noindex porque es una demostración, no una web.
+#
+# Atajos por cliente: un `redir` por línea, con el nombre ya codificado para URL. Así se
+# manda https://chat.demo.aegora.es/alcazar y no la URL con parámetros.
+
+chat.demo.aegora.es {
+	header {
+		X-Robots-Tag "noindex"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		# Que un cambio en la página o el widget se vea sin esperar a ninguna caché.
+		Cache-Control "no-cache"
+	}
+	encode zstd gzip
+
+	redir /alcazar /?tenant=demo&negocio=Gestor%C3%ADa%20Alc%C3%A1zar 302
+
+	handle / {
+		root * /srv/webchat
+		rewrite * /demo.html
+		file_server
+	}
+	handle /widget.js {
+		root * /srv/webchat
+		file_server
+	}
+	handle {
+		respond 404
+	}
+}
