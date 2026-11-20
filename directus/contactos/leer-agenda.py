@@ -18,6 +18,8 @@ Reglas, y por qué:
 - Un teléfono repetido en el fichero se queda en la PRIMERA fila. Las siguientes entran
   sin él y con una nota: dos contactos con el mismo número hacen que Lucía no sepa quién
   llama (Resolve Contact devuelve `ambiguous`) -- peor que un contacto sin teléfono.
+- Una fila sin ningún teléfono válido NO se importa (tampoco la que se queda sin él por
+  ser repetido): Lucía reconoce por el número, y sin él la ficha no le sirve a nadie.
 - Una fila sin ningún nombre (ni nombre, ni apellidos, ni nombre completo, ni empresa)
   NO se importa: Lucía saluda por el nombre y un "Hola, (sin nombre)" es peor que nada.
 - Un email que no tiene forma de email va a las notas, no al campo `email`.
@@ -49,16 +51,29 @@ def limpio(v):
 
 
 def normalizar(tel):
-    """Copia de normalizePhone() de la extensión de Directus. Devuelve None si no vale."""
+    """
+    La regla de normalizePhone() de la extensión de Directus, más dos que en una agenda
+    escrita a mano hacen falta (agenda de jca, 20/nov/2026):
+      - `+` y 9 dígitos que empiezan por 6-9 es un número español al que le falta el 34
+        (`+868971385`, `+600642182`). Ningún número extranjero real es tan corto, y la
+        extensión lo daría por bueno como si fuera de otro país.
+      - `+34` seguido de algo que no son 9 dígitos NO es un número: le sobran o le faltan
+        cifras (`+3462962959099`, `+342018`). Se rechaza en vez de guardarlo roto.
+    Devuelve None si no vale.
+    """
     v = re.sub(r'[^\d+]', '', tel or '')
     if not v:
         return None
     if v.startswith('00'):
         v = '+' + v[2:]
+    if re.fullmatch(r'\+[6789]\d{8}', v):
+        v = '+34' + v[1:]
     if re.fullmatch(r'\d{9}', v):
         v = '+34' + v
     if re.fullmatch(r'34\d{9}', v):
         v = '+' + v
+    if v.startswith('+34') and not re.fullmatch(r'\+34[6789]\d{8}', v):
+        return None
     return v if re.fullmatch(r'\+[1-9]\d{7,14}', v) else None
 
 
@@ -151,6 +166,12 @@ def main(ruta, origen):
                 'is_primary': not telefonos,
                 'can_whatsapp': False,
             })
+
+        # Sin teléfono no entra (decidido para jca, 20/nov/2026): Lucía reconoce a la gente
+        # por el número, y una ficha sin él solo ocupa sitio en la lista del gestor.
+        if not telefonos:
+            problemas.append({'linea': n, 'tipo': 'sin_telefono', 'detalle': agenda})
+            continue
 
         contactos.append({
             'linea': n,

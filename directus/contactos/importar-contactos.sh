@@ -16,7 +16,7 @@ IFS=$'\n\t'
 # Aquí se decide contra lo que YA hay en el tenant:
 #   - Un contacto con algún teléfono que ya está en `contact_phones` NO se crea: ya existe
 #     (lo creó Lucía, el gestor o una pasada anterior). Tampoco se modifica.
-#   - Uno sin teléfonos se da por existente si coincide nombre, apellidos, empresa y email.
+#   - Los contactos sin teléfono no llegan aquí: `leer-agenda.py` ya los descarta.
 # Así una segunda pasada no duplica nada, y se puede re-ejecutar tras corregir el fichero.
 #
 # NO borra ni modifica nada. Los datos NO pasan por Git: el fichero se deja en el VPS
@@ -187,7 +187,8 @@ const porTipo = {};
 for (const p of problemas) (porTipo[p.tipo] ||= []).push(p);
 const TITULOS = {
   sin_nombre: 'Filas SIN NOMBRE (no se importan; si interesan, ponles nombre y vuelve a pasar)',
-  telefono_repetido: 'Teléfonos REPETIDOS (el número se queda en la primera ficha; la otra lleva una nota)',
+  sin_telefono: 'Filas SIN TELÉFONO válido (no se importan)',
+  telefono_repetido: 'Teléfonos REPETIDOS (el número se queda en la primera ficha; la otra, si no tiene otro, no entra)',
   telefono_no_valido: 'Teléfonos que no se pudieron leer (van a las notas de la ficha)',
   email_no_valido: 'Emails sin formato de email (van a las notas de la ficha)',
 };
