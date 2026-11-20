@@ -71,6 +71,11 @@ Consecuencia práctica: **deja `Payload: args only` APAGADO** en cada función d
 Retell. Encendido manda solo los argumentos, se pierde el objeto `call` y toda
 llamada muere en `falta_identidad`.
 
+**Excepción: `consultar_info` no exige teléfono** (20/nov/2026). Solo lee la KB y los
+servicios, así que decir el horario no depende de saber quién llama; antes, sin número,
+fallaba hasta lo más básico. Si `consultar_info` contesta y las demás dan
+`falta_identidad`, el problema sigue siendo el de arriba: `call` no llega.
+
 ## Qué acepta cada tool del modelo
 
 Lo demás (teléfono, sesión, URLs, zona horaria) lo pone el servidor y se ignora
