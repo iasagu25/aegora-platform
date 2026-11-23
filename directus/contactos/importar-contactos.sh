@@ -13,6 +13,9 @@ IFS=$'\n\t'
 #   importar-contactos.sh --tenant TENANT --fichero RUTA --origen "texto" [--apply]
 #
 # El fichero lo lee `leer-agenda.py` (reglas de nombres, teléfonos y repetidos, ahí).
+# Si la agenda viene del móvil con la etiqueta cortada por palabras (el nombre de pila en
+# APELLIDOS, como la de jca), pásala antes por `separar-nombres.py`, revisa su TSV e
+# importa ESE: lleva las columnas que este script espera.
 # Aquí se decide contra lo que YA hay en el tenant:
 #   - Un contacto con algún teléfono que ya está en `contact_phones` NO se crea: ya existe
 #     (lo creó Lucía, el gestor o una pasada anterior). Tampoco se modifica.
