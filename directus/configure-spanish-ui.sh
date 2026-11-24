@@ -652,6 +652,7 @@ const fieldTranslations = {
     state: 'Estado interno',
     modo: 'Modo',
     ventana_hasta: 'Ventana abierta hasta',
+    silencio_hasta: 'Lucía en silencio hasta',
     mensajes: 'Mensajes',
     created_at: 'Fecha de creación',
     updated_at: 'Última modificación',

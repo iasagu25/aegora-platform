@@ -62,6 +62,12 @@
               "name": "require_signature",
               "type": "boolean",
               "value": true
+            },
+            {
+              "id": "w7",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "__DIRECTUS_BASE_URL__"
             }
           ]
         },
@@ -79,7 +85,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Dos triggers posibles (GET de verificación / POST de eventos): Config ya mezcló\n// sus campos hacia aquí (includeOtherFields), así que basta con $json.\nconst cfg = $json;\nconst q = cfg.query || {};\nconst headers = cfg.headers || {};\n\n// --- 1) Verificación del webhook (GET de Meta) ---\nif (q['hub.mode'] || q['hub.challenge']) {\n  const ok = q['hub.verify_token'] === cfg.verify_token;\n  // El GET de verificación de Meta no viene firmado: nunca se le exige firma.\n  return [{ json: { tipo: ok ? 'verificacion' : 'ignorar',\n    challenge: ok ? String(q['hub.challenge'] ?? '') : '',\n    motivo: ok ? null : 'verify_token no coincide',\n    firma: 'no_aplica', firma_motivo: null,\n    _raw: '', _sig: '', _app_secret: '', _require_signature: false } }];\n}\n\n// --- 2) Cuerpo ---\n// Meta firma los BYTES EXACTOS que envía, así que re-serializar el JSON ya\n// parseado no sirve: un espacio de diferencia y el HMAC no cuadra. O tenemos el\n// crudo o la firma no se puede comprobar, y punto.\n//\n// `rawBody: true` lo entrega de formas distintas según la versión de n8n\n// (string, Buffer serializado, binario aparte). Se aceptan todas y se anota\n// CUÁL apareció: así, si algún día deja de cuadrar, el dato está a la vista en\n// vez de haber que deducirlo.\nlet raw = null, body = null, forma_cuerpo = 'ausente';\n\n// De dónde se saca el cuerpo: del WEBHOOK, no de $json. $json es lo que dejó el\n// nodo `Config`, que es un Set -- y un Set puede descartar la parte binaria, que\n// es justo donde `rawBody` deja los bytes. Leyéndolo del origen ese eslabón\n// desaparece. Si el nodo no corrió (llegó por el trigger GET), se cae al $json\n// de siempre.\nlet b = cfg.body;\nlet origen_cuerpo = 'config';\ntry {\n  const hook = $('Webhook · WhatsApp (POST)').first();\n  if (hook) {\n    origen_cuerpo = 'webhook';\n    if (hook.json && hook.json.body !== undefined) b = hook.json.body;\n    const bin = hook.binary || {};\n    const dato = bin.data || bin.body || Object.values(bin)[0];\n    // El binario manda: si existe, son los bytes tal cual llegaron.\n    if (dato && dato.data) {\n      try {\n        raw = (typeof Buffer !== 'undefined')\n          ? Buffer.from(dato.data, 'base64').toString('utf8')\n          : new TextDecoder().decode(Uint8Array.from(atob(dato.data), ch => ch.charCodeAt(0)));\n        forma_cuerpo = 'binario_webhook';\n      } catch (e) { /* seguimos con b */ }\n    }\n  }\n} catch (e) { /* el POST no corrió en esta ejecución */ }\n\nif (raw) {\n  // ya resuelto desde el binario del webhook\n} else if (typeof b === 'string') {\n  forma_cuerpo = 'string';\n  raw = b;\n} else if (b && typeof b === 'object' && b.type === 'Buffer' && Array.isArray(b.data)) {\n  forma_cuerpo = 'buffer_json';\n  try { raw = Buffer.from(b.data).toString('utf8'); } catch (e) { raw = null; }\n} else if (typeof Buffer !== 'undefined' && Buffer.isBuffer && Buffer.isBuffer(b)) {\n  forma_cuerpo = 'buffer';\n  try { raw = b.toString('utf8'); } catch (e) { raw = null; }\n} else if (b && typeof b === 'object') {\n  // Ya viene parseado: el crudo se perdió por el camino y no hay firma posible.\n  forma_cuerpo = 'objeto_parseado';\n  body = b;\n}\n\n// n8n puede dejar el cuerpo en la parte binaria en lugar de en $json.\nif (!raw && !body) {\n  try {\n    const bin = $input.first().binary || {};\n    const dato = bin.data || bin.body || Object.values(bin)[0];\n    if (dato && dato.data) {\n      forma_cuerpo = 'binario';\n      raw = Buffer.from(dato.data, 'base64').toString('utf8');\n    }\n  } catch (e) { /* no hay binario */ }\n}\n\nif (raw && !body) { try { body = JSON.parse(raw); } catch (e) { body = null; } }\nif (!body) return [{ json: { tipo: 'ignorar', motivo: 'cuerpo no parseable', forma_cuerpo, origen_cuerpo, firma: 'no_comprobada', firma_motivo: 'cuerpo no parseable', _raw: '', _sig: '', _app_secret: '', _require_signature: false } }];\n\n// --- 3) Ingredientes de la firma ---\n// El HMAC NO se calcula aquí: el sandbox del task runner no tiene criptografía\n// (ni require('crypto') ni globalThis.crypto), así que lo hace el nodo `Crypto`\n// que va detrás, que corre en el proceso principal de n8n. Este nodo solo deja\n// preparado lo que necesita, y `Code · Verificar firma` cierra el círculo.\nconst sigHeader = headers['x-hub-signature-256'] || headers['X-Hub-Signature-256'] || '';\nconst firma = 'pendiente';\nconst firma_motivo = null;\nconst _sig = sigHeader;\nconst _app_secret = cfg.app_secret || '';\nconst _raw = raw || '';\nconst _require_signature = cfg.require_signature === true;\n\n// --- 4) Normalizar el payload de Meta ---\nconst value = body?.entry?.[0]?.changes?.[0]?.value || {};\nconst msg = value?.messages?.[0];\n// Los avisos de estado (sent/delivered/read) llegan al mismo webhook: se ignoran.\nif (!msg) return [{ json: { tipo: 'ignorar', motivo: value.statuses ? 'status' : 'sin mensajes', firma, firma_motivo, forma_cuerpo, origen_cuerpo, _raw, _sig, _app_secret, _require_signature } }];\n\nconst pnid = value?.metadata?.phone_number_id || null;\nif (pnid && cfg.phone_number_id && !String(cfg.phone_number_id).startsWith('REPLACE_')\n    && pnid !== cfg.phone_number_id) {\n  return [{ json: { tipo: 'ignorar', motivo: 'phone_number_id ajeno: ' + pnid, firma, firma_motivo, forma_cuerpo, origen_cuerpo, _raw, _sig, _app_secret, _require_signature } }];\n}\n\nconst from = msg.from || null;                       // E.164 sin '+'\nconst perfil = value?.contacts?.[0]?.profile?.name || null;\nconst texto = msg.type === 'text' ? (msg.text?.body || '') : '';\n\nreturn [{ json: {\n  // Un audio (nota de voz o archivo de audio) se transcribe y entra como texto. El resto\n  // de tipos (fotos, documentos, ubicaciones...) siguen con el aviso de solo texto.\n  tipo: msg.type === 'text' ? 'mensaje' : (msg.type === 'audio' ? 'audio' : 'no_texto'),\n  audio: msg.type === 'audio' ? { id: msg.audio?.id || null, mime_type: msg.audio?.mime_type || null } : null,\n  firma, firma_motivo, forma_cuerpo, origen_cuerpo,\n  _raw, _sig, _app_secret, _require_signature,\n  wamid: msg.id || null,\n  from,\n  entry: {\n    canal: 'whatsapp',\n    session_key: 'whatsapp:' + from,\n    message: texto,\n    from: { phone: from ? '+' + from : null, name: perfil },\n    tenant: cfg.tenant || '__TENANT_ID__',\n    reply_to: { phone_number_id: cfg.phone_number_id },\n    client_message_id: msg.id || null,\n  },\n} }];"
+        "jsCode": "// Dos triggers posibles (GET de verificación / POST de eventos): Config ya mezcló\n// sus campos hacia aquí (includeOtherFields), así que basta con $json.\nconst cfg = $json;\nconst q = cfg.query || {};\nconst headers = cfg.headers || {};\n\n// --- 1) Verificación del webhook (GET de Meta) ---\nif (q['hub.mode'] || q['hub.challenge']) {\n  const ok = q['hub.verify_token'] === cfg.verify_token;\n  // El GET de verificación de Meta no viene firmado: nunca se le exige firma.\n  return [{ json: { tipo: ok ? 'verificacion' : 'ignorar',\n    challenge: ok ? String(q['hub.challenge'] ?? '') : '',\n    motivo: ok ? null : 'verify_token no coincide',\n    firma: 'no_aplica', firma_motivo: null,\n    _raw: '', _sig: '', _app_secret: '', _require_signature: false } }];\n}\n\n// --- 2) Cuerpo ---\n// Meta firma los BYTES EXACTOS que envía, así que re-serializar el JSON ya\n// parseado no sirve: un espacio de diferencia y el HMAC no cuadra. O tenemos el\n// crudo o la firma no se puede comprobar, y punto.\n//\n// `rawBody: true` lo entrega de formas distintas según la versión de n8n\n// (string, Buffer serializado, binario aparte). Se aceptan todas y se anota\n// CUÁL apareció: así, si algún día deja de cuadrar, el dato está a la vista en\n// vez de haber que deducirlo.\nlet raw = null, body = null, forma_cuerpo = 'ausente';\n\n// De dónde se saca el cuerpo: del WEBHOOK, no de $json. $json es lo que dejó el\n// nodo `Config`, que es un Set -- y un Set puede descartar la parte binaria, que\n// es justo donde `rawBody` deja los bytes. Leyéndolo del origen ese eslabón\n// desaparece. Si el nodo no corrió (llegó por el trigger GET), se cae al $json\n// de siempre.\nlet b = cfg.body;\nlet origen_cuerpo = 'config';\ntry {\n  const hook = $('Webhook · WhatsApp (POST)').first();\n  if (hook) {\n    origen_cuerpo = 'webhook';\n    if (hook.json && hook.json.body !== undefined) b = hook.json.body;\n    const bin = hook.binary || {};\n    const dato = bin.data || bin.body || Object.values(bin)[0];\n    // El binario manda: si existe, son los bytes tal cual llegaron.\n    if (dato && dato.data) {\n      try {\n        raw = (typeof Buffer !== 'undefined')\n          ? Buffer.from(dato.data, 'base64').toString('utf8')\n          : new TextDecoder().decode(Uint8Array.from(atob(dato.data), ch => ch.charCodeAt(0)));\n        forma_cuerpo = 'binario_webhook';\n      } catch (e) { /* seguimos con b */ }\n    }\n  }\n} catch (e) { /* el POST no corrió en esta ejecución */ }\n\nif (raw) {\n  // ya resuelto desde el binario del webhook\n} else if (typeof b === 'string') {\n  forma_cuerpo = 'string';\n  raw = b;\n} else if (b && typeof b === 'object' && b.type === 'Buffer' && Array.isArray(b.data)) {\n  forma_cuerpo = 'buffer_json';\n  try { raw = Buffer.from(b.data).toString('utf8'); } catch (e) { raw = null; }\n} else if (typeof Buffer !== 'undefined' && Buffer.isBuffer && Buffer.isBuffer(b)) {\n  forma_cuerpo = 'buffer';\n  try { raw = b.toString('utf8'); } catch (e) { raw = null; }\n} else if (b && typeof b === 'object') {\n  // Ya viene parseado: el crudo se perdió por el camino y no hay firma posible.\n  forma_cuerpo = 'objeto_parseado';\n  body = b;\n}\n\n// n8n puede dejar el cuerpo en la parte binaria en lugar de en $json.\nif (!raw && !body) {\n  try {\n    const bin = $input.first().binary || {};\n    const dato = bin.data || bin.body || Object.values(bin)[0];\n    if (dato && dato.data) {\n      forma_cuerpo = 'binario';\n      raw = Buffer.from(dato.data, 'base64').toString('utf8');\n    }\n  } catch (e) { /* no hay binario */ }\n}\n\nif (raw && !body) { try { body = JSON.parse(raw); } catch (e) { body = null; } }\nif (!body) return [{ json: { tipo: 'ignorar', motivo: 'cuerpo no parseable', forma_cuerpo, origen_cuerpo, firma: 'no_comprobada', firma_motivo: 'cuerpo no parseable', _raw: '', _sig: '', _app_secret: '', _require_signature: false } }];\n\n// --- 3) Ingredientes de la firma ---\n// El HMAC NO se calcula aquí: el sandbox del task runner no tiene criptografía\n// (ni require('crypto') ni globalThis.crypto), así que lo hace el nodo `Crypto`\n// que va detrás, que corre en el proceso principal de n8n. Este nodo solo deja\n// preparado lo que necesita, y `Code · Verificar firma` cierra el círculo.\nconst sigHeader = headers['x-hub-signature-256'] || headers['X-Hub-Signature-256'] || '';\nconst firma = 'pendiente';\nconst firma_motivo = null;\nconst _sig = sigHeader;\nconst _app_secret = cfg.app_secret || '';\nconst _raw = raw || '';\nconst _require_signature = cfg.require_signature === true;\n\n// --- 4) Normalizar el payload de Meta ---\nconst change = body?.entry?.[0]?.changes?.[0] || {};\nconst value = change.value || {};\n\n// El número va antes que nada: un eco o un estado de OTRO número de la misma app\n// tampoco es asunto de este tenant.\nconst pnid = value?.metadata?.phone_number_id || null;\nif (pnid && cfg.phone_number_id && !String(cfg.phone_number_id).startsWith('REPLACE_')\n    && pnid !== cfg.phone_number_id) {\n  return [{ json: { tipo: 'ignorar', motivo: 'phone_number_id ajeno: ' + pnid, firma, firma_motivo, forma_cuerpo, origen_cuerpo, _raw, _sig, _app_secret, _require_signature } }];\n}\n\n// Coexistencia: lo que alguien del negocio escribe desde la app de WhatsApp Business\n// del móvil llega como eco (campo `smb_message_echoes`, array `message_echoes`).\n// `from` es NUESTRO número y `to` el cliente. Hay que suscribir ese campo en la app\n// de Meta (WhatsApp > Configuración > campos del webhook) o no llega nada.\nconst ecos = Array.isArray(value.message_echoes) ? value.message_echoes : [];\nif (ecos.length) {\n  return [{ json: { tipo: 'eco',\n    ecos: ecos.map(e => ({\n      telefono: e.to ? String(e.to).replace(/\\D/g, '') : null,\n      wamid: e.id || null,\n      tipo_mensaje: e.type || null,\n      texto: e.type === 'text' ? (e.text?.body || '') : '',\n      timestamp: e.timestamp ?? null,\n    })),\n    firma, firma_motivo, forma_cuerpo, origen_cuerpo, _raw, _sig, _app_secret, _require_signature } }];\n}\n\nconst msg = value?.messages?.[0];\n// Los avisos de estado (sent/delivered/read) llegan al mismo webhook: se ignoran. Y\n// cualquier otro campo (`smb_app_state_sync`, `history`...) se ignora DICIENDO cuál\n// era, para poder ver en las ejecuciones qué manda Meta sin tener que adivinarlo.\nif (!msg) return [{ json: { tipo: 'ignorar', motivo: value.statuses ? 'status' : (change.field ? 'campo ' + change.field : 'sin mensajes'), firma, firma_motivo, forma_cuerpo, origen_cuerpo, _raw, _sig, _app_secret, _require_signature } }];\n\nconst from = msg.from || null;                       // E.164 sin '+'\nconst perfil = value?.contacts?.[0]?.profile?.name || null;\nconst texto = msg.type === 'text' ? (msg.text?.body || '') : '';\n\nreturn [{ json: {\n  // Un audio (nota de voz o archivo de audio) se transcribe y entra como texto. El resto\n  // de tipos (fotos, documentos, ubicaciones...) siguen con el aviso de solo texto.\n  tipo: msg.type === 'text' ? 'mensaje' : (msg.type === 'audio' ? 'audio' : 'no_texto'),\n  audio: msg.type === 'audio' ? { id: msg.audio?.id || null, mime_type: msg.audio?.mime_type || null } : null,\n  firma, firma_motivo, forma_cuerpo, origen_cuerpo,\n  _raw, _sig, _app_secret, _require_signature,\n  wamid: msg.id || null,\n  from,\n  entry: {\n    canal: 'whatsapp',\n    session_key: 'whatsapp:' + from,\n    message: texto,\n    from: { phone: from ? '+' + from : null, name: perfil },\n    tenant: cfg.tenant || '__TENANT_ID__',\n    reply_to: { phone_number_id: cfg.phone_number_id },\n    client_message_id: msg.id || null,\n  },\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -189,6 +195,30 @@
               },
               "renameOutput": true,
               "outputKey": "audio"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "sw-eco",
+                    "leftValue": "={{ $json.tipo }}",
+                    "rightValue": "eco",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "eco"
             }
           ]
         },
@@ -422,12 +452,12 @@
     },
     {
       "parameters": {
-        "jsCode": "const cfg = $('Config (editar por tenant)').item.json;\nconst norm = $json ?? {};\nreturn [{ json: {\n  _url: `https://graph.facebook.com/${cfg.graph_version || 'v21.0'}/${cfg.phone_number_id}/messages`,\n  _body: { messaging_product: 'whatsapp', recipient_type: 'individual',\n           to: norm.from, type: 'text',\n           text: { preview_url: false,\n                   body: 'De momento solo puedo leer mensajes de texto. ¿Me lo escribes?' } },\n} }];"
+        "jsCode": "// Un adjunto (foto, documento, ubicación...) recibe el aviso de que solo leemos\n// texto, pero SOLO si el hilo lo lleva Lucía. Con la sesión en `humano`, o en\n// silencio porque acaban de contestar desde el móvil, quien atiende es una persona\n// que sí ve la foto en su app: un robot metiéndose ahí sobra.\n// Si la consulta falla, cuenta como `auto`: es lo que haría Entry.\nconst cfg = $('Config (editar por tenant)').item.json;\nconst norm = $('Code · Clasificar y normalizar').item.json;\nconst r = $json || {};\nconst fila = (r.statusCode >= 200 && r.statusCode < 300 && r.body && Array.isArray(r.body.data)) ? r.body.data[0] : null;\nconst modo = (fila && fila.modo) || 'auto';\nconst silencio = Boolean(fila && fila.silencio_hasta && Date.parse(fila.silencio_hasta) > Date.now());\nif (modo !== 'auto' || silencio) return [];\nreturn [{ json: {\n  _url: `https://graph.facebook.com/${cfg.graph_version || 'v21.0'}/${cfg.phone_number_id}/messages`,\n  _body: { messaging_product: 'whatsapp', recipient_type: 'individual',\n           to: norm.from, type: 'text',\n           text: { preview_url: false,\n                   body: 'De momento solo puedo leer mensajes de texto. ¿Me lo escribes?' } },\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1360,
+        1470,
         160
       ],
       "id": "wa-0012",
@@ -611,6 +641,113 @@
       ],
       "id": "wa-audio-04",
       "name": "¿Audio entendido?"
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1140,
+        880
+      ],
+      "id": "aegora-wa-eco-01",
+      "name": "Responder 200 (eco)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Un webhook puede traer varios ecos; cada uno es un mensaje y va por su cuenta.\n// Por nombre y no por $json: delante hay un nodo de respuesta.\nconst n = $('Code · Verificar firma').first().json;\nreturn (n.ecos || []).map(e => ({ json: e }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        880
+      ],
+      "id": "aegora-wa-eco-02",
+      "name": "Code · Un item por eco"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraWhatsappEco",
+          "mode": "id"
+        },
+        "mode": "each",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "telefono": "={{ $json.telefono }}",
+            "wamid": "={{ $json.wamid }}",
+            "tipo_mensaje": "={{ $json.tipo_mensaje }}",
+            "texto": "={{ $json.texto }}",
+            "timestamp": "={{ $json.timestamp }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1580,
+        880
+      ],
+      "id": "aegora-wa-eco-03",
+      "name": "Execute · Eco del móvil"
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1140,
+        160
+      ],
+      "id": "aegora-wa-nt-01",
+      "name": "Responder 200 (no texto)"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Config (editar por tenant)').item.json.directus_base_url }}/items/conversation_sessions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ 'filter[session_key][_eq]': $('Code · Clasificar y normalizar').item.json.entry.session_key, fields: 'modo,silencio_hasta', limit: 1 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          },
+          "timeout": 5000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1250,
+        300
+      ],
+      "id": "aegora-wa-nt-02",
+      "name": "HTTP · Sesión (no texto)",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
     }
   ],
   "connections": {
@@ -654,7 +791,7 @@
         ],
         [
           {
-            "node": "Code · Solo texto",
+            "node": "Responder 200 (no texto)",
             "type": "main",
             "index": 0
           }
@@ -662,6 +799,13 @@
         [
           {
             "node": "Responder 200 (audio)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 200 (eco)",
             "type": "main",
             "index": 0
           }
@@ -829,6 +973,50 @@
         [
           {
             "node": "HTTP · WhatsApp sendText",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder 200 (no texto)": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Sesión (no texto)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Sesión (no texto)": {
+      "main": [
+        [
+          {
+            "node": "Code · Solo texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder 200 (eco)": {
+      "main": [
+        [
+          {
+            "node": "Code · Un item por eco",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Un item por eco": {
+      "main": [
+        [
+          {
+            "node": "Execute · Eco del móvil",
             "type": "main",
             "index": 0
           }

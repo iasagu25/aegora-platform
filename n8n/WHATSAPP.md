@@ -18,6 +18,10 @@
    - URL: `https://${WEBHOOK_HOST}/webhook/whatsapp`
    - Verify token: el `WHATSAPP_VERIFY_TOKEN`
    - Suscribirse al campo **`messages`**.
+   - Si el número está en **coexistencia** (la app de WhatsApp Business sigue en el
+     móvil), suscribir también **`smb_message_echoes`**: es lo que nos dice que
+     alguien ha contestado desde el móvil, y sin él Lucía contesta encima de esa
+     persona. Ver "Coexistencia" en `CLAUDE.md`.
 
 ## Número de pruebas de Meta (para `dev`)
 

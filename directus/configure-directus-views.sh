@@ -267,6 +267,7 @@ const ordenDeCampos = {
     ['mensajes', 'full'],
     ['modo', 'half'],
     ['ventana_hasta', 'half'],
+    ['silencio_hasta', 'half'],
     ['session_key', 'full'],
     ['flujo_activo', 'half'],
     ['updated_at', 'half'],
@@ -356,6 +357,8 @@ const displaysDeCampo = [
     // La ventana de 24 h de WhatsApp: si el gestor la lee mal, escribe fuera de
     // plazo y el mensaje no sale.
     ['conversation_sessions', 'ventana_hasta'],
+    // Hasta cuándo calla Lucía porque han contestado desde el móvil.
+    ['conversation_sessions', 'silencio_hasta'],
   ].map(([collection, field]) => ({
     collection, field,
     display: 'datetime',

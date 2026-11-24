@@ -4608,6 +4608,51 @@ fields:
       foreign_key_table: null
       foreign_key_column: null
   - collection: conversation_sessions
+    field: silencio_hasta
+    type: timestamp
+    meta:
+      collection: conversation_sessions
+      conditions: null
+      display: null
+      display_options: null
+      field: silencio_hasta
+      group: null
+      hidden: false
+      interface: datetime
+      note: >-
+        Lucía no contesta en este hilo hasta esta hora porque alguien ha escrito
+        desde la app de WhatsApp Business del móvil. Cada mensaje desde el móvil
+        lo alarga. Vaciarlo le devuelve el hilo a Lucía al momento.
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 6
+      special: null
+      translations:
+        - language: es-ES
+          translation: Lucía en silencio hasta
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: silencio_hasta
+      table: conversation_sessions
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: conversation_sessions
     field: mensajes
     type: alias
     meta:

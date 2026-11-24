@@ -828,6 +828,70 @@ herramientas antes de confirmar nada"*.
   elige las primeras columnas y el texto del mensaje se quedaba fuera: una lista de
   mensajes sin mensajes. Las columnas se fijan en `configure-directus-presets.sh`.
 
+## Coexistencia: la app de WhatsApp Business en el móvil Y la API, a la vez (24/nov/2026)
+**Funciona, y sin ser Tech Provider ni pasar por un BSP ni por ningún tercero.** Probado en
+`ops` con el número de Aegora: la app de WhatsApp Business sigue activa en el móvil y, a la
+vez, los mensajes entran por la Cloud API a n8n y Lucía contesta. Lo montó el usuario en los
+paneles de Meta, así:
+1. Vincular el número de WhatsApp Business (el que usa la app del móvil) al **portfolio
+   comercial** (Business Manager) de Aegora.
+2. En developers.facebook.com, en la **app de Meta** del tenant -> WhatsApp, **añadir ese
+   número**.
+3. `secrets/whatsapp.env` con el `phone_number_id` nuevo y **render completo** del tenant.
+   Sin el render el adapter descarta todo con `phone_number_id ajeno: <id>`, firma válida.
+
+**Lo que NO hay que volver a creerse.** La documentación de Meta y las guías de terceros
+presentan la coexistencia como cosa de Solution Partners / Tech Providers, vía Embedded
+Signup (`featureType: whatsapp_business_app_onboarding`), y así se analizó aquí antes de
+probarlo: que hacía falta ser Tech Provider, o entrar por un BSP como 360dialog, o que
+GoHighLevel era la vía. **Para un número en nuestro propio portfolio y nuestra propia app no
+hizo falta nada de eso.** Ese requisito es para dar de alta números de OTROS negocios desde
+nuestra app. Cuando toque con un cliente, se prueba primero y no se da por bueno lo que
+digan esas guías.
+
+Abierto todavía: en el caso de un cliente, en qué portfolio va su número (el suyo o el de
+Aegora) y quién paga los mensajes a Meta.
+
+### Lucía calla 10 minutos cuando alguien contesta desde el móvil (24/nov/2026, sin probar)
+Lo que alguien del negocio escribe desde la app le llega a la API como **eco** (campo
+`smb_message_echoes`, array `value.message_echoes`, `from` = nuestro número, `to` = el
+cliente). Hay que **suscribir ese campo** en la app de Meta (WhatsApp -> Configuración ->
+campos del webhook); sin él no llega nada y Lucía contesta encima de la persona.
+
+    adapter (tipo `eco`) -> `WHATSAPP · Eco del móvil`
+      -> conversation_sessions.silencio_hasta = ahora + 10 min (la crea si no existe)
+      -> conversation_messages (saliente, autor `humano`)
+      -> memoria del Core como `ai` (solo texto, tal cual lo recibió el cliente)
+
+- **Entry trata `silencio_hasta` en el futuro igual que `modo: humano`**: registra el
+  mensaje del cliente y no contesta. **No toca `modo`** (es del gestor), así que pasado el
+  plazo Lucía vuelve sola y nadie tiene que acordarse de devolverle el hilo. Cada eco alarga
+  el plazo. Si el gestor vacía el campo en el panel, Lucía vuelve en el acto.
+- También callan "escribiendo…" y el aviso de "solo leo texto" ante una foto: con alguien en
+  la app, un robot metiéndose sobra.
+- Borrar o editar un mensaje en el móvil (`revoke`, `edit`) alarga el silencio pero no se
+  anota. Un adjunto se anota en la bandeja como `[Enviado desde el móvil: una imagen]`, y en
+  la memoria del Core no entra nada.
+- **Un campo propio y no `state`, a propósito.** Entry reescribe `state` entero al acabar
+  su turno, que dura unos 5 s. Un eco que llegara durante ese turno se perdería, y es el
+  caso típico: el cliente escribe, y Lucía y la persona contestan a la vez.
+- Los 10 minutos son `silencio_minutos` en el `Config` del workflow, igual para todos los
+  tenants. Si uno necesita otro valor, se pasa a `AJUSTES_TENANT`.
+- **Hueco conocido**: si la persona contesta el mismo mensaje que Lucía ya está
+  contestando, salen las dos respuestas. El silencio solo cubre a partir del eco.
+- **Por confirmar en la primera prueba**: según Meta, los envíos por la API no generan
+  eco, solo la app y sus dispositivos vinculados. Si sí lo generaran, Lucía se callaría
+  sola tras cada respuesta suya. Se ve enseguida: una ejecución de `Eco del móvil` justo
+  después de cada respuesta de Lucía.
+- Una sesión creada por un eco (el negocio escribe primero) sigue mandando el aviso de
+  privacidad con la primera respuesta del cliente, aunque esté en silencio: la conversación
+  se guarda igual.
+- `dev` usa el número de pruebas de Meta, que no tiene app y nunca mandará un eco de
+  verdad. Para probar ahí está `n8n/simular-eco-whatsapp.sh`, que firma uno con el App
+  Secret del tenant.
+- Cualquier otro campo que llegue (`smb_app_state_sync`, `history`…) se ignora, y la
+  ejecución dice cuál era (`motivo: campo <nombre>`).
+
 ## Latencia: cada salto de sub-workflow cuesta ~100 ms (medido 22/sep/2026)
 Medido en `demo` con una reserva real, leyendo `execution_entity` (los tiempos **anidan**:
 un sub-workflow cuenta dentro de su padre, así que se restan, no se suman):

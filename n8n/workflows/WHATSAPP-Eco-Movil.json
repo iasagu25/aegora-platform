@@ -1,0 +1,736 @@
+{
+  "id": "aegoraWhatsappEco",
+  "name": "WHATSAPP · Eco del móvil",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "telefono"
+            },
+            {
+              "name": "wamid"
+            },
+            {
+              "name": "tipo_mensaje"
+            },
+            {
+              "name": "texto"
+            },
+            {
+              "name": "timestamp"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -600,
+        0
+      ],
+      "id": "aegora-eco-01",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1",
+              "name": "tenant",
+              "type": "string",
+              "value": "__TENANT_ID__"
+            },
+            {
+              "id": "e2",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "__DIRECTUS_BASE_URL__"
+            },
+            {
+              "id": "e3",
+              "name": "silencio_minutos",
+              "type": "number",
+              "value": 10
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -380,
+        0
+      ],
+      "id": "aegora-eco-02",
+      "name": "Config (editar por tenant)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Alguien del negocio ha escrito desde la app de WhatsApp Business del móvil\n// (coexistencia) y Meta nos manda el eco (`smb_message_echoes`). Tres cosas, por\n// orden de importancia:\n//   1. Lucía se calla en ese hilo `silencio_minutos` (conversation_sessions.silencio_hasta).\n//      Cada eco lo alarga. Pasado, Entry vuelve a contestar sin que nadie lo devuelva.\n//   2. El mensaje queda en la bandeja (conversation_messages, autor 'humano').\n//   3. Y en la memoria del Core, para que al volver Lucía sepa qué se ha dicho.\nconst c = $json;\nconst digitos = (c.telefono || '').toString().replace(/\\D/g, '');\nconst minutos = Number(c.silencio_minutos) > 0 ? Number(c.silencio_minutos) : 10;\nconst tipo = (c.tipo_mensaje || '').toString();\nconst texto = tipo === 'text' ? (c.texto || '').toString().trim() : '';\n// Un adjunto no se descarga: en la bandeja se deja dicho qué era.\nconst ETIQUETAS = { image: 'una imagen', video: 'un vídeo', audio: 'un audio',\n  document: 'un documento', sticker: 'un sticker', location: 'una ubicación',\n  contacts: 'un contacto' };\n// Borrar o editar un mensaje desde el móvil también es alguien atendiendo: alarga el\n// silencio, pero no es un mensaje nuevo y no se anota.\nconst anotar = Boolean(tipo) && tipo !== 'revoke' && tipo !== 'edit';\nreturn [{ json: {\n  ...c,\n  _valido: Boolean(digitos),\n  _motivo: digitos ? null : 'el eco no trae el teléfono del cliente (`to`)',\n  _session_key: 'whatsapp:' + digitos,\n  _silencio_hasta: new Date(Date.now() + minutos * 60000).toISOString(),\n  _anotar: anotar,\n  _texto_bandeja: texto || `[Enviado desde el móvil: ${ETIQUETAS[tipo] || tipo}]`,\n  // A la memoria del Core solo va texto de verdad, tal cual lo recibió el cliente:\n  // una etiqueta nuestra ahí el modelo acabaría repitiéndosela al cliente.\n  _texto_memoria: texto,\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        0
+      ],
+      "id": "aegora-eco-03",
+      "name": "Code · Preparar"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "eco-if-4",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json._valido }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        60,
+        0
+      ],
+      "id": "aegora-eco-04",
+      "name": "¿Válido?"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.directus_base_url }}/items/conversation_sessions",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ 'filter[session_key][_eq]': $json._session_key, limit: 1, fields: 'id,contact_id' }) }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        280,
+        -100
+      ],
+      "id": "aegora-eco-05",
+      "name": "HTTP · Buscar sesión",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Code · Preparar').first().json.directus_base_url }}/items/conversation_messages",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ 'filter[canal_message_id][_eq]': $('Code · Preparar').first().json.wamid || '-', limit: 1, fields: 'id' }) }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        500,
+        -100
+      ],
+      "id": "aegora-eco-06",
+      "name": "HTTP · ¿Ya anotado?",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Por nombre y no por $json: aquí hacen falta las dos consultas, no solo la última.\n// Si Directus falla, el eco falla A LA VISTA: un silencio que no se pone sin decirlo es\n// Lucía contestando encima de una persona, y nadie sabría por qué.\nconst p = $('Code · Preparar').first().json;\nconst leer = (nodo) => {\n  const r = $(nodo).first().json || {};\n  const code = r.statusCode || 0;\n  if (code < 200 || code >= 300) {\n    throw new Error(`Directus (${nodo}) ${code}: ${JSON.stringify(r.body || r).slice(0, 300)}`);\n  }\n  return (r.body && Array.isArray(r.body.data)) ? r.body.data : [];\n};\nconst ses = leer('HTTP · Buscar sesión')[0] || null;\nconst repetido = p.wamid ? leer('HTTP · ¿Ya anotado?').length > 0 : false;\nreturn [{ json: { ...p,\n  session_id: ses ? ses.id : null,\n  contact_id: ses ? (ses.contact_id || null) : null,\n  _crear: !ses,\n  _repetido: repetido,\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        -100
+      ],
+      "id": "aegora-eco-07",
+      "name": "Code · Decidir"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "eco-if-8",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json._repetido }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        940,
+        -100
+      ],
+      "id": "aegora-eco-08",
+      "name": "¿Repetido?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "eco-if-9",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json._crear }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1160,
+        0
+      ],
+      "id": "aegora-eco-09",
+      "name": "¿Crear sesión?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.directus_base_url }}/items/conversation_sessions",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ session_key: $json._session_key, canal: 'whatsapp', silencio_hasta: $json._silencio_hasta }) }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1380,
+        -100
+      ],
+      "id": "aegora-eco-10",
+      "name": "HTTP · Crear sesión",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $json.directus_base_url }}/items/conversation_sessions/{{ $json.session_id }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ silencio_hasta: $json._silencio_hasta }) }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1380,
+        100
+      ],
+      "id": "aegora-eco-11",
+      "name": "HTTP · Alargar silencio",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Se llega desde dos sitios (sesión nueva o ya existente): se lee por nombre.\nconst d = $('Code · Decidir').first().json;\nconst nodo = d._crear ? 'HTTP · Crear sesión' : 'HTTP · Alargar silencio';\nconst r = $(nodo).first().json || {};\nconst code = r.statusCode || 0;\nif (code < 200 || code >= 300) {\n  throw new Error(`Directus (${nodo}) ${code}: ${JSON.stringify(r.body || r).slice(0, 300)}`);\n}\nconst session_id = d.session_id || (r.body && r.body.data && r.body.data.id) || null;\nreturn [{ json: { ...d, session_id,\n  fila: (d._anotar && session_id) ? {\n    session_id, contact_id: d.contact_id, canal: 'whatsapp',\n    direccion: 'saliente', autor: 'humano', texto: d._texto_bandeja,\n    estado_envio: 'enviado', canal_message_id: d.wamid || null,\n  } : null,\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        0
+      ],
+      "id": "aegora-eco-12",
+      "name": "Code · Fila del mensaje"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "eco-if-13",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ Boolean($json.fila) }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1820,
+        0
+      ],
+      "id": "aegora-eco-13",
+      "name": "¿Anotar?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.directus_base_url }}/items/conversation_messages",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.fila) }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2040,
+        -100
+      ],
+      "id": "aegora-eco-14",
+      "name": "HTTP · Guardar mensaje",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "eco-if-15",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ Boolean($('Code · Fila del mensaje').first().json._texto_memoria) }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2260,
+        -100
+      ],
+      "id": "aegora-eco-15",
+      "name": "¿A la memoria?"
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "insertMode": "insert",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "ai",
+              "message": "={{ $('Code · Fila del mensaje').first().json._texto_memoria }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryManager",
+      "typeVersion": 1,
+      "position": [
+        2480,
+        -200
+      ],
+      "id": "aegora-eco-16",
+      "name": "Memoria · Anotar mensaje del móvil"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Code · Fila del mensaje').first().json._session_key }}",
+        "tableName": "n8n_chat_histories",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        2480,
+        0
+      ],
+      "id": "aegora-eco-17",
+      "name": "Postgres Chat Memory (móvil)",
+      "credentials": {
+        "postgres": {
+          "id": "__CRED_POSTGRES_ACCOUNT__",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Un resumen legible de lo que pasó. Es lo primero que hay que mirar si Lucía\n// contesta encima de alguien que acaba de escribir desde el móvil.\nconst p = $('Code · Preparar').first().json;\nconst intenta = (nodo) => { try { return $(nodo).first().json; } catch (e) { return null; } };\nif (!p._valido) return [{ json: { ok: false, motivo: p._motivo } }];\nconst d = intenta('Code · Decidir');\nif (d && d._repetido) return [{ json: { ok: true, motivo: 'eco repetido: ya estaba anotado', session_key: p._session_key } }];\nconst f = intenta('Code · Fila del mensaje');\nconst g = intenta('HTTP · Guardar mensaje');\nconst guardado = g ? (g.statusCode >= 200 && g.statusCode < 300) : null;\nreturn [{ json: {\n  ok: true,\n  session_key: p._session_key,\n  silencio_hasta: p._silencio_hasta,\n  sesion_creada: Boolean(f && f._crear),\n  tipo_mensaje: p.tipo_mensaje,\n  anotado_en_bandeja: guardado,\n  error_bandeja: guardado === false ? JSON.stringify(g.body || g).slice(0, 300) : null,\n  en_memoria: Boolean(guardado && p._texto_memoria),\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2700,
+        0
+      ],
+      "id": "aegora-eco-18",
+      "name": "Code · Salida"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "Code · Preparar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Preparar": {
+      "main": [
+        [
+          {
+            "node": "¿Válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Válido?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Buscar sesión",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Buscar sesión": {
+      "main": [
+        [
+          {
+            "node": "HTTP · ¿Ya anotado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · ¿Ya anotado?": {
+      "main": [
+        [
+          {
+            "node": "Code · Decidir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Decidir": {
+      "main": [
+        [
+          {
+            "node": "¿Repetido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Repetido?": {
+      "main": [
+        [
+          {
+            "node": "Code · Salida",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Crear sesión?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Crear sesión?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Crear sesión",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP · Alargar silencio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Crear sesión": {
+      "main": [
+        [
+          {
+            "node": "Code · Fila del mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Alargar silencio": {
+      "main": [
+        [
+          {
+            "node": "Code · Fila del mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Fila del mensaje": {
+      "main": [
+        [
+          {
+            "node": "¿Anotar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Anotar?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Guardar mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Guardar mensaje": {
+      "main": [
+        [
+          {
+            "node": "¿A la memoria?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿A la memoria?": {
+      "main": [
+        [
+          {
+            "node": "Memoria · Anotar mensaje del móvil",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code · Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memoria · Anotar mensaje del móvil": {
+      "main": [
+        [
+          {
+            "node": "Code · Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory (móvil)": {
+      "ai_memory": [
+        [
+          {
+            "node": "Memoria · Anotar mensaje del móvil",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
