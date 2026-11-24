@@ -891,6 +891,42 @@ campos del webhook); sin él no llega nada y Lucía contesta encima de la person
   Secret del tenant.
 - Cualquier otro campo que llegue (`smb_app_state_sync`, `history`…) se ignora, y la
   ejecución dice cuál era (`motivo: campo <nombre>`).
+- **Probado en `ops` el 24/nov/2026**: los ecos llegan y se ven en la bandeja.
+
+### Al acabar el silencio, Lucía retoma lo que quedó sin contestar (24/nov/2026, sin probar)
+El caso que lo pidió: desde el móvil se le ofreció a un cliente "el jueves a las 12", el
+cliente dijo "sí" y nadie lo apuntó. Pasado el silencio Lucía no hacía nada, porque solo
+habla cuando entra un mensaje.
+
+    `WHATSAPP · Retomar tras silencio` (cada minuto)
+      -> hilos con `silencio_hasta` vencido -> lo vacía (solo si SIGUE vencido: un eco gana)
+      -> ¿el final del hilo son mensajes del cliente sin respuesta, llegados en el silencio?
+      -> Entry con `retomar: true` y esos mensajes como texto del turno
+      -> la respuesta queda en `conversation_messages` como `pendiente`
+      -> `HUMANO · Enviar pendientes` la manda (<= 10 s)
+
+- **No retoma** si el hilo está en `modo: humano`, si la ventana de 24 h está cerrada, si el
+  silencio venció hace más de 30 min (`max_retraso_minutos`: n8n parado o el primer
+  despliegue con silencios viejos de prueba) ni si el último mensaje del cliente llegó
+  DESPUÉS del silencio (ese es de Entry y lo está contestando).
+- **La memoria no se duplica.** Lo que escribió el cliente en el silencio ya está en la
+  memoria del Core (lo anota la rama de relevo), y el Core lo va a guardar otra vez como
+  mensaje del turno. Así que Entry, al retomar, borra antes **los mensajes del cliente
+  posteriores a la última respuesta `ai`** (`Postgres · Quitar lo que se va a repetir`,
+  único nodo Postgres del repo: la memoria no sabe borrar selectivamente). Los avisos
+  `system` se quedan, y se añade otro: "vuelves a llevar tú la conversación".
+- Por lo mismo, `HUMANO · Enviar pendientes` **no anota en la memoria lo que es de
+  `autor: lucia`**: ya lo guardó su Core.
+- Qué hace Lucía lo dice el prompt (`lucia-v2.md`, "CUANDO RETOMAS…"): si se propuso una cita
+  y el cliente la aceptó, mira `mis_citas` (la persona pudo apuntarla) y si no está,
+  `reservar_cita`. Si el hueco no existe, no deja en mal lugar a quien lo ofreció: da
+  alternativas y anota una tarea.
+- **Hueco conocido**: si la persona vuelve a escribir justo cuando Lucía retoma, hablan los
+  dos. Y un cliente que escribe en los segundos en que vence el silencio puede llevarse dos
+  respuestas (Entry y el retomar a la vez): Entry guarda los mensajes al final de su turno y
+  el retomar no lo ve venir.
+- El workflow va con `saveDataSuccessExecution: none`, como el enviador: lo que se ve es la
+  ejecución de Entry que lanza, no las pasadas vacías.
 
 ## Latencia: cada salto de sub-workflow cuesta ~100 ms (medido 22/sep/2026)
 Medido en `demo` con una reserva real, leyendo `execution_entity` (los tiempos **anidan**:

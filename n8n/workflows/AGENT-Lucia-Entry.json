@@ -28,6 +28,9 @@
             },
             {
               "name": "client_message_id"
+            },
+            {
+              "name": "retomar"
             }
           ]
         }
@@ -117,7 +120,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const t = $('When Executed by Another Workflow').item.json;\nconst cfg = $json;\nconst clean = v => (v === undefined || v === null) ? null : (String(v).trim() || null);\nconst parseObj = v => { if (!v) return {}; if (typeof v === 'string') { try { return JSON.parse(v); } catch (e) { return {}; } } return v; };\nconst session_key = clean(t.session_key);\nconst message = clean(t.message);\nif (!session_key) throw new Error('Entry: falta session_key');\nif (!message) throw new Error('Entry: falta message');\nconst canal = clean(t.canal) || (session_key.includes(':') ? session_key.split(':')[0] : 'webchat');\nconst from = parseObj(t.from);\nreturn [{ json: {\n  session_key, message, canal,\n  tenant: clean(t.tenant) || '__TENANT_ID__',\n  from_phone: clean(from.phone), from_name: clean(from.name),\n  reply_to: parseObj(t.reply_to),\n  client_message_id: clean(t.client_message_id),\n  booking_base_url: cfg.booking_base_url, directus_base_url: cfg.directus_base_url,\n  tenant_timezone: cfg.tenant_timezone,\n  rl_window_ms: cfg.rl_window_ms, rl_max: cfg.rl_max,\n  // Primer mensaje de cada sesión (Art. 13 RGPD). Tiene que decir la VERDAD de lo que se\n  // guarda: la conversación se guarda siempre (bandeja del gestor y memoria de Lucía), y\n  // los datos de contacto solo si hay una cita o un recado. Ver n8n/prompts/lucia-v2.md.\n  privacy_intro: '¡Hola! Soy Lucía, la asistente de IA de ' + cfg.tenant_display_name\n    + '. Gracias por escribirnos \\uD83D\\uDE0A\\n\\n'\n    + 'Queremos informarte de que guardamos esta conversación, y tus datos de contacto solo '\n    + 'si reservas una cita o nos dejas una nota.',\n  privacy_policy_url: cfg.privacy_policy_url,\n  privacy_button_label: cfg.privacy_button_label,\n  // 'v1' (router determinista) o 'v2' (agente con tools). Ver n8n/prompts/lucia-v2.md.\n  core_version: (cfg.core_version || 'v1').toString().trim().toLowerCase(),\n} }];"
+        "jsCode": "const t = $('When Executed by Another Workflow').item.json;\nconst cfg = $json;\nconst clean = v => (v === undefined || v === null) ? null : (String(v).trim() || null);\nconst parseObj = v => { if (!v) return {}; if (typeof v === 'string') { try { return JSON.parse(v); } catch (e) { return {}; } } return v; };\nconst session_key = clean(t.session_key);\nconst message = clean(t.message);\nif (!session_key) throw new Error('Entry: falta session_key');\nif (!message) throw new Error('Entry: falta message');\nconst canal = clean(t.canal) || (session_key.includes(':') ? session_key.split(':')[0] : 'webchat');\nconst from = parseObj(t.from);\nreturn [{ json: {\n  session_key, message, canal,\n  tenant: clean(t.tenant) || '__TENANT_ID__',\n  from_phone: clean(from.phone), from_name: clean(from.name),\n  reply_to: parseObj(t.reply_to),\n  client_message_id: clean(t.client_message_id),\n  // Turno sin mensaje nuevo: lo lanza `WHATSAPP · Retomar tras silencio` cuando acaba el\n  // silencio de una respuesta desde el móvil y el cliente se quedó sin contestar. `message`\n  // trae lo que escribió entonces, que YA está en la bandeja y en la memoria.\n  retomar: t.retomar === true || String(t.retomar || '').toLowerCase() === 'true',\n  booking_base_url: cfg.booking_base_url, directus_base_url: cfg.directus_base_url,\n  tenant_timezone: cfg.tenant_timezone,\n  rl_window_ms: cfg.rl_window_ms, rl_max: cfg.rl_max,\n  // Primer mensaje de cada sesión (Art. 13 RGPD). Tiene que decir la VERDAD de lo que se\n  // guarda: la conversación se guarda siempre (bandeja del gestor y memoria de Lucía), y\n  // los datos de contacto solo si hay una cita o un recado. Ver n8n/prompts/lucia-v2.md.\n  privacy_intro: '¡Hola! Soy Lucía, la asistente de IA de ' + cfg.tenant_display_name\n    + '. Gracias por escribirnos \\uD83D\\uDE0A\\n\\n'\n    + 'Queremos informarte de que guardamos esta conversación, y tus datos de contacto solo '\n    + 'si reservas una cita o nos dejas una nota.',\n  privacy_policy_url: cfg.privacy_policy_url,\n  privacy_button_label: cfg.privacy_button_label,\n  // 'v1' (router determinista) o 'v2' (agente con tools). Ver n8n/prompts/lucia-v2.md.\n  core_version: (cfg.core_version || 'v1').toString().trim().toLowerCase(),\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -163,7 +166,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const inp = $('Code · Validar entrada').item.json;\n// Por nombre y no por $json: entre Cargar sesión y este nodo va el resolutor de\n// contacto, y $json es SU salida.\nconst r = $('HTTP · Cargar sesión').item.json ?? {};\n\n// Quién es. Lo resuelve 17 por teléfono -- el MISMO resolutor que usan las tools,\n// así que no pueden discrepar sobre quién es el contacto.\n//\n// Antes se esperaba que el Core devolviera `contact_id`, y NO lo hacía: dentro de\n// un agente, `$(tool).first().json` no da el JSON del sub-workflow, así que tanto\n// `contact_id` como `contact_phone` llegaban siempre a null. Consecuencia: la\n// sesión se quedaba SIN contacto para siempre -- bandeja sin nombre, mensajes sin\n// contacto, y el panel de citas de la interfaz sin activarse nunca.\n// Si la sesión YA tenía contacto, `17` ni se ejecuta y $json es la respuesta de\n// Cargar sesión -- que no trae `contact_id` en la raíz, así que esto queda a null\n// y manda `row.contact_id`. Resolverlo en cada turno costaba SEIS ejecuciones de\n// n8n (17 -> 07/16 -> 06 + 08 + 09) para averiguar algo que la sesión ya sabía.\nlet _contacto_resuelto = null;\ntry {\n  const res = $json ?? {};\n  _contacto_resuelto = res.contact_id || null;\n} catch (e) {\n  _contacto_resuelto = null;\n}\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 300 || (body && body.errors)) {\n  throw new Error('Directus /items/conversation_sessions ' + code + ': ' + JSON.stringify(body.errors || body));\n}\nconst row = Array.isArray(body.data) && body.data.length ? body.data[0] : null;\n\n// --- relevo humano ---------------------------------------------------------\n// `modo` lo escribe el gestor desde Directus; Entry solo lo LEE. Si Entry lo\n// escribiera, cada turno lo devolvería a 'auto' y el relevo duraría un mensaje.\n// OJO: `HTTP · Cargar sesión` pide una lista EXPLÍCITA de campos. Un campo nuevo\n// de conversation_sessions que no se añada ahí llega como undefined y esto cae al\n// valor por defecto sin dar ningún error -- que es exactamente como `modo` se\n// quedó siempre en 'auto' y el relevo no se activaba nunca.\nconst _modo = (row && row.modo) ? String(row.modo) : 'auto';\n// El relevo es de WhatsApp. En webchat no hay forma de empujarle nada a un\n// navegador que ya cerró la pestaña, así que callar a Lucía ahí no deja al\n// cliente \"esperando a una persona\": lo deja mirando un chat muerto. Mejor que\n// siga respondiendo ella.\n// Silencio tras una respuesta desde el móvil (coexistencia de WhatsApp): cuando alguien\n// del negocio escribe desde la app de WhatsApp Business, `WHATSAPP · Eco del móvil` pone\n// `silencio_hasta` unos minutos por delante, y cada mensaje suyo lo alarga. Mientras\n// dure, el hilo se trata igual que un relevo: se registra y Lucía calla. Pasada la hora,\n// vuelve sola -- nadie tiene que acordarse de devolverle el hilo, que es lo que haría\n// falta si esto cambiara `modo`.\nconst _silencio_ms = (row && row.silencio_hasta) ? Date.parse(row.silencio_hasta) : NaN;\nconst _silencio = Number.isFinite(_silencio_ms) && _silencio_ms > Date.now();\nconst _relevo = (_modo === 'humano' || _silencio) && inp.canal === 'whatsapp';\n\n// Fin de la ventana de 24h de WhatsApp: se reinicia con CADA mensaje entrante\n// del cliente, que es justo lo que la abre. Fuera de WhatsApp no significa nada\n// y se deja como estaba en vez de inventar una fecha.\nconst _ventana_hasta = inp.canal === 'whatsapp'\n  ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()\n  : (row ? (row.ventana_hasta || null) : null);\nconst prevState = (row && row.state && typeof row.state === 'object') ? row.state : {};\nconst prevPhone = prevState.contact_phone || null;\nconst prevPendingAppt = prevState.pending_appointment_id || null;\nconst prevPendingApptSvc = prevState.pending_appointment_service_id || null;\nconst prevPendingSvc = prevState.pending_service_id || null;\nconst prevLastAppt = prevState.last_appointment_id || null;\nconst prevAwaitingSlots = prevState.awaiting_slots_offer === true;\nconst prevAltSlotsDate = prevState.alt_slots_date || null;\nconst prevAltSlotsTime = prevState.alt_slots_time || null;\nconst prevBulkConfirm = prevState.awaiting_bulk_confirm === true;\nconst prevBulkIds = prevState.bulk_appointment_ids || '';\nconst prevShownIds = prevState.shown_appointment_ids || '';\n// Slots del flujo en curso (servicio/día/hora/franja). Se reinyectan para que el bloque\n// CONTEXTO del prompt del Core no diga \"null\" en cada turno: eso hacía que el LLM\n// olvidara alternativamente el servicio o el día y la conversación entrara en bucle.\nconst prevSlotServiceQuery = prevState.slot_service_query || null;\nconst prevSlotDate = prevState.slot_date || null;\nconst prevSlotTime = prevState.slot_time || null;\nconst prevSlotDaypart = prevState.slot_daypart || null;\n// WhatsApp reintrega el mismo mensaje si tardamos en responder: se descarta por id.\nconst prevMsgId = prevState.last_client_message_id || null;\nconst _duplicate = !!(inp.client_message_id && prevMsgId && inp.client_message_id === prevMsgId);\n// aviso de privacidad: una vez por sesión (si la fila caduca/se borra, se vuelve a mostrar)\nconst _show_privacy = prevState.privacy_notice_shown !== true;\n\n// rate-limit por session_key (state.rl)\nconst now = Date.now();\nlet rl = (prevState.rl && typeof prevState.rl === 'object') ? { ...prevState.rl } : { count: 0, window_start: now };\nif (now - (rl.window_start || 0) > (inp.rl_window_ms || 300000)) rl = { count: 0, window_start: now };\nrl.count = (rl.count || 0) + 1;\nconst _rate_limited = rl.count > (inp.rl_max || 20);\n\n// identidad conocida del hilo: la del canal si la hay, si no la que ya teníamos\nconst known_phone = inp.from_phone || prevPhone || null;\nconst state_next = { ...prevState, rl, contact_phone: known_phone,\n  last_client_message_id: inp.client_message_id || prevMsgId,\n  privacy_notice_shown: true };\n\nreturn [{ json: {\n  ...inp,\n  _session_id: row ? row.id : null,\n  // Lo que ya tenía la sesión manda; si no tenía, lo que acaba de resolverse.\n  // Así una conversación que empieza con un desconocido queda atada al contacto\n  // en cuanto exista, sin que nadie lo asocie a mano.\n  _prev_contact_id: (row && row.contact_id) || _contacto_resuelto || null,\n  _prev_flujo_activo: row ? (row.flujo_activo || null) : null,\n  _known_phone: known_phone,\n  _prev_pending_appt: prevPendingAppt,\n  _prev_pending_appt_svc: prevPendingApptSvc,\n  _prev_pending_svc: prevPendingSvc,\n  _prev_last_appt: prevLastAppt,\n  _rate_limited, _duplicate, _show_privacy, state_next,\n  _modo, _relevo, _silencio, _ventana_hasta,\n  core_in: {\n    message: inp.message, sessionID: inp.session_key, client_id: inp.tenant, canal: inp.canal,\n    flujo_activo: row ? (row.flujo_activo || null) : null,\n    contact_phone: known_phone,\n    contact_name: inp.from_name,\n    pending_appointment_id: prevPendingAppt,\n    pending_appointment_service_id: prevPendingApptSvc,\n    pending_service_id: prevPendingSvc,\n    last_appointment_id: prevLastAppt,\n    offered_alt_slots: prevAwaitingSlots,\n    offered_alt_slots_date: prevAltSlotsDate,\n    offered_alt_slots_time: prevAltSlotsTime,\n    awaiting_bulk_confirm: prevBulkConfirm,\n    bulk_appointment_ids: prevBulkIds,\n    shown_appointment_ids: prevShownIds,\n    service_query: prevSlotServiceQuery,\n    date: prevSlotDate,\n    time: prevSlotTime,\n    daypart: prevSlotDaypart,\n    booking_base_url: inp.booking_base_url, directus_base_url: inp.directus_base_url,\n    tenant_timezone: inp.tenant_timezone,\n  },\n} }];"
+        "jsCode": "const inp = $('Code · Validar entrada').item.json;\n// Por nombre y no por $json: entre Cargar sesión y este nodo va el resolutor de\n// contacto, y $json es SU salida.\nconst r = $('HTTP · Cargar sesión').item.json ?? {};\n\n// Quién es. Lo resuelve 17 por teléfono -- el MISMO resolutor que usan las tools,\n// así que no pueden discrepar sobre quién es el contacto.\n//\n// Antes se esperaba que el Core devolviera `contact_id`, y NO lo hacía: dentro de\n// un agente, `$(tool).first().json` no da el JSON del sub-workflow, así que tanto\n// `contact_id` como `contact_phone` llegaban siempre a null. Consecuencia: la\n// sesión se quedaba SIN contacto para siempre -- bandeja sin nombre, mensajes sin\n// contacto, y el panel de citas de la interfaz sin activarse nunca.\n// Si la sesión YA tenía contacto, `17` ni se ejecuta y $json es la respuesta de\n// Cargar sesión -- que no trae `contact_id` en la raíz, así que esto queda a null\n// y manda `row.contact_id`. Resolverlo en cada turno costaba SEIS ejecuciones de\n// n8n (17 -> 07/16 -> 06 + 08 + 09) para averiguar algo que la sesión ya sabía.\nlet _contacto_resuelto = null;\ntry {\n  const res = $json ?? {};\n  _contacto_resuelto = res.contact_id || null;\n} catch (e) {\n  _contacto_resuelto = null;\n}\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 300 || (body && body.errors)) {\n  throw new Error('Directus /items/conversation_sessions ' + code + ': ' + JSON.stringify(body.errors || body));\n}\nconst row = Array.isArray(body.data) && body.data.length ? body.data[0] : null;\n\n// --- relevo humano ---------------------------------------------------------\n// `modo` lo escribe el gestor desde Directus; Entry solo lo LEE. Si Entry lo\n// escribiera, cada turno lo devolvería a 'auto' y el relevo duraría un mensaje.\n// OJO: `HTTP · Cargar sesión` pide una lista EXPLÍCITA de campos. Un campo nuevo\n// de conversation_sessions que no se añada ahí llega como undefined y esto cae al\n// valor por defecto sin dar ningún error -- que es exactamente como `modo` se\n// quedó siempre en 'auto' y el relevo no se activaba nunca.\nconst _modo = (row && row.modo) ? String(row.modo) : 'auto';\n// El relevo es de WhatsApp. En webchat no hay forma de empujarle nada a un\n// navegador que ya cerró la pestaña, así que callar a Lucía ahí no deja al\n// cliente \"esperando a una persona\": lo deja mirando un chat muerto. Mejor que\n// siga respondiendo ella.\n// Silencio tras una respuesta desde el móvil (coexistencia de WhatsApp): cuando alguien\n// del negocio escribe desde la app de WhatsApp Business, `WHATSAPP · Eco del móvil` pone\n// `silencio_hasta` unos minutos por delante, y cada mensaje suyo lo alarga. Mientras\n// dure, el hilo se trata igual que un relevo: se registra y Lucía calla. Pasada la hora,\n// vuelve sola -- nadie tiene que acordarse de devolverle el hilo, que es lo que haría\n// falta si esto cambiara `modo`.\nconst _silencio_ms = (row && row.silencio_hasta) ? Date.parse(row.silencio_hasta) : NaN;\nconst _silencio = Number.isFinite(_silencio_ms) && _silencio_ms > Date.now();\n// Al retomar, el silencio ya se ha liberado: quien llama lo ha comprobado y lo ha vaciado.\nconst _relevo = !inp.retomar && (_modo === 'humano' || _silencio) && inp.canal === 'whatsapp';\n\n// Fin de la ventana de 24h de WhatsApp: se reinicia con CADA mensaje entrante\n// del cliente, que es justo lo que la abre. Fuera de WhatsApp no significa nada\n// y se deja como estaba en vez de inventar una fecha.\n// Al retomar no ha llegado nada nuevo: la ventana es la que abrió el último mensaje.\nconst _ventana_hasta = (inp.canal === 'whatsapp' && !inp.retomar)\n  ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()\n  : (row ? (row.ventana_hasta || null) : null);\nconst prevState = (row && row.state && typeof row.state === 'object') ? row.state : {};\nconst prevPhone = prevState.contact_phone || null;\nconst prevPendingAppt = prevState.pending_appointment_id || null;\nconst prevPendingApptSvc = prevState.pending_appointment_service_id || null;\nconst prevPendingSvc = prevState.pending_service_id || null;\nconst prevLastAppt = prevState.last_appointment_id || null;\nconst prevAwaitingSlots = prevState.awaiting_slots_offer === true;\nconst prevAltSlotsDate = prevState.alt_slots_date || null;\nconst prevAltSlotsTime = prevState.alt_slots_time || null;\nconst prevBulkConfirm = prevState.awaiting_bulk_confirm === true;\nconst prevBulkIds = prevState.bulk_appointment_ids || '';\nconst prevShownIds = prevState.shown_appointment_ids || '';\n// Slots del flujo en curso (servicio/día/hora/franja). Se reinyectan para que el bloque\n// CONTEXTO del prompt del Core no diga \"null\" en cada turno: eso hacía que el LLM\n// olvidara alternativamente el servicio o el día y la conversación entrara en bucle.\nconst prevSlotServiceQuery = prevState.slot_service_query || null;\nconst prevSlotDate = prevState.slot_date || null;\nconst prevSlotTime = prevState.slot_time || null;\nconst prevSlotDaypart = prevState.slot_daypart || null;\n// WhatsApp reintrega el mismo mensaje si tardamos en responder: se descarta por id.\nconst prevMsgId = prevState.last_client_message_id || null;\nconst _duplicate = !!(inp.client_message_id && prevMsgId && inp.client_message_id === prevMsgId);\n// aviso de privacidad: una vez por sesión (si la fila caduca/se borra, se vuelve a mostrar)\nconst _show_privacy = prevState.privacy_notice_shown !== true;\n\n// rate-limit por session_key (state.rl)\nconst now = Date.now();\nlet rl = (prevState.rl && typeof prevState.rl === 'object') ? { ...prevState.rl } : { count: 0, window_start: now };\nif (now - (rl.window_start || 0) > (inp.rl_window_ms || 300000)) rl = { count: 0, window_start: now };\nrl.count = (rl.count || 0) + 1;\nconst _rate_limited = !inp.retomar && rl.count > (inp.rl_max || 20);\n\n// identidad conocida del hilo: la del canal si la hay, si no la que ya teníamos\nconst known_phone = inp.from_phone || prevPhone || null;\nconst state_next = { ...prevState, rl, contact_phone: known_phone,\n  last_client_message_id: inp.client_message_id || prevMsgId,\n  privacy_notice_shown: true };\n\nreturn [{ json: {\n  ...inp,\n  _session_id: row ? row.id : null,\n  // Lo que ya tenía la sesión manda; si no tenía, lo que acaba de resolverse.\n  // Así una conversación que empieza con un desconocido queda atada al contacto\n  // en cuanto exista, sin que nadie lo asocie a mano.\n  _prev_contact_id: (row && row.contact_id) || _contacto_resuelto || null,\n  _prev_flujo_activo: row ? (row.flujo_activo || null) : null,\n  _known_phone: known_phone,\n  _prev_pending_appt: prevPendingAppt,\n  _prev_pending_appt_svc: prevPendingApptSvc,\n  _prev_pending_svc: prevPendingSvc,\n  _prev_last_appt: prevLastAppt,\n  _rate_limited, _duplicate, _show_privacy, state_next,\n  _modo, _relevo, _silencio, _ventana_hasta, _retomar: inp.retomar === true,\n  core_in: {\n    message: inp.message, sessionID: inp.session_key, client_id: inp.tenant, canal: inp.canal,\n    flujo_activo: row ? (row.flujo_activo || null) : null,\n    contact_phone: known_phone,\n    contact_name: inp.from_name,\n    pending_appointment_id: prevPendingAppt,\n    pending_appointment_service_id: prevPendingApptSvc,\n    pending_service_id: prevPendingSvc,\n    last_appointment_id: prevLastAppt,\n    offered_alt_slots: prevAwaitingSlots,\n    offered_alt_slots_date: prevAltSlotsDate,\n    offered_alt_slots_time: prevAltSlotsTime,\n    awaiting_bulk_confirm: prevBulkConfirm,\n    bulk_appointment_ids: prevBulkIds,\n    shown_appointment_ids: prevShownIds,\n    service_query: prevSlotServiceQuery,\n    date: prevSlotDate,\n    time: prevSlotTime,\n    daypart: prevSlotDaypart,\n    booking_base_url: inp.booking_base_url, directus_base_url: inp.directus_base_url,\n    tenant_timezone: inp.tenant_timezone,\n  },\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -928,7 +931,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Deja constancia del turno en conversation_messages: lo que escribió el cliente y\n// lo que contestó Lucía. Es lo que el gestor lee, y la base sobre la que se monta\n// el relevo humano.\n//\n// REGLA: esto NUNCA puede tumbar una conversación. Si algo aquí falla o falta, se\n// registra menos y ya está -- el cliente recibe su respuesta igual. Por eso no hay\n// throw en todo el nodo y por eso el HTTP de después lleva neverError.\nconst inp = $('Code · Validar entrada').item.json;\n// Tres orígenes posibles, no dos: el turno normal, el corte por rate limit y el\n// relevo humano. Encadenar con isExecuted y no con un ternario simple importa --\n// pedir .item.json de una rama que no corrió lanza.\nconst f = $('Code · Fusionar resultado').isExecuted\n  ? $('Code · Fusionar resultado').item.json\n  : $('Code · Salida relevo humano').isExecuted\n    ? $('Code · Salida relevo humano').item.json\n    : $('Code · Salida rate limit').item.json;\n\n// Respuesta del guardado de sesión (fullResponse), que hasta ahora leía Salida Entry.\nconst r = $json ?? {};\nconst sesion = {\n  status: r.statusCode ?? 0,\n  errores: (r.body && r.body.errors) ? JSON.stringify(r.body.errors) : null,\n};\n\n// El id de la sesión: en un PATCH ya lo teníamos; en un POST solo lo sabemos ahora.\nconst session_id =\n  (f && f._session_id) ||\n  (r.body && r.body.data && r.body.data.id) ||\n  null;\n\nconst canal = inp.canal || f.canal || null;\nconst contact_id = (f && f.save && f.save.contact_id) || null;\n\nconst entrante = (inp.message || '').toString().trim();\n\n// Se guarda lo que el canal ENTREGA, no el texto combinado de v1 -- que no lo recibe\n// nadie tal cual. El aviso de privacidad viaja siempre como mensaje propio: en WhatsApp\n// es un CTA-url aparte y en webchat lo pinta el widget al abrir. Concatenado aquí, el\n// gestor leería un mensaje que el cliente nunca vio de esa forma.\nconst aviso = (f && f.privacy_prompt && f.privacy_prompt.intro)\n  ? `${f.privacy_prompt.intro}\\n\\n${f.privacy_prompt.url || ''}`.trim()\n  : '';\n// core_reply es la respuesta de Lucía. Solo se cae a reply_to_user cuando NO hay aviso:\n// si lo hay y core_reply viene vacía, es que el saludo genérico se suprimió a propósito\n// detrás del aviso y el turno entero es el aviso -- una fila, no dos.\nconst respuesta = ((f && f.core_reply) || '').toString().trim()\n  || (aviso ? '' : ((f && f.reply_to_user) || '').toString().trim());\n\nconst filas = [];\n\n// Sin sesión no hay a qué colgar el mensaje (session_id es NOT NULL en la práctica:\n// es la columna que agrupa el hilo). Se prefiere no registrar a registrar suelto.\nif (session_id) {\n  if (entrante) {\n    filas.push({\n      session_id, contact_id, canal,\n      direccion: 'entrante',\n      autor: 'cliente',\n      texto: entrante,\n      estado_envio: 'recibido',\n      canal_message_id: inp.client_message_id || null,\n    });\n  }\n  // Una fila por mensaje realmente entregado, en el orden en que salen.\n  // 'lucia' incluso para el aviso o para el corte por rate limit: lo emite el sistema.\n  // 'humano' queda reservado para lo que escribe una persona del negocio.\n  for (const texto of [aviso, respuesta]) {\n    if (!texto) continue;\n    filas.push({\n      session_id, contact_id, canal,\n      direccion: 'saliente',\n      autor: 'lucia',\n      texto,\n      estado_envio: 'enviado',\n      canal_message_id: null,\n    });\n  }\n}\n\nreturn [{ json: {\n  directus_base_url: inp.directus_base_url,\n  _sesion: sesion,\n  _hay_mensajes: filas.length > 0,\n  filas,\n} }];"
+        "jsCode": "// Deja constancia del turno en conversation_messages: lo que escribió el cliente y\n// lo que contestó Lucía. Es lo que el gestor lee, y la base sobre la que se monta\n// el relevo humano.\n//\n// REGLA: esto NUNCA puede tumbar una conversación. Si algo aquí falla o falta, se\n// registra menos y ya está -- el cliente recibe su respuesta igual. Por eso no hay\n// throw en todo el nodo y por eso el HTTP de después lleva neverError.\nconst inp = $('Code · Validar entrada').item.json;\n// Tres orígenes posibles, no dos: el turno normal, el corte por rate limit y el\n// relevo humano. Encadenar con isExecuted y no con un ternario simple importa --\n// pedir .item.json de una rama que no corrió lanza.\nconst f = $('Code · Fusionar resultado').isExecuted\n  ? $('Code · Fusionar resultado').item.json\n  : $('Code · Salida relevo humano').isExecuted\n    ? $('Code · Salida relevo humano').item.json\n    : $('Code · Salida rate limit').item.json;\n\n// Respuesta del guardado de sesión (fullResponse), que hasta ahora leía Salida Entry.\nconst r = $json ?? {};\nconst sesion = {\n  status: r.statusCode ?? 0,\n  errores: (r.body && r.body.errors) ? JSON.stringify(r.body.errors) : null,\n};\n\n// El id de la sesión: en un PATCH ya lo teníamos; en un POST solo lo sabemos ahora.\nconst session_id =\n  (f && f._session_id) ||\n  (r.body && r.body.data && r.body.data.id) ||\n  null;\n\nconst canal = inp.canal || f.canal || null;\nconst contact_id = (f && f.save && f.save.contact_id) || null;\n\n// Al retomar, lo que escribió el cliente ya está en la bandeja (lo guardó el turno en\n// silencio): no se repite. Y la respuesta NO la entrega el adapter -- no hay ningún\n// webhook esperándola --, así que se guarda 'pendiente' y la manda\n// `HUMANO · Enviar pendientes`, que ya sabe de ventanas de 24 h y de fallos.\nconst entrante = inp.retomar ? '' : (inp.message || '').toString().trim();\nconst estado_salida = inp.retomar ? 'pendiente' : 'enviado';\n\n// Se guarda lo que el canal ENTREGA, no el texto combinado de v1 -- que no lo recibe\n// nadie tal cual. El aviso de privacidad viaja siempre como mensaje propio: en WhatsApp\n// es un CTA-url aparte y en webchat lo pinta el widget al abrir. Concatenado aquí, el\n// gestor leería un mensaje que el cliente nunca vio de esa forma.\nconst aviso = (f && f.privacy_prompt && f.privacy_prompt.intro)\n  ? `${f.privacy_prompt.intro}\\n\\n${f.privacy_prompt.url || ''}`.trim()\n  : '';\n// core_reply es la respuesta de Lucía. Solo se cae a reply_to_user cuando NO hay aviso:\n// si lo hay y core_reply viene vacía, es que el saludo genérico se suprimió a propósito\n// detrás del aviso y el turno entero es el aviso -- una fila, no dos.\nconst respuesta = ((f && f.core_reply) || '').toString().trim()\n  || (aviso ? '' : ((f && f.reply_to_user) || '').toString().trim());\n\nconst filas = [];\n\n// Sin sesión no hay a qué colgar el mensaje (session_id es NOT NULL en la práctica:\n// es la columna que agrupa el hilo). Se prefiere no registrar a registrar suelto.\nif (session_id) {\n  if (entrante) {\n    filas.push({\n      session_id, contact_id, canal,\n      direccion: 'entrante',\n      autor: 'cliente',\n      texto: entrante,\n      estado_envio: 'recibido',\n      canal_message_id: inp.client_message_id || null,\n    });\n  }\n  // Una fila por mensaje realmente entregado, en el orden en que salen.\n  // 'lucia' incluso para el aviso o para el corte por rate limit: lo emite el sistema.\n  // 'humano' queda reservado para lo que escribe una persona del negocio.\n  for (const texto of [aviso, respuesta]) {\n    if (!texto) continue;\n    filas.push({\n      session_id, contact_id, canal,\n      direccion: 'saliente',\n      autor: 'lucia',\n      texto,\n      estado_envio: estado_salida,\n      canal_message_id: null,\n    });\n  }\n}\n\nreturn [{ json: {\n  directus_base_url: inp.directus_base_url,\n  _sesion: sesion,\n  _hay_mensajes: filas.length > 0,\n  filas,\n} }];"
       },
       "id": "b1f0a7c2-9d34-4e58-a6b1-2c7e5f0a91d3",
       "name": "Code · Preparar mensajes",
@@ -1168,6 +1171,124 @@
         440,
         0
       ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "retomar-0001",
+              "leftValue": "={{ $json._retomar }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "entry-retomar-01",
+      "name": "¿Retomar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Lo que el cliente escribió durante el silencio está en la memoria como mensajes\n-- suyos sin contestar. El Core va a recibirlo ahora como el mensaje del turno y lo\n-- guardará él: si no se quita antes, quedaría dos veces.\n-- Solo se quitan los del cliente posteriores a la última respuesta (`ai`); los avisos\n-- internos (`system`) se quedan.\nWITH borrados AS (\n  DELETE FROM n8n_chat_histories h\n  WHERE h.session_id = $1\n    AND (h.message::jsonb)->>'type' IN ('human', 'user')\n    AND h.id > COALESCE((\n      SELECT max(a.id) FROM n8n_chat_histories a\n      WHERE a.session_id = $1 AND (a.message::jsonb)->>'type' = 'ai'\n    ), 0)\n  RETURNING 1\n)\nSELECT count(*)::int AS borrados FROM borrados;",
+        "options": {
+          "queryReplacement": "={{ $('Code · Validar entrada').item.json.session_key }}"
+        }
+      },
+      "id": "entry-retomar-02",
+      "name": "Postgres · Quitar lo que se va a repetir",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1320,
+        -420
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "postgres": {
+          "id": "__CRED_POSTGRES_ACCOUNT__",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "insertMode": "insert",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "system",
+              "message": "Aviso interno, no es un mensaje del cliente: la persona del equipo que estaba contestando ha dejado de hacerlo y vuelves a llevar tú la conversación. El cliente está esperando respuesta a su último mensaje. Si la persona le propuso una cita y el cliente la aceptó, ciérrala tú con tus herramientas (mira antes sus citas por si ya está apuntada). Sigue con naturalidad, sin explicar quién escribía antes."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "entry-retomar-03",
+      "name": "Memoria · Aviso de retomar",
+      "type": "@n8n/n8n-nodes-langchain.memoryManager",
+      "typeVersion": 1,
+      "position": [
+        1540,
+        -420
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Code · Validar entrada').item.json.session_key }}",
+        "tableName": "n8n_chat_histories",
+        "contextWindowLength": 10
+      },
+      "id": "entry-retomar-04",
+      "name": "Postgres Chat Memory (retomar)",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        1540,
+        -220
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "__CRED_POSTGRES_ACCOUNT__",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Los dos nodos de memoria de antes devuelven SU salida, no el contexto del turno, y\n// `Execute · AGENT-Lucia-Core*` lee `$json.core_in`. Se repone por nombre.\nreturn [{ json: $('Code · Preparar contexto').first().json }];"
+      },
+      "id": "entry-retomar-05",
+      "name": "Code · Contexto del turno",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        -420
+      ]
     }
   ],
   "connections": {
@@ -1237,7 +1358,7 @@
         ],
         [
           {
-            "node": "¿Core v2?",
+            "node": "¿Retomar?",
             "type": "main",
             "index": 0
           }
@@ -1484,6 +1605,68 @@
           {
             "node": "Code · Preparar contexto",
             "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Retomar?": {
+      "main": [
+        [
+          {
+            "node": "Postgres · Quitar lo que se va a repetir",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Core v2?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres · Quitar lo que se va a repetir": {
+      "main": [
+        [
+          {
+            "node": "Memoria · Aviso de retomar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memoria · Aviso de retomar": {
+      "main": [
+        [
+          {
+            "node": "Code · Contexto del turno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Contexto del turno": {
+      "main": [
+        [
+          {
+            "node": "¿Core v2?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory (retomar)": {
+      "ai_memory": [
+        [
+          {
+            "node": "Memoria · Aviso de retomar",
+            "type": "ai_memory",
             "index": 0
           }
         ]

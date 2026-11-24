@@ -1,0 +1,420 @@
+{
+  "id": "aegoraWhatsappRetomar",
+  "name": "WHATSAPP · Retomar tras silencio",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "ret-01",
+      "name": "Cada minuto",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -600,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "r1",
+              "name": "tenant",
+              "type": "string",
+              "value": "__TENANT_ID__"
+            },
+            {
+              "id": "r2",
+              "name": "directus_base_url",
+              "type": "string",
+              "value": "__DIRECTUS_BASE_URL__"
+            },
+            {
+              "id": "r3",
+              "name": "max_retraso_minutos",
+              "type": "number",
+              "value": 30
+            },
+            {
+              "id": "r4",
+              "name": "lote",
+              "type": "number",
+              "value": 10
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ret-02",
+      "name": "Config (editar por tenant)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -380,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.directus_base_url }}/items/conversation_sessions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        },
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ filter: JSON.stringify({ _and: [ { silencio_hasta: { _lte: new Date().toISOString() } }, { session_key: { _starts_with: 'whatsapp:' } } ] }), fields: 'id,session_key,modo,silencio_hasta,ventana_hasta', sort: 'silencio_hasta', limit: $json.lote }) }}"
+      },
+      "id": "ret-03",
+      "name": "HTTP · Silencios vencidos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -160,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Los hilos de WhatsApp cuyo silencio (`silencio_hasta`, lo pone `WHATSAPP · Eco del\n// móvil` cuando alguien contesta desde la app) ya ha pasado. Cada uno sale como un item\n// con la hora de AHORA: el PATCH de después solo libera el silencio si sigue vencido a\n// esa hora, así que un eco que lo haya alargado entretanto gana.\nconst cfg = $('Config (editar por tenant)').first().json;\nconst r = $json ?? {};\nconst code = r.statusCode ?? 0;\nconst body = (r.body ?? r) || {};\nif (code >= 300 || (body && body.errors)) {\n  throw new Error('Directus /items/conversation_sessions ' + code + ': ' + JSON.stringify(body.errors || body));\n}\nconst filas = Array.isArray(body.data) ? body.data : [];\nconst ahora = new Date().toISOString();\nreturn filas.map((s) => ({ json: {\n  id: s.id, session_key: s.session_key, modo: s.modo || 'auto',\n  silencio_hasta: s.silencio_hasta, ventana_hasta: s.ventana_hasta || null,\n  ahora, directus_base_url: cfg.directus_base_url, tenant: cfg.tenant,\n  max_retraso_minutos: Number(cfg.max_retraso_minutos) || 30,\n} }));"
+      },
+      "id": "ret-04",
+      "name": "Code · Una por sesión",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        60,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $json.directus_base_url }}/items/conversation_sessions?fields=id",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ query: { filter: { _and: [ { id: { _eq: $json.id } }, { silencio_hasta: { _lte: $json.ahora } } ] } }, data: { silencio_hasta: null } }) }}"
+      },
+      "id": "ret-05",
+      "name": "HTTP · Liberar silencio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        280,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Solo sigue lo que de verdad se ha liberado y merece que Lucía conteste. Todo lo demás\n// se queda con el silencio vaciado y nada más.\nconst sesiones = $('Code · Una por sesión').all();\nconst salida = [];\n$input.all().forEach((it, i) => {\n  const s = sesiones[i] && sesiones[i].json;\n  if (!s) return;\n  const r = it.json ?? {};\n  const code = r.statusCode ?? 0;\n  const body = (r.body ?? r) || {};\n  if (code >= 300 || (body && body.errors)) {\n    throw new Error('Directus PATCH conversation_sessions ' + code + ': ' + JSON.stringify(body.errors || body));\n  }\n  // Vacío = un eco lo alargó entre la consulta y el PATCH: alguien sigue contestando.\n  if (!Array.isArray(body.data) || body.data.length === 0) return;\n  // Lo ha cogido una persona desde el panel: el hilo es suyo, no de Lucía.\n  if (s.modo === 'humano') return;\n  // Un silencio vencido hace mucho (n8n parado, o el primer despliegue) no se retoma:\n  // contestar ahora a algo de hace horas sería más raro que no contestar.\n  const fin = Date.parse(s.silencio_hasta);\n  if (!Number.isFinite(fin) || Date.now() - fin > s.max_retraso_minutos * 60000) return;\n  // Con la ventana de 24 h cerrada no se le puede escribir texto libre.\n  const ventana = s.ventana_hasta ? Date.parse(s.ventana_hasta) : NaN;\n  if (!Number.isFinite(ventana) || ventana <= Date.now()) return;\n  salida.push({ json: s });\n});\nreturn salida;"
+      },
+      "id": "ret-06",
+      "name": "Code · ¿Liberada?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.directus_base_url }}/items/conversation_messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        },
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify({ 'filter[session_id][_eq]': $json.id, fields: 'direccion,autor,texto,created_at', sort: '-created_at', limit: 15 }) }}"
+      },
+      "id": "ret-07",
+      "name": "HTTP · Final del hilo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        720,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__CRED_DIRECTUS__",
+          "name": "Directus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ¿Quedó el cliente sin respuesta? Se mira el final del hilo: los mensajes del cliente\n// que van detrás de la última salida (de quien sea). Si no hay ninguno, la persona le\n// contestó o no hacía falta, y Lucía no tiene nada que decir.\nconst sesiones = $('Code · ¿Liberada?').all();\nconst salida = [];\n$input.all().forEach((it, i) => {\n  const s = sesiones[i] && sesiones[i].json;\n  if (!s) return;\n  const r = it.json ?? {};\n  const code = r.statusCode ?? 0;\n  const body = (r.body ?? r) || {};\n  if (code >= 300 || (body && body.errors)) {\n    throw new Error('Directus /items/conversation_messages ' + code + ': ' + JSON.stringify(body.errors || body));\n  }\n  const filas = Array.isArray(body.data) ? body.data : []; // del más nuevo al más viejo\n  const pendientes = [];\n  for (const m of filas) {\n    if (m.direccion === 'entrante' && m.autor === 'cliente') pendientes.push(m);\n    else break;\n  }\n  if (!pendientes.length) return;\n  // Un mensaje que llegó DESPUÉS de acabar el silencio es de Entry: lo está contestando\n  // (o ya lo contestó y aún no se ve). Retomarlo aquí sería contestar dos veces.\n  const fin = Date.parse(s.silencio_hasta);\n  const ultimo = Date.parse(pendientes[0].created_at);\n  if (Number.isFinite(fin) && Number.isFinite(ultimo) && ultimo > fin) return;\n  const texto = pendientes.reverse()\n    .map((m) => (m.texto || '').toString().trim()).filter(Boolean).join('\\n');\n  if (!texto) return;\n  const tel = s.session_key.replace(/^whatsapp:/, '');\n  salida.push({ json: {\n    session_key: s.session_key, message: texto, tenant: s.tenant,\n    from: { phone: '+' + tel, name: null },\n  } });\n});\nreturn salida;"
+      },
+      "id": "ret-08",
+      "name": "Code · ¿Quedó sin contestar?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        940,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aegoraAgentLuciaEntry",
+          "mode": "list",
+          "cachedResultName": "AGENT · Lucía · Entry"
+        },
+        "mode": "each",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "canal": "whatsapp",
+            "session_key": "={{ $json.session_key }}",
+            "message": "={{ $json.message }}",
+            "from": "={{ $json.from }}",
+            "tenant": "={{ $json.tenant }}",
+            "reply_to": "={{ {} }}",
+            "client_message_id": "",
+            "retomar": "true"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "canal",
+              "displayName": "canal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "session_key",
+              "displayName": "session_key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "from",
+              "displayName": "from",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object",
+              "removed": false
+            },
+            {
+              "id": "tenant",
+              "displayName": "tenant",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "reply_to",
+              "displayName": "reply_to",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object",
+              "removed": false
+            },
+            {
+              "id": "client_message_id",
+              "displayName": "client_message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "retomar",
+              "displayName": "retomar",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "ret-09",
+      "name": "Execute · Lucía retoma",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1160,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Cada minuto": {
+      "main": [
+        [
+          {
+            "node": "Config (editar por tenant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (editar por tenant)": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Silencios vencidos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Silencios vencidos": {
+      "main": [
+        [
+          {
+            "node": "Code · Una por sesión",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · Una por sesión": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Liberar silencio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Liberar silencio": {
+      "main": [
+        [
+          {
+            "node": "Code · ¿Liberada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · ¿Liberada?": {
+      "main": [
+        [
+          {
+            "node": "HTTP · Final del hilo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP · Final del hilo": {
+      "main": [
+        [
+          {
+            "node": "Code · ¿Quedó sin contestar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code · ¿Quedó sin contestar?": {
+      "main": [
+        [
+          {
+            "node": "Execute · Lucía retoma",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  }
+}
