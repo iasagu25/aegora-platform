@@ -142,9 +142,13 @@ Fuera del menú (para todos, admin incluido):
   appointment_resources   la crea el Booking API; nadie la edita a mano
   contact_phones          ya oculta: se edita dentro del contacto
   languages               ya oculta: tabla de sistema
+  conversation_messages   se lee como hilo dentro de la conversación
+  services / resources / locations / calendars
+                          las mantiene Aegora; el gestor solo puede leerlas.
+                          Para verlas: clic derecho en el menú de Contenido
+                          -> "Mostrar colecciones ocultas"
 
-  (service_resources SÍ se ve: es donde se asocia servicio <-> recurso,
-   y no hay campo inverso en ninguna de las dos colecciones)
+  (service_resources SÍ se ve, pero solo el admin: el gestor no tiene permiso)
 
 Modo:
   $([[ "$APPLY" == true ]] && echo apply || echo plan)
@@ -418,13 +422,23 @@ const ocultas = [
   // mismo sin el contexto de quién habla con quién, y en el menú del gestor
   // compite con "Conversaciones", que es donde tiene que entrar.
   'conversation_messages',
+  // Configuración que mantiene Aegora (25/nov/2026). El gestor necesita LEERLAS
+  // (el servicio de una cita, quién la atiende), así que el permiso no puede
+  // sacarlas de su menú: lo hace esto. Directus no oculta por rol, así que el
+  // admin tampoco las ve en el menú: clic derecho en el menú de Contenido ->
+  // "Mostrar colecciones ocultas". Con el gestor es igual de posible, pero
+  // ahí solo puede mirar: no tiene permiso para tocarlas.
+  'services',
+  'resources',
+  'locations',
+  'calendars',
 ];
 
 // OJO: service_resources NO va aquí aunque sea una tabla puente. Es el único
 // sitio donde se asocia un servicio con los recursos que pueden darlo, y las
 // relaciones no tienen campo inverso (`one_field: null`), así que ni `services`
-// ni `resources` muestran al otro lado. Ocultarla deja al gestor sin ninguna
-// forma de configurar qué recurso presta qué servicio.
+// ni `resources` muestran al otro lado. Al gestor ya se la quita su permiso
+// (configure-tenant-role.sh): se queda visible para quien la mantiene.
 
 async function api(method, path, body) {
   const res = await fetch(`${BASE}${path}`, {
@@ -450,7 +464,12 @@ for (const [collection, sort] of Object.entries(orden)) {
     console.log(`AVISO: no existe la colección ${collection}, se omite.`);
     continue;
   }
-  await api('PATCH', `/collections/${collection}`, { meta: { sort, hidden: false } });
+  // Las de `ocultas` mantienen su orden pero no se destapan aquí: hacerlo y
+  // volver a esconderlas unas líneas más abajo las deja visibles si el script
+  // muere entre medias.
+  await api('PATCH', `/collections/${collection}`, {
+    meta: { sort, hidden: ocultas.includes(collection) },
+  });
   console.log(`Orden ${String(sort).padStart(2)}  ${collection}`);
 }
 

@@ -136,15 +136,16 @@ Uso diario:
   appointments           read / update   (*)
 
 Configuración del negocio:
-  services               create / read / update
   employees              create / read / update
-  resources              create / read / update
-  locations              create / read / update
   availability_rules     create / read / update / delete
   availability_exceptions create / read / update / delete
-  service_resources      create / read / update / delete   (junction del pool de recursos)
-  calendars              read
   appointment_resources  read
+
+Configuración que mantiene Aegora (solo lectura, fuera del menú):
+  services               read   (el servicio de una cita y la bandeja lo nombran)
+  resources              read   (quién atiende; se elige al poner un horario)
+  locations              read   (la ubicación de una cita)
+  calendars              read   (el calendario de una cita)
 
 Biblioteca de archivos:
   directus_files         create / read / update   (sin borrar)
@@ -167,6 +168,7 @@ Conversaciones de Lucía:
 
 Sin permiso (invisibles para el gestor):
   languages
+  service_resources      (qué recurso presta qué servicio: lo mantiene Aegora)
 
 Notas:
   - Borrar solo donde no destruye historial: tareas y reglas de horario.
@@ -241,21 +243,29 @@ const permissionModel = {
   appointments: { read: ALL, update: ALL },
 
   // --- configuración del negocio -------------------------------------------
-  services: { create: ALL, read: ALL, update: ALL },
   employees: { create: ALL, read: ALL, update: ALL },
-  resources: { create: ALL, read: ALL, update: ALL },
-  locations: { create: ALL, read: ALL, update: ALL },
   // Vacaciones y cierres: con delete, porque un cierre mal puesto hay que poder
   // quitarlo y es de lo que más se toca.
   availability_rules: { create: ALL, read: ALL, update: ALL, delete: ALL },
   availability_exceptions: { create: ALL, read: ALL, update: ALL, delete: ALL },
 
-  // --- relaciones: lectura necesaria para que los campos no salgan en blanco --
-  // service_resources es el pool de recursos de un servicio: se edita desde la
-  // ficha del servicio, y sin delete no se puede desasignar un recurso.
-  service_resources: { create: ALL, read: ALL, update: ALL, delete: ALL },
-  appointment_resources: { read: ALL },
+  // --- configuración que mantiene Aegora (decidido 25/nov/2026) -------------
+  // Servicios, recursos, ubicaciones y calendarios los configuramos nosotros. El
+  // gestor se queda SOLO con lectura, y no por descuido: sin ella el servicio de
+  // una cita sale en blanco, el panel de citas de la bandeja (que pide
+  // `service_id.name`) falla entero con un 403, y no puede elegir a quién aplica
+  // un horario o un cierre. Del menú las saca configure-directus-views.sh, que
+  // las marca ocultas (para todos: Directus no oculta por rol).
+  services: { read: ALL },
+  resources: { read: ALL },
+  locations: { read: ALL },
   calendars: { read: ALL },
+  // service_resources (qué recurso presta qué servicio) no lo lee nada que vea el
+  // gestor, así que va con permiso vacío: el saneo de abajo le quita lo que tenía.
+  service_resources: {},
+
+  // --- relaciones: lectura necesaria para que los campos no salgan en blanco --
+  appointment_resources: { read: ALL },
 
   // --- conversaciones de Lucía ---------------------------------------------
   // update sobre la sesión es para cambiar `modo` y coger el hilo. Arrastra

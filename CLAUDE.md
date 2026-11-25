@@ -659,6 +659,15 @@ propone `Set hidden to true` sobre algo que quieres ver.
 hoy. Ahora los nombra al terminar, pero sigue sin ejecutarlos: aplicar el esquema y
 parar ahí deja el tenant sin la capa de interfaz.
 
+**Excepción, desde el 25/nov/2026: los displays de nuestras extensiones los guarda y
+los devuelve el propio `apply-schema.sh`** (los lee de `directus_fields` antes de aplicar
+y los repone por SQL donde el esquema los dejó a null). Se olvidó `configure-directus-ui`
+en la cadena de `dev` y `ops` y la lista de contactos volvió a enseñar
+`["835f1421-…"]` donde iba el teléfono -- por segunda vez. Un paso que hay que recordar
+en cada despliegue acaba olvidándose; lo que solo deshace el propio script, lo arregla el
+propio script. `configure-directus-ui.sh` sigue haciendo falta en un tenant que aún no
+tenía esos displays.
+
 **Y con una COLECCIÓN nueva, el reinicio va también EN MEDIO** (23/sep/2026, promocionando
 `call_notes` a `demo`). Los `configure-*` hablan por la API, y la API valida contra el
 esquema que Directus tiene **en memoria**: con un único reinicio al final, todo lo que
@@ -893,7 +902,7 @@ campos del webhook); sin él no llega nada y Lucía contesta encima de la person
   ejecución dice cuál era (`motivo: campo <nombre>`).
 - **Probado en `ops` el 24/nov/2026**: los ecos llegan y se ven en la bandeja.
 
-### Al acabar el silencio, Lucía retoma lo que quedó sin contestar (24/nov/2026, sin probar)
+### Al acabar el silencio, Lucía retoma lo que quedó sin contestar (24/nov/2026, probado en `ops`)
 El caso que lo pidió: desde el móvil se le ofreció a un cliente "el jueves a las 12", el
 cliente dijo "sí" y nadie lo apuntó. Pasado el silencio Lucía no hacía nada, porque solo
 habla cuando entra un mensaje.
@@ -2102,6 +2111,24 @@ cuatro gráficas. Decisiones:
   reservas de la web de Aegora entran como `manual` y no cuentan.
 - Los filtros de Directus solo saben `$NOW` con desplazamiento, no "el principio de hoy": por
   eso es "próximas citas" y no "citas de hoy".
+
+## Servicios, recursos, ubicaciones y calendarios los mantiene Aegora (25/nov/2026)
+El gestor deja de configurarlos: **solo lectura** sobre `services`, `resources`,
+`locations` y `calendars`, y **nada** sobre `service_resources`. No se le quita la
+lectura porque la necesita, y quitarla rompe cosas lejos de esas colecciones: el
+servicio de una cita sale en blanco, el panel de citas de la bandeja (pide
+`service_id.name`) falla entero con 403, y no puede elegir a quién aplica un horario o
+un cierre (`availability_rules`/`_exceptions`, que sí sigue editando).
+
+Como el permiso de lectura no las saca del menú, las **oculta**
+`configure-directus-views.sh`. **Directus no oculta por rol**: el admin tampoco las ve en
+el menú y entra con clic derecho en el menú de Contenido -> "Mostrar colecciones
+ocultas" (el gestor también puede, pero solo para mirar). `service_resources` sigue
+visible: al gestor ya se la quita el permiso.
+
+`calendars` no la usa hoy nada: el Booking API copia `resources.calendar_id` a la cita y
+el `.ics` sale de `employees`. Se deja estar; borrarla es tocar el esquema y el Booking API
+por una tabla que no molesta.
 
 ## Pendientes de la UI de Directus
 - **Traducciones — completadas** en `configure-spanish-ui.sh` (16/sep/2026): las 16

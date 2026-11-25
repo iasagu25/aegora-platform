@@ -64,8 +64,10 @@ Con --apply:
   triggers, todos idempotentes) dentro de BEGIN ... COMMIT.
 
   NO restaura la configuración UI administrada por Aegora: base.yaml la
-  pisa y hay que volver a ponerla con los dos configure-* que se indican
-  al terminar. Decía que lo hacía y no lo hacía.
+  pisa y hay que volver a ponerla con los configure-* que se indican al
+  terminar. La única excepción son los displays de nuestras extensiones
+  (el teléfono de contacts, p.ej.): esos se guardan antes de aplicar y se
+  devuelven después, porque olvidarlos deja UUIDs en la lista de contactos.
 
 Nota:
   Los custom displays se gestionan fuera de base.yaml mediante
@@ -179,6 +181,30 @@ DB_PASSWORD="$(docker exec "$DIRECTUS_CONTAINER" node -p "process.env.DB_PASSWOR
 [[ -n "$DB_DATABASE" && -n "$DB_USER" ]] ||
   fail "No se pudieron leer las credenciales de BD del contenedor Directus."
 
+psql_tenant() {
+  PGPASSWORD="$DB_PASSWORD" docker exec -i -e PGPASSWORD "$POSTGRES_CONTAINER" \
+    psql -v ON_ERROR_STOP=1 --no-psqlrc -At -U "$DB_USER" -d "$DB_DATABASE" "$@"
+}
+
+# ---------------------------------------------------------------------------
+# Los displays que aportan NUESTRAS extensiones van a null en base.yaml (ver
+# snapshot-schema.sh), así que aplicar el esquema los borra del tenant. Hasta el
+# 25/nov/2026 los devolvía configure-directus-ui.sh, y bastaba con olvidarlo en
+# la cadena para que la lista de contactos enseñara UUIDs donde iba el teléfono:
+# pasó en dev y ops. Ahora se guardan antes de aplicar y se devuelven después,
+# campo a campo y solo donde el esquema los dejó a null. Un tenant que nunca los
+# tuvo sigue necesitando configure-directus-ui.sh.
+# Misma regla que snapshot-schema.sh: el id del display es el nombre del paquete
+# sin `directus-extension-`.
+# ---------------------------------------------------------------------------
+DISPLAYS_PROPIOS=""
+for d in "${PLATFORM_ROOT}/directus/extensions"/directus-extension-*; do
+  [[ -d "$d" ]] || continue
+  DISPLAYS_PROPIOS+="$(basename "$d" | sed 's/^directus-extension-//'),"
+done
+DISPLAYS_PROPIOS="${DISPLAYS_PROPIOS%,}"
+[[ "$DISPLAYS_PROPIOS" =~ ^[a-z0-9,-]*$ ]] || fail "Nombre de extensión inesperado: ${DISPLAYS_PROPIOS}"
+
 log "Copiando schema versionado al contenedor."
 
 docker cp   "$SCHEMA_FILE"   "${DIRECTUS_CONTAINER}:${CONTAINER_SCHEMA}"
@@ -242,11 +268,30 @@ fi
 
 [[ $EUID -eq 0 ]] || fail "--apply debe ejecutarse como root."
 
+DISPLAYS_GUARDADOS="$(psql_tenant -c "
+  SELECT coalesce(json_agg(json_build_object(
+           'collection', collection, 'field', field,
+           'display', display, 'display_options', display_options)), '[]')
+  FROM directus_fields
+  WHERE display = ANY(string_to_array('${DISPLAYS_PROPIOS}', ','))")"
+log "Displays propios guardados: $(printf '%s' "$DISPLAYS_GUARDADOS" | grep -o '"field"' | wc -l)"
+
 log "Aplicando schema al tenant '${TENANT_ID}'."
 
 docker exec   "$DIRECTUS_CONTAINER"   node   /directus/cli.js   schema apply   --yes   "$CONTAINER_SCHEMA"
 
 log "Schema aplicado correctamente."
+
+log "Devolviendo los displays propios que el esquema ha dejado a null."
+printf '%s\n' "
+  UPDATE directus_fields f
+     SET display = g.display, display_options = g.display_options
+    FROM json_to_recordset(:'guardados'::json)
+         AS g(collection text, field text, display text, display_options json)
+   WHERE f.collection = g.collection AND f.field = g.field AND f.display IS NULL
+  RETURNING '  ' || f.collection || '.' || f.field || ' -> ' || f.display;" |
+  psql_tenant -v guardados="$DISPLAYS_GUARDADOS" -f - ||
+  log "AVISO: no se pudieron devolver los displays propios. Ejecuta configure-directus-ui.sh."
 
 log "Verificando estado base posterior mediante dry-run."
 
@@ -291,9 +336,11 @@ nada raro que mirar. Los campos relacionales son los peores: la columna existe,
 la relación existe, y la pantalla está vacía.
 
 base.yaml lleva dentro la forma "cruda" del esquema, así que aplicarlo pisa
-la capa de interfaz que gestiona Aegora: los displays propios se quedan a
-null y service_resources vuelve a esconderse del menú -- y esa colección es
-el ÚNICO sitio donde se dice qué recurso presta qué servicio.
+la capa de interfaz que gestiona Aegora: orden y visibilidad del menú,
+anchos de campo, plantillas de nombre y traducciones. Los displays de
+nuestras extensiones ya los ha devuelto este script (arriba, si había).
+configure-directus-ui.sh sigue haciendo falta en un tenant que no los
+tenía todavía.
 
 Si has añadido colecciones o campos, revisa también que sus traducciones
 estén en configure-spanish-ui.sh: lo que no esté ahí sale en inglés en el
