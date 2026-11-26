@@ -1239,6 +1239,13 @@ la señal de que tocaba ir a la documentación en vez de seguir probando.
 firma no valida y el evento se descarta -- igual que el App Secret de WhatsApp, y por eso
 `render-workflows.sh` lo avisa en el plan con esas palabras.
 
+**La clave de webhook de Retell es UNA por cuenta, no por tenant** (26/nov/2026). Retell solo
+deja marcar una API key como la de webhooks, y firma con ella los eventos de todos los
+agentes de la cuenta. Así que `RETELL_API_KEY` es **la misma en todos los tenants** que
+compartan cuenta de Retell. En `jca` se puso otra clave pensando que cada tenant tendría la
+suya, y `VOZ · Llamada entrante` contestó `firma invalida / el HMAC no coincide` con todo lo
+demás en orden. La llamada no se rompe porque falla hacia Lucía, pero se queda sin contexto.
+
 **Orden de despliegue, y no es intercambiable**: montar el pipeline en `dev` -> ver la nota
 escrita en Directus -> **entonces** bajar la retención de Retell. Al revés se tiran datos sin
 red, y el propio panel avisa de que el borrado no es reversible.
