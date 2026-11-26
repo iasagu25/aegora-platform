@@ -38,7 +38,7 @@ Estrategia completa en `docs/VERSIONADO.md`; cortar y desplegar un release, en
 - **Cada script que modifica un tenant anota lo aplicado** en
   `/opt/aegora/tenants/<t>/state/despliegues.jsonl` (`scripts/lib/registrar-despliegue.sh`,
   al terminar bien un `--apply`). **`scripts/aegora-estado.sh`** pinta qué versión tiene
-  cada tenant en cada capa y marca parciales y desfases. Un script nuevo que toque un tenant
+  cada tenant en cada capa y marca parciales y desfases (con `sudo`: los directorios de los tenants son de root). Un script nuevo que toque un tenant
   **tiene que registrarse**, o su capa no existe para el estado.
 
 ## Infraestructura

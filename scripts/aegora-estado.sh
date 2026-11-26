@@ -2,14 +2,14 @@
 # =============================================================================
 # aegora-estado.sh — en qué versión está cada tenant, capa por capa.
 #
-#   scripts/aegora-estado.sh                  # tabla de todos los tenants
+#   sudo scripts/aegora-estado.sh             # tabla de todos los tenants
 #   scripts/aegora-estado.sh --tenant jca     # detalle de uno, componente a componente
 #   scripts/aegora-estado.sh --tenant jca --historial 20
 #
 # Solo lee. Lee state/despliegues.jsonl de cada tenant, que escriben los propios scripts
 # al terminar su --apply (scripts/lib/registrar-despliegue.sh). No toca contenedores ni
-# secretos, así que no necesita sudo salvo que el directorio de un tenant no se pueda
-# atravesar.
+# secretos. En el VPS va con sudo: los directorios de los tenants son de root y sin
+# permiso para atravesarlos no se llega al registro (la tabla lo dice, no los esconde).
 #
 # Cómo leer la tabla (y qué hace que una celda salga en amarillo): docs/VERSIONADO.md.
 # Un "—" es "no hay registro": la capa no se ha aplicado desde que existe el registro
@@ -76,6 +76,9 @@ def etiqueta(e):
     return v
 
 def leer(tenant):
+    """Lista de entradas; [] si no hay registro; None si no se puede leer (permisos)."""
+    if not os.access(os.path.join(raiz, tenant), os.X_OK):
+        return None
     f = os.path.join(raiz, tenant, "state", "despliegues.jsonl")
     entradas = []
     try:
@@ -147,10 +150,13 @@ def hace(fecha):
     dias = (datetime.datetime.now(d.tzinfo) - d).days
     return "hoy" if dias <= 0 else f"{dias} d"
 
+# Cualquier subdirectorio es un tenant. NO se filtra por "tiene config/tenant.env": sin
+# permiso para entrar, esa comprobación da False y el tenant desaparecía de la tabla en
+# silencio (26/nov/2026: tabla vacía con cuatro tenants y su registro escrito). Mejor
+# enseñarlo y decir que falta permiso.
 tenants = sorted(
     t for t in os.listdir(raiz)
-    if os.path.isfile(os.path.join(raiz, t, "config", "tenant.env"))
-    or os.path.isdir(os.path.join(raiz, t, "state"))
+    if not t.startswith(".") and os.path.isdir(os.path.join(raiz, t))
 ) if not solo else [solo]
 
 if solo and not os.path.isdir(os.path.join(raiz, solo)):
@@ -238,6 +244,10 @@ for t in tenants:
     filas.append(([t, release] + celdas + [hace(ultima) if ultima else "—"],
                   [False, aviso_rel] + avisos + [False]))
 
+if not filas:
+    print(f"No hay ningún tenant en {raiz}.", file=sys.stderr)
+    sys.exit(1)
+
 anchos = [max(len(cabecera[i]), *(len(f[0][i]) for f in filas)) if filas else len(cabecera[i])
           for i in range(len(cabecera))]
 print(gris("  ".join(c.ljust(anchos[i]) for i, c in enumerate(cabecera)).rstrip()))
@@ -247,6 +257,12 @@ for valores, avisos in filas:
         txt = v.ljust(anchos[i])
         partes.append(amarillo(txt) if avisos[i] else txt)
     print("  ".join(partes).rstrip())
+
+sin_permiso = [v[0] for v, _ in filas if v[1].startswith("(sin permiso")]
+if sin_permiso:
+    print()
+    print(amarillo(f"No se pueden leer {', '.join(sin_permiso)}: sus directorios son de root. "
+                   "Vuelve a ejecutarlo con sudo."))
 
 print()
 print(gris("— = sin registro todavía · (n/m) = solo n de las m piezas de la columna registradas · "

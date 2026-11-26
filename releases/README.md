@@ -36,7 +36,7 @@ Los pasos, hasta que exista `actualizar-tenant.sh` (fase 2), están en la nota d
 release. Después de aplicar, comprobar:
 
 ```bash
-/opt/aegora/platform/scripts/aegora-estado.sh
+sudo /opt/aegora/platform/scripts/aegora-estado.sh
 ```
 
 ## Reglas

@@ -113,8 +113,9 @@ conviene repetir la pasada).
 - `parcial` guarda el `--only` usado. **Un parcial no cuenta como versión de la capa**: el
   estado lo enseña como `v2026.11.20 + VOZ- @2c00247`.
 
-**`scripts/aegora-estado.sh`** lo lee y pinta la matriz. Es solo lectura, no necesita
-secretos y se puede ejecutar a diario:
+**`scripts/aegora-estado.sh`** lo lee y pinta la matriz. Es solo lectura y no toca
+secretos, pero en el VPS va con `sudo`: los directorios de los tenants son de root. Sin
+permiso, cada tenant sale como `(sin permiso: sudo)`, nunca escondido:
 
 ```
 tenant  release       esquema       interfaz      workflows                   booking   hace
