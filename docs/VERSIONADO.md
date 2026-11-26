@@ -1,6 +1,7 @@
 # Versiones y despliegue a tenants — estrategia
 
-Propuesta del 26/nov/2026. Con cuatro tenants se sabe de memoria qué tiene cada uno. Con
+Propuesta del 26/nov/2026. **Fase 1 hecha el mismo día** (primer release: `v2026.11.26`;
+cómo se corta y se despliega uno: `releases/README.md`). Con cuatro tenants se sabe de memoria qué tiene cada uno. Con
 diez ya no: el síntoma conocido es "en `dev` funciona y en `demo` no", y la causa es una
 pieza de otra semana.
 
@@ -93,12 +94,20 @@ Va en `/opt/aegora/tenants/<t>/state/despliegues.jsonl`, una línea por cada `--
 termina, y solo se añade, nunca se reescribe:
 
 ```json
-{"fecha":"2026-11-26T10:12:03+01:00","componente":"workflows","release":"v2026.11.26",
- "commit":"2c00247","parcial":null,"usuario":"aegora","resultado":"ok"}
+{"fecha": "2026-11-26T10:12:03+01:00", "componente": "workflows", "release": "v2026.11.26",
+ "commit": "f67591d0a1b2", "sucio": false, "parcial": null, "detalle": null, "usuario": "aegora"}
 ```
 
+**Solo se anotan las pasadas que terminan bien.** Un fallo a mitad no deja versión, así que
+la capa sigue mostrando la que tenía, que es lo que de verdad hay (o algo a medias, y por eso
+conviene repetir la pasada).
+
 - Una función común, `scripts/lib/registrar-despliegue.sh`, a la que llama cada script al
-  final de su `--apply`. Es el mismo patrón que `esperar-contenedor.sh`.
+  final de su `--apply`. Es el mismo patrón que `esperar-contenedor.sh`. Componentes:
+  `esquema`, `extensiones`, `vistas`, `ui`, `espanol`, `presets`, `insights`,
+  `rol-gestor`, `rol-n8n`, `workflows`, `booking`, `config` y `plantillas-whatsapp`. Un
+  script nuevo que modifique un tenant registra el suyo, y se añade a `GRUPOS` en
+  `aegora-estado.sh`.
 - `release` sale de `git describe --tags --exact-match`. Si el checkout no está en un tag, va
   `null`, y si tiene cambios sin commitear, `commit` lleva `-sucio`.
 - `parcial` guarda el `--only` usado. **Un parcial no cuenta como versión de la capa**: el
@@ -216,7 +225,7 @@ su propia ubicación (`BASH_SOURCE`). Es un cambio mecánico.
 
 | fase | qué | resuelve |
 |---|---|---|
-| **1** | `main` al día; tags CalVer + `releases/*.md` + `release.env`; registro por tenant + `aegora-estado.sh` | **saber qué tiene cada tenant** |
+| **1** ✅ | `main` al día; tags CalVer + `releases/*.md` + `release.env`; registro por tenant + `aegora-estado.sh` | **saber qué tiene cada tenant** |
 | **2** | `actualizar-tenant.sh` con sus comprobaciones previas; `onboard-tenant.sh` lo usa | los pasos olvidados, el `--only` al promocionar y "dev primero" |
 | **3** | dos checkouts (`PLATFORM_ROOT` deducido) | tener que mover el checkout entre `dev` y los releases |
 | **4** | `--todos`; render incremental por hash; imagen de booking en GHCR | el tiempo de despliegue con muchos tenants |

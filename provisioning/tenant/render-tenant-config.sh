@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../../scripts/lib/registrar-despliegue.sh"
 IFS=$'\n\t'
 
 # =============================================================================
@@ -400,6 +401,10 @@ printf '\n============================================================\n'
 
 if [[ ${#CAMBIOS[@]} -eq 0 ]]; then
   log "Nada que cambiar: la configuración del tenant ya coincide con las plantillas."
+  # Coincidir con las plantillas de este checkout ES estar en esta versión.
+  if [[ "$APPLY" == true ]]; then
+    registrar_despliegue "$TENANT" config "${SOLO:-}" ""
+  fi
   exit 0
 fi
 
@@ -432,3 +437,9 @@ FINAL
 fi
 
 log "Copias de los ficheros sustituidos: ${TENANT_COMPOSE_ROOT}/*/*.bak-*"
+
+# Registro de lo aplicado al tenant (docs/VERSIONADO.md). Solo con --apply y solo si se
+# llega hasta aquí: un fallo antes no deja rastro de versión.
+if [[ "$APPLY" == true ]]; then
+  registrar_despliegue "$TENANT" config "${SOLO:-}" ""
+fi

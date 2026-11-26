@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../scripts/lib/registrar-despliegue.sh"
 IFS=$'\n\t'
 
 # =============================================================================
@@ -224,6 +225,7 @@ fi
 
 if [[ "$N_FALTAN" -eq 0 ]]; then
   log "No falta ninguna. Nada que hacer."
+  registrar_despliegue "$TENANT" plantillas-whatsapp "" ""
   exit 0
 fi
 
@@ -264,3 +266,9 @@ Una rechazada NO se corrige editándola: Meta conserva el nombre con el rechazo.
 Se cambia el texto en el catálogo Y el nombre, y se vuelve a enviar.
 
 FINAL
+
+# Registro de lo aplicado al tenant (docs/VERSIONADO.md). Solo con --apply y solo si se
+# llega hasta aquí: un fallo antes no deja rastro de versión.
+if [[ "$APPLY" == true ]]; then
+  registrar_despliegue "$TENANT" plantillas-whatsapp "" ""
+fi

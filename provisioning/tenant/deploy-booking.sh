@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../../scripts/lib/registrar-despliegue.sh"
 IFS=$'\n\t'
 
 # =============================================================================
@@ -37,7 +38,7 @@ readonly HEALTH_TIMEOUT_SECONDS="${HEALTH_TIMEOUT_SECONDS:-120}"
 readonly HEALTH_INTERVAL_SECONDS="${HEALTH_INTERVAL_SECONDS:-4}"
 
 TENANT=""
-REF="main"
+REF=""
 APPLY=false
 
 log() { printf '[%s] %s\n' "$(date --iso-8601=seconds)" "$*"; }
@@ -55,8 +56,12 @@ Sin --apply:
   preflight + plan. No construye ni despliega.
 
 Con --apply:
-  actualiza el checkout a GIT_REF (rama, tag o sha; por defecto main),
-  construye la imagen, renderiza el stack y despliega el contenedor.
+  actualiza el checkout a GIT_REF (rama, tag o sha), construye la imagen,
+  renderiza el stack y despliega el contenedor.
+
+  Sin --ref se usa BOOKING_REF de release.env (raíz de la plataforma): la versión
+  de aegora-booking va fijada en cada release de plataforma (docs/VERSIONADO.md).
+  --ref es para probar otra en `dev`; en un tenant de cliente, no se usa.
 
 Variables opcionales:
   BOOKING_REPO_URL         (por defecto github.com/iasagu25/aegora-booking.git)
@@ -117,6 +122,17 @@ done
 [[ -n "$TENANT" ]] || fail "Falta --tenant."
 [[ "$TENANT" =~ ^[a-z][a-z0-9-]{2,30}$ ]] || fail "Tenant inválido: ${TENANT}"
 [[ "$TENANT" != "aegora" ]] || fail "El tenant heredado 'aegora' está protegido."
+
+# La versión de aegora-booking la fija el release de plataforma (release.env).
+if [[ -z "$REF" ]]; then
+  RELEASE_ENV="${PLATFORM_ROOT}/release.env"
+  [[ -f "$RELEASE_ENV" ]] || fail "Sin --ref y sin ${RELEASE_ENV}: no sé qué versión de aegora-booking desplegar."
+  REF="$(sed -n 's/^BOOKING_REF=//p' "$RELEASE_ENV" | tail -n1 | tr -d '[:space:]"'"'"'')"
+  [[ -n "$REF" ]] || fail "${RELEASE_ENV} no define BOOKING_REF."
+  log "aegora-booking: ${REF} (fijado en release.env)."
+else
+  warn "--ref ${REF} sustituye al BOOKING_REF de release.env. En un tenant de cliente, no."
+fi
 [[ "$REF" =~ ^[A-Za-z0-9._/-]{1,100}$ ]] || fail "Ref inválida: ${REF}"
 
 require_command docker
@@ -322,3 +338,9 @@ Publicación: pendiente de publish-tenant.sh (${BOOKING_HOST:-reservas.<dominio>
 
 ============================================================
 EOF
+
+# Registro de lo aplicado al tenant (docs/VERSIONADO.md). Solo con --apply y solo si se
+# llega hasta aquí: un fallo antes no deja rastro de versión.
+if [[ "$APPLY" == true ]]; then
+  registrar_despliegue "$TENANT" booking "" "aegora-booking@${RESOLVED_SHA}"
+fi

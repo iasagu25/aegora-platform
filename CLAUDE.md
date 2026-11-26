@@ -20,10 +20,26 @@ han demostrado estar desincronizados. Regla de oro: verificar con
 documentado sigue siendo cierto.
 
 ## Git
-- Remoto (GitHub) es la fuente canónica. Rama de trabajo: `feature/backup`.
+- Remoto (GitHub) es la fuente canónica. Rama de trabajo: **`main`** (desde el 26/nov/2026;
+  antes `feature/backup`, que se quedó en el mismo commit y ya no se usa).
 - El VPS **nunca hace push** — solo `git fetch` + `git reset --hard origin/...`
   tras confirmar que no hay cambios locales que conservar.
 - Todo commit final sale de local.
+
+## Versiones: releases y registro de despliegues (26/nov/2026)
+Estrategia completa en `docs/VERSIONADO.md`; cortar y desplegar un release, en
+`releases/README.md`. Lo que hay que tener presente siempre:
+- **Un release es un tag `vAAAA.MM.DD` sobre `main`** con su nota en `releases/`. `dev` va
+  por la rama; **`demo`, `ops` y los clientes solo reciben tags, enteros** (nada de
+  `--only`), y todos al mismo.
+- **La versión de aegora-booking la fija `release.env` (`BOOKING_REF`)**: `deploy-booking.sh`
+  sin `--ref` despliega esa, no `main`. Para probar otra en `dev`, `--ref <sha>`; para que
+  llegue a los demás, se sube `BOOKING_REF` en un commit.
+- **Cada script que modifica un tenant anota lo aplicado** en
+  `/opt/aegora/tenants/<t>/state/despliegues.jsonl` (`scripts/lib/registrar-despliegue.sh`,
+  al terminar bien un `--apply`). **`scripts/aegora-estado.sh`** pinta qué versión tiene
+  cada tenant en cada capa y marca parciales y desfases. Un script nuevo que toque un tenant
+  **tiene que registrarse**, o su capa no existe para el estado.
 
 ## Infraestructura
 - VPS: `vm7423` (LumaDock), IP `185.200.244.81`, usuario `aegora`, EPYC VPS.P5.

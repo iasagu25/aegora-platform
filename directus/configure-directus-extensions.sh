@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../scripts/lib/registrar-despliegue.sh"
 IFS=$'\n\t'
 
 # =============================================================================
@@ -341,3 +342,9 @@ Estado:
 
 ============================================================
 EOF
+
+# Registro de lo aplicado al tenant (docs/VERSIONADO.md). Solo con --apply y solo si se
+# llega hasta aquí: un fallo antes no deja rastro de versión.
+if [[ "$APPLY" == true ]]; then
+  registrar_despliegue "$TENANT" extensiones "" ""
+fi

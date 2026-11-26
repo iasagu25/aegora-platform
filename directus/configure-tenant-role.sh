@@ -5,6 +5,7 @@ set -Eeuo pipefail
 # Espera única a los contenedores (ver el fichero): nunca sleep ni un healthy exigido sin esperar.
 # shellcheck source=/dev/null
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../scripts/lib/esperar-contenedor.sh"
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../scripts/lib/registrar-despliegue.sh"
 IFS=$'\n\t'
 
 # =============================================================================
@@ -475,3 +476,9 @@ Siguiente paso (manual, a propósito):
 ============================================================
 
 EOF
+
+# Registro de lo aplicado al tenant (docs/VERSIONADO.md). Solo con --apply y solo si se
+# llega hasta aquí: un fallo antes no deja rastro de versión.
+if [[ "$APPLY" == true ]]; then
+  registrar_despliegue "$TENANT" rol-gestor "" ""
+fi
