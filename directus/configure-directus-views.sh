@@ -460,6 +460,31 @@ const existentes = new Set(
   ((await api('GET', '/collections?limit=-1')).data ?? []).map(c => c.collection)
 );
 
+// Un PATCH /fields/<c>/<f> sobre un campo que NO existe no da error en Directus 12.2:
+// crea una fila huérfana en directus_fields, sin columna detrás. Y esa fila es la que
+// luego impide crear el campo de verdad: `schema apply` lo ve en el diff como "Create"
+// (el snapshot ignora metadatos sin columna) y FieldsService contesta "Field ... already
+// exists". Pasó en `demo` el 26/nov/2026 con conversation_sessions.silencio_hasta, por
+// ejecutar este script antes que apply-schema. Así que si falta algún campo, se para
+// ANTES de tocar nada y dice qué hacer.
+const camposExistentes = new Set(
+  ((await api('GET', '/fields?limit=-1')).data ?? []).map(f => `${f.collection}.${f.field}`)
+);
+const camposQueToca = [
+  ...displaysDeCampo.map(d => [d.collection, d.field]),
+  ...Object.entries(ordenDeCampos).flatMap(([c, campos]) => campos.map(([f]) => [c, f])),
+].filter(([c]) => existentes.has(c));
+const faltan = [...new Set(
+  camposQueToca.map(([c, f]) => `${c}.${f}`).filter(k => !camposExistentes.has(k))
+)];
+if (faltan.length) {
+  throw new Error(
+    `No existen en este tenant: ${faltan.join(', ')}.\n` +
+    'El esquema va por detrás de este script: aplica antes apply-schema.sh (y reinicia ' +
+    'Directus). Seguir crearía metadatos huérfanos que luego impiden crear esos campos.'
+  );
+}
+
 for (const [collection, sort] of Object.entries(orden)) {
   if (!existentes.has(collection)) {
     console.log(`AVISO: no existe la colección ${collection}, se omite.`);
