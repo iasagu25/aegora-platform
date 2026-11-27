@@ -1614,7 +1614,7 @@ se puede olvidar:
 - La invitación la manda **Google Calendar desde `equipo@aegora.es`** (credencial `Google
   Calendar`, que tiene que existir en TODOS los tenants aunque sea sin conectar, o el render
   falla). Si el servicio es en grupo, las reservas de un mismo hueco comparten sala de Meet;
-  en `ops` la demo es individual (1 plaza, 30 min, huecos sueltos entre 11:00 y 14:00).
+  en `ops` la demo es individual (1 plaza, 30 min, de lunes a viernes de 09:30 a 15:30 desde el 27/nov/2026).
 - **Tras la invitación, un WhatsApp** (`aegora_cita_web`, 12/nov/2026, en prueba en `dev`) con
   día, hora y enlace de Meet, pidiendo que confirme que le ha llegado. Es también el camino
   para las citas que el equipo reserva desde la web con los datos de una llamada: más rápido

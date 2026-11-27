@@ -6,12 +6,10 @@
     "Lleva solo lo que necesita la reserva de demos desde aegora.es (n8n/WEB-RESERVAS.md):",
     "el servicio que nombra WEB_SERVICIO, su recurso y sus horarios.",
     "",
-    "La demo es INDIVIDUAL (1 plaza) y de 30 min. Los horarios son pocos y salteados a",
-    "propósito, entre las 11:00 y las 14:00 de lunes a viernes, para que la agenda no",
-    "parezca vacía: cada regla dura exactamente 30 min, así que cada regla es UN hueco (los",
-    "huecos avanzan por duración desde el inicio de la ventana; una ventana más larga daría",
-    "huecos seguidos). El patrón se repite cada semana; para tapar un día concreto, una",
-    "excepción en 'Festivos y excepciones'.",
+    "La demo es INDIVIDUAL (1 plaza) y de 30 min, de lunes a viernes de 09:30 a 15:30 (desde el",
+    "27/nov/2026; antes eran ocho huecos sueltos entre las 11:00 y las 14:00). Una regla por día:",
+    "los huecos avanzan por duración desde el inicio de la ventana, así que salen doce al día.",
+    "Para tapar un día concreto, una excepción en 'Festivos y excepciones'.",
     "",
     "El recurso no tiene empleado a propósito, igual que en dev: es la sesión, no una",
     "persona, y así Lucía no dice 'te atenderá …'. La invitación sale del calendario de",
@@ -45,13 +43,10 @@
     { "service_id": "@s_demo", "resource_id": "@r_demo" }
   ],
   "availability_rules": [
-    { "resource_id": "@r_demo", "day_of_week": 1, "start_time": "11:00:00", "end_time": "11:30:00", "active": true },
-    { "resource_id": "@r_demo", "day_of_week": 1, "start_time": "12:30:00", "end_time": "13:00:00", "active": true },
-    { "resource_id": "@r_demo", "day_of_week": 2, "start_time": "11:30:00", "end_time": "12:00:00", "active": true },
-    { "resource_id": "@r_demo", "day_of_week": 2, "start_time": "13:00:00", "end_time": "13:30:00", "active": true },
-    { "resource_id": "@r_demo", "day_of_week": 3, "start_time": "12:00:00", "end_time": "12:30:00", "active": true },
-    { "resource_id": "@r_demo", "day_of_week": 4, "start_time": "11:00:00", "end_time": "11:30:00", "active": true },
-    { "resource_id": "@r_demo", "day_of_week": 4, "start_time": "13:30:00", "end_time": "14:00:00", "active": true },
-    { "resource_id": "@r_demo", "day_of_week": 5, "start_time": "12:30:00", "end_time": "13:00:00", "active": true }
+    { "resource_id": "@r_demo", "day_of_week": 1, "start_time": "09:30:00", "end_time": "15:30:00", "active": true },
+    { "resource_id": "@r_demo", "day_of_week": 2, "start_time": "09:30:00", "end_time": "15:30:00", "active": true },
+    { "resource_id": "@r_demo", "day_of_week": 3, "start_time": "09:30:00", "end_time": "15:30:00", "active": true },
+    { "resource_id": "@r_demo", "day_of_week": 4, "start_time": "09:30:00", "end_time": "15:30:00", "active": true },
+    { "resource_id": "@r_demo", "day_of_week": 5, "start_time": "09:30:00", "end_time": "15:30:00", "active": true }
   ]
 }
