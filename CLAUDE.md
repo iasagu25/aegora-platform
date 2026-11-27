@@ -738,6 +738,13 @@ lo más estricto de los dos, en el mismo sitio; `starting`/`unhealthy` son de pa
 **Un script nuevo que hable con un contenedor la usa al empezar; uno que reinicie usa
 `reiniciar_y_esperar`.** Nada de `docker restart` suelto ni de `sleep`.
 
+**Y "healthy" no quiere decir "aguanta la carga"** (27/nov/2026, `jca`). Recién reiniciado,
+`configure-spanish-ui` (cientos de peticiones seguidas) recibió `503 Service "api" is
+unavailable. Under pressure`: es el limitador de carga de Directus, que rechaza la petición
+antes de procesarla. Los scripts de `directus/` reintentan ya cualquier 503 (hasta 6 veces,
+de 2 a 12 s) con un envoltorio de `fetch` al principio de cada bloque `node`. Un bloque
+`node` nuevo que hable con Directus lo copia.
+
 Detalle menor que hace dudar de un apply correcto: **el resumen del dry-run no imprime
 las altas dentro de un array**, solo las modificaciones. Al añadir un valor a un
 `choices` se ven los índices que se desplazan pero no el nuevo, y parece que se pierde

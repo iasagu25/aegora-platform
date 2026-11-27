@@ -133,6 +133,22 @@ docker exec -i \
   -e DIRECTUS_PROVISIONING_TOKEN="$DIRECTUS_PROVISIONING_TOKEN" \
   "$DIRECTUS_CONTAINER" \
   node --input-type=module <<'NODE'
+// Directus contesta 503 "Under pressure" cuando salta su limitador de carga (pasa sobre todo
+// recién reiniciado, con la caché en frío). Rechaza la petición ANTES de procesarla, así que
+// repetirla es seguro también en un PATCH o un POST. Se reintenta aquí, para todos los fetch
+// del script: hasta 6 veces, esperando 2, 4 ... 12 s. Cualquier otro error pasa tal cual.
+{
+  const fetchOriginal = globalThis.fetch;
+  globalThis.fetch = async (...args) => {
+    for (let intento = 1; ; intento += 1) {
+      const res = await fetchOriginal(...args);
+      if (res.status !== 503 || intento > 6) return res;
+      await res.text().catch(() => {});
+      console.error(`Directus 503 (reintento ${intento}/6 en ${2 * intento} s)`);
+      await new Promise((r) => setTimeout(r, 2000 * intento));
+    }
+  };
+}
 const BASE = 'http://127.0.0.1:8055';
 const token = process.env.DIRECTUS_PROVISIONING_TOKEN;
 
