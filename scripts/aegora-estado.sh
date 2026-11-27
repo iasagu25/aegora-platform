@@ -5,6 +5,8 @@
 #   sudo scripts/aegora-estado.sh             # tabla de todos los tenants
 #   scripts/aegora-estado.sh --tenant jca     # detalle de uno, componente a componente
 #   scripts/aegora-estado.sh --tenant jca --historial 20
+#   scripts/aegora-estado.sh --comprobar dev v2026.11.26   # ¿tiene ese release ENTERO?
+#                                                         # (sale 0 si sí; lo usa actualizar-tenant.sh)
 #
 # Solo lee. Lee state/despliegues.jsonl de cada tenant, que escriben los propios scripts
 # al terminar su --apply (scripts/lib/registrar-despliegue.sh). No toca contenedores ni
@@ -21,6 +23,7 @@ RAIZ="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 TENANTS_ROOT="${AEGORA_TENANTS_ROOT:-/opt/aegora/tenants}"
 TENANT=""
 HISTORIAL=0
+COMPROBAR_RELEASE=""
 
 usage() {
   sed -n '3,8p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
@@ -30,6 +33,8 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --tenant)    [[ $# -ge 2 ]] || { echo "Falta valor para --tenant." >&2; exit 1; }; TENANT="$2"; shift 2 ;;
     --historial) [[ $# -ge 2 ]] || { echo "Falta valor para --historial." >&2; exit 1; }; HISTORIAL="$2"; shift 2 ;;
+    --comprobar) [[ $# -ge 3 ]] || { echo "Uso: --comprobar TENANT RELEASE" >&2; exit 1; }
+                 TENANT="$2"; COMPROBAR_RELEASE="$3"; shift 3 ;;
     --help|-h)   usage; exit 0 ;;
     *) echo "Opción desconocida: $1" >&2; exit 1 ;;
   esac
@@ -41,13 +46,23 @@ ULTIMO_TAG="$(git -c safe.directory='*' -C "$RAIZ" tag --list 'v*' --sort=-versi
 CHECKOUT_COMMIT="$(git -c safe.directory='*' -C "$RAIZ" rev-parse --short=12 HEAD 2>/dev/null || true)"
 CHECKOUT_TAG="$(git -c safe.directory='*' -C "$RAIZ" describe --tags --exact-match --match 'v*' HEAD 2>/dev/null || true)"
 
+# commit -> tag de cada release, para nombrar con su tag lo que se aplicó en ese commit
+# ANTES de cortarlo (lo normal en `dev`: se prueba y luego se etiqueta).
+TAGS_JSON="$(
+  for t in $(git -c safe.directory='*' -C "$RAIZ" tag --list 'v*' 2>/dev/null); do
+    c="$(git -c safe.directory='*' -C "$RAIZ" rev-parse --short=12 "${t}^{commit}" 2>/dev/null || true)"
+    [[ -n "$c" ]] && printf '%s %s\n' "$c" "$t"
+  done | python3 -c 'import sys,json; print(json.dumps(dict(l.split() for l in sys.stdin if l.strip())))'
+)"
+
 COLOR=0
 [[ -t 1 ]] && COLOR=1
 
-exec python3 - "$TENANTS_ROOT" "$TENANT" "$HISTORIAL" "$ULTIMO_TAG" "$CHECKOUT_COMMIT" "$CHECKOUT_TAG" "$COLOR" <<'PY'
+exec python3 - "$TENANTS_ROOT" "$TENANT" "$HISTORIAL" "$ULTIMO_TAG" "$CHECKOUT_COMMIT" "$CHECKOUT_TAG" "$COLOR" "$COMPROBAR_RELEASE" "$TAGS_JSON" <<'PY'
 import json, os, sys, datetime
 
-raiz, solo, historial, ultimo_tag, co_commit, co_tag, color = sys.argv[1:8]
+raiz, solo, historial, ultimo_tag, co_commit, co_tag, color, comprobar, tags_json = sys.argv[1:10]
+tag_de_commit = json.loads(tags_json or "{}")
 historial = int(historial or 0)
 color = color == "1"
 
@@ -70,10 +85,10 @@ def gris(t):     return f"\033[2m{t}\033[0m" if color else t
 def etiqueta(e):
     if e is None:
         return None
-    v = e.get("release") or (e.get("commit") or "?")[:7]
     if e.get("sucio"):
-        v += "*"
-    return v
+        return (e.get("commit") or "?")[:7] + "*"
+    # Aplicado en el commit de un release antes de etiquetarlo = ese release.
+    return e.get("release") or tag_de_commit.get(e.get("commit") or "") or (e.get("commit") or "?")[:7]
 
 def leer(tenant):
     """Lista de entradas; [] si no hay registro; None si no se puede leer (permisos)."""
@@ -162,6 +177,30 @@ tenants = sorted(
 if solo and not os.path.isdir(os.path.join(raiz, solo)):
     print(f"No existe el tenant {solo} en {raiz}.", file=sys.stderr)
     sys.exit(1)
+
+# ---------------------------------------------------------------- ¿release entero?
+# Todas las piezas de GRUPOS con su última pasada completa en ese release y sin parciales
+# detrás. Es la condición "ya ha corrido en dev" de actualizar-tenant.sh: se define aquí,
+# junto a GRUPOS, para que la tabla y la comprobación no puedan discrepar.
+if comprobar:
+    entradas = leer(solo)
+    if entradas is None:
+        print(f"No se puede leer el registro de {solo} (¿sudo?).")
+        sys.exit(2)
+    estado = estado_componentes(entradas)
+    faltan = []
+    for _, comps in GRUPOS:
+        for c in comps:
+            s = estado.get(c)
+            if not s or not s["completa"] or etiqueta(s["completa"]) != comprobar:
+                faltan.append(f"{c}={etiqueta(s['completa']) if s and s['completa'] else '—'}")
+            elif s["parciales"]:
+                faltan.append(f"{c}=parcial después")
+    if faltan:
+        print(f"{solo} no tiene {comprobar} entero: " + ", ".join(faltan))
+        sys.exit(1)
+    print(f"{solo} tiene {comprobar} entero.")
+    sys.exit(0)
 
 print(f"Último release: {ultimo_tag or '(ninguno)'}   "
       f"checkout: {co_tag or 'sin tag'} @ {co_commit or '?'}")

@@ -1,7 +1,8 @@
 # Versiones y despliegue a tenants — estrategia
 
-Propuesta del 26/nov/2026. **Fase 1 hecha el mismo día** (primer release: `v2026.11.26`;
-cómo se corta y se despliega uno: `releases/README.md`). Con cuatro tenants se sabe de memoria qué tiene cada uno. Con
+Propuesta del 26/nov/2026. **Fase 1 hecha el mismo día** (primer release: `v2026.11.26`) y **fase 2 el 27/nov**
+(`provisioning/tenant/actualizar-tenant.sh`). Cómo se corta y se despliega un release:
+`releases/README.md`. Con cuatro tenants se sabe de memoria qué tiene cada uno. Con
 diez ya no: el síntoma conocido es "en `dev` funciona y en `demo` no", y la causa es una
 pieza de otra semana.
 
@@ -130,6 +131,10 @@ Marca en amarillo:
 - un parcial;
 - un tenant que va por detrás del último tag.
 
+**Un commit aplicado antes de etiquetarlo cuenta como ese release.** El estado traduce
+commit -> tag, así que lo normal funciona: se prueba en `dev` el commit que va a salir y
+luego se etiqueta, sin repetir la pasada. Con cambios sin commitear (`*`) no cuenta nunca.
+
 **Esto solo ya responde a "en qué versión está cada tenant"**, y es lo primero que conviene
 hacer. Los tenants actuales arrancan sin historial: al primer `--apply` de cada capa quedan
 registrados, y hasta entonces aparecen como `desconocido`, que es la verdad.
@@ -227,7 +232,7 @@ su propia ubicación (`BASH_SOURCE`). Es un cambio mecánico.
 | fase | qué | resuelve |
 |---|---|---|
 | **1** ✅ | `main` al día; tags CalVer + `releases/*.md` + `release.env`; registro por tenant + `aegora-estado.sh` | **saber qué tiene cada tenant** |
-| **2** | `actualizar-tenant.sh` con sus comprobaciones previas; `onboard-tenant.sh` lo usa | los pasos olvidados, el `--only` al promocionar y "dev primero" |
+| **2** ✅ | `actualizar-tenant.sh` con sus comprobaciones previas; `onboard-tenant.sh` lo usa | los pasos olvidados, el `--only` al promocionar y "dev primero" |
 | **3** | dos checkouts (`PLATFORM_ROOT` deducido) | tener que mover el checkout entre `dev` y los releases |
 | **4** | `--todos`; render incremental por hash; imagen de booking en GHCR | el tiempo de despliegue con muchos tenants |
 

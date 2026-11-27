@@ -650,5 +650,12 @@ Directus:
   UI overlay configurado
   locale es-ES configurado
 
+Falta, y NO lo hace este script:
+  1. Cuenta de propietario de n8n y sus credenciales, a mano (lista en CLAUDE.md,
+     "Alta de un tenant de cliente").
+  2. sudo ${PLATFORM_ROOT}/provisioning/tenant/actualizar-tenant.sh --tenant ${TENANT}
+     (PLAN y luego --apply): vistas, presets, roles, permisos de n8n, booking y
+     workflows. Sin eso Lucía no puede leer nada ni tiene herramientas.
+
 ============================================================
 EOF

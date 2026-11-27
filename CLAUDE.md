@@ -40,6 +40,16 @@ Estrategia completa en `docs/VERSIONADO.md`; cortar y desplegar un release, en
   al terminar bien un `--apply`). **`scripts/aegora-estado.sh`** pinta qué versión tiene
   cada tenant en cada capa y marca parciales y desfases (con `sudo`: los directorios de los tenants son de root). Un script nuevo que toque un tenant
   **tiene que registrarse**, o su capa no existe para el estado.
+- **Un tenant se actualiza con UN comando** (27/nov/2026):
+  `sudo provisioning/tenant/actualizar-tenant.sh --tenant X [--apply]`. Es la cadena de
+  siempre en su orden (backup, config, extensiones, esquema, reinicio, configure-*,
+  reinicio, booking, workflows completos, plantillas, humo) y para en el primer fallo.
+  Antes de tocar nada ejecuta el PLAN de todos los pasos y **se niega** si: el tenant no es
+  `dev` y el checkout no está en un tag limpio, el release no consta entero en `dev`, el
+  esquema borra algo (`--permitir-borrados`) o cambia la configuración (`--recrear`).
+  **Ya no se encadenan los scripts a mano para promocionar**: el 26/nov, a mano, `demo` se
+  quedó con el esquema sin aplicar y `jca` sin insights ni reinicio, y nadie lo vio hasta
+  mirar el estado. Los scripts sueltos siguen sirviendo para iterar en `dev`.
 
 ## Infraestructura
 - VPS: `vm7423` (LumaDock), IP `185.200.244.81`, usuario `aegora`, EPYC VPS.P5.
@@ -1570,13 +1580,14 @@ El primer cliente de pago (`jca`, `jca.aegora.es`, JCA Audiconsult) fijó el ord
    de Directus (`secrets/directus.env`). El backup va cifrado con la contraseña de restic:
    si el VPS se pierde, como en abril, sin esa copia los backups no se abren.
 4. `set-tenant-config.sh` con los ajustes del negocio (`CONTACTO_PEDIR_EMPRESA=true` en
-   una gestoría) y los cuatro `configure-*` que el orquestador no lanza: views, presets,
-   tenant-role y n8n-service.
+   una gestoría). Los `configure-*` que `onboard-tenant.sh` no lanza los pone
+   `actualizar-tenant.sh` en el paso 6.
 5. `--stage publish` cuando el DNS responda.
 6. Cuenta de propietario de n8n, las seis credenciales a mano (`Directus`, `Booking API`,
    `OpenAI account`, `Postgres account`, `Tool Dispatcher`, `WhatsApp` -- esta con un valor
    provisional si aún no hay número: el render exige que existan todas) y
-   `render-workflows.sh` completo.
+   **`actualizar-tenant.sh --tenant X --apply`**, que completa todo lo demás (configure-*,
+   booking, workflows) y deja el tenant registrado en el release del checkout.
 
 Lo que salió por ser el primer tenant creado en semanas: `create-tenant.sh` no exportaba
 `TENANT_SECRETS_DIR`, que usa la plantilla del manifiesto de backup desde el 20/sep, y
